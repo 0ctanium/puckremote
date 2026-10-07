@@ -1,0 +1,4 @@
+{
+  "root": { "props": { "title": "Search", "description": "", "theme": "light" } },
+  "content": [{ "type": "search-results", "props": { "id": "search-1", "heading": "Search posts" } }]
+}

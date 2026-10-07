@@ -1,0 +1,51 @@
+{
+  "root": {
+    "props": { "title": "Home", "description": "A page rendered from sandboxed blocks", "theme": "light" }
+  },
+  "content": [
+    {
+      "type": "hero",
+      "props": {
+        "id": "hero-1",
+        "title": "Sandboxed React blocks",
+        "subtitle": "Rendered inside isolated-vm, composed by Puck.",
+        "align": "center",
+        "background": "#f4f1ea",
+        "showCta": true,
+        "cta": { "href": "/search", "label": "Search posts" },
+        "content": [
+          {
+            "type": "card",
+            "props": {
+              "id": "card-1",
+              "title": "A card inside the hero",
+              "body": "Cards have their own slot.",
+              "tone": "accent",
+              "content": [
+                {
+                  "type": "latest-posts",
+                  "props": { "id": "posts-nested", "heading": "Nested posts", "count": 2, "layout": "list", "columns": 2, "items": [], "content": [] }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "latest-posts",
+      "props": {
+        "id": "posts-1",
+        "heading": "Latest",
+        "count": 3,
+        "layout": "grid",
+        "columns": 3,
+        "accent": "#c2410c",
+        "items": [{ "title": "Pinned: read the README" }],
+        "content": []
+      }
+    },
+    { "type": "event-list", "props": { "id": "events-1", "heading": "Upcoming events", "city": "", "count": 4 } },
+    { "type": "old-banner", "props": { "id": "legacy-1", "text": "This block type no longer exists" } }
+  ]
+}

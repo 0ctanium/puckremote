@@ -86,15 +86,16 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
 
   // 3. Execute in parallel under a page-level deadline.
   const deadline = AbortSignal.timeout(budget.maxWallMs)
+  // One shared deadline promise; the no-op catch keeps it from surfacing as an unhandled rejection.
+  const overDeadline = new Promise<never>((_, reject) => {
+    deadline.addEventListener('abort', () => reject(new QueryError('budget', 'page wall-time budget exceeded')), { once: true })
+  })
+  overDeadline.catch(() => {})
   let cacheHits = 0
   let executed = 0
   const outcomes = new Map<string, { result: QueryResult; bytes: number }>()
   await Promise.all(
     runnable.map(async (p) => {
-      const timeout = new Promise<never>((_, reject) => {
-        if (deadline.aborted) reject(new QueryError('budget'))
-        deadline.addEventListener('abort', () => reject(new QueryError('budget', 'page wall-time budget exceeded')), { once: true })
-      })
       try {
         const cached = deps.cache.get(p.hash)
         let data: unknown
@@ -103,7 +104,7 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
           data = cached.value
         } else {
           executed++
-          data = await Promise.race([execute(p.spec, input.mode, deps, deadline), timeout])
+          data = await Promise.race([execute(p.spec, input.mode, deps, deadline), overDeadline])
           cacheSet(p, data, input.mode, deps)
         }
         const bytes = Buffer.byteLength(JSON.stringify(data) ?? '')

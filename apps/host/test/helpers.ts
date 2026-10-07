@@ -144,3 +144,30 @@ export const env = (query: Record<string, string> = {}) => ({
   site: { name: 'Test', locale: 'en' },
   query,
 })
+
+// ---------------------------------------------------------------------------
+// Full-host harness (artifacts + pages in a temp dir)
+// ---------------------------------------------------------------------------
+import { publish } from '@poc/cli'
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import { createHost } from '../src/server/host.ts'
+
+export async function testHost(opts: { theme: 'example' | 'evil'; pages: Record<string, unknown>; mockOrigin?: string; config?: Partial<HostConfig> }) {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'poc-host-'))
+  const artifactsDir = path.join(dir, 'artifacts')
+  const pagesDir = path.join(dir, 'pages')
+  await mkdir(pagesDir, { recursive: true })
+  for (const [slug, data] of Object.entries(opts.pages)) await writeFile(path.join(pagesDir, `${slug}.json`), JSON.stringify(data))
+  const built = opts.theme === 'evil' ? await buildEvil() : await buildExample()
+  await publish({ distDir: built.outDir, artifactsDir, quiet: true })
+  const mock = opts.mockOrigin ?? 'http://localhost:4010'
+  const base = dataConfig(mock)
+  const config: HostConfig = { ...base, artifactsDir, pagesDir, payloadDataFile: path.join(REPO_ROOT, 'data', 'payload.json'), ...opts.config }
+  const host = createHost(config)
+  ;(host.store as any).opts.disposeGraceMs = 0
+  ;(host.store as any).log = quietLog
+  const r = await host.store.reload()
+  if (!r.ok) throw new Error(r.error)
+  if (opts.mockOrigin) host.store.get().manifest.adapters.events && (host.store.get().manifest.adapters.events.origin = opts.mockOrigin)
+  return { host, dir, artifactsDir, pagesDir, close: async () => { host.store.close(); await host.http.close() } }
+}
