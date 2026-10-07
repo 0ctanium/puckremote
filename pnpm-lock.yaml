@@ -196,6 +196,9 @@ importers:
       '@poc/cli':
         specifier: workspace:*
         version: link:../../packages/cli
+      '@poc/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@types/node':
         specifier: 26.6.4
         version: 26.6.4
