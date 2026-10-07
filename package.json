@@ -1,0 +1,11 @@
+{
+  "name": "puck-repository-poc",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.9.1",
+  "engines": { "node": ">=26" },
+  "scripts": {
+    "test": "NODE_OPTIONS=--no-node-snapshot vitest run",
+    "typecheck": "pnpm -r typecheck"
+  }
+}

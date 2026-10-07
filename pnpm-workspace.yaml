@@ -1,0 +1,11 @@
+packages:
+  - packages/*
+  - apps/*
+  - examples/*
+  - mock/*
+  - spike
+allowBuilds:
+  isolated-vm: true
+  esbuild: true
+  sharp: false
+  unrs-resolver: false

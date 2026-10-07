@@ -1,0 +1,2 @@
+{ "name": "spike", "private": true, "type": "module",
+  "dependencies": { "isolated-vm": "7.0.1", "react": "19.3.0", "react-dom": "19.3.0", "esbuild": "0.28.2" } }
