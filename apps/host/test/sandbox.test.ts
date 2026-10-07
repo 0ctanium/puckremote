@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { IsolateRunner } from '../src/server/isolate-runner.ts'
 import { renderInIsolate } from '../src/server/render.ts'
-import { buildEvil, ctx, newRunner } from './helpers.ts'
+import { buildEvil, ctx, newRunner, testConfig } from './helpers.ts'
 
 let runner: IsolateRunner
 
@@ -76,13 +76,22 @@ describe('3. async code cannot hang the host', () => {
 
 describe('4. memory blow-up', () => {
   it('is contained; the isolate is recreated and later renders work', async () => {
-    const before = runner.stats.isolatesCreated
-    const r = await render('memory-hog')
+    // Generous CPU timeout so the memory limit (not the timeout) is what stops the block,
+    // regardless of machine load.
+    const { bundle } = await buildEvil()
+    const cfg = testConfig()
+    const r2 = newRunner(bundle, { ...cfg, isolate: { ...cfg.isolate, callTimeoutMs: 5000, watchdogMs: 10_000 } })
+    const s = await r2.session()
+    const before = r2.stats.isolatesCreated
+    const r = await renderInIsolate(s, 'block', 'memory-hog', {}, {}, ctx())
+    s.release()
     expect(r.ok).toBe(false)
     if (!r.ok) expect(['memory', 'disposed']).toContain(r.kind)
-    const after = await render('probe')
-    expect(after.ok).toBe(true)
-    expect(runner.stats.isolatesCreated).toBeGreaterThan(before)
+    const s2 = await r2.session()
+    expect((await renderInIsolate(s2, 'block', 'probe', {}, {}, ctx())).ok).toBe(true)
+    s2.release()
+    expect(r2.stats.isolatesCreated).toBeGreaterThan(before)
+    r2.dispose()
   })
 })
 
