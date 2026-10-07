@@ -1,0 +1,14 @@
+{
+  "name": "mock-api",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./server.d.ts",
+      "default": "./server.js"
+    }
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}

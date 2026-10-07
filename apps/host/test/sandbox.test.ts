@@ -109,7 +109,7 @@ describe('6. output limits', () => {
     expect(r).toMatchObject({ ok: false, kind: 'oversize' })
   })
   it('oversized input is rejected before entering the isolate', async () => {
-    const r = await render('probe', { blob: 'z'.repeat(400 * 1024) })
+    const r = await render('probe', { blob: 'z'.repeat(1200 * 1024) })
     expect(r).toMatchObject({ ok: false, kind: 'oversize' })
   })
   it('a thrown error is reported, not propagated', async () => {

@@ -71,7 +71,7 @@ export function defaultHostConfig(overrides: Partial<HostConfig> = {}): HostConf
       memoryLimitMb: 64,
       callTimeoutMs: 200,
       watchdogMs: 1000,
-      maxInputBytes: 256 * 1024,
+      maxInputBytes: 1024 * 1024,
       maxOutputBytes: 512 * 1024,
     },
     budget: { maxQueries: 20, maxResponseBytes: 2 * 1024 * 1024, maxWallMs: 3000 },
