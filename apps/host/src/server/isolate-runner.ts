@@ -60,9 +60,9 @@ export class IsolateRunner {
   }
 
   /** Called by the watchdog or on fatal errors. The next session lazily recreates the isolate. */
-  kill(reason: string): void {
+  kill(reason: string, quiet = false): void {
     if (this.isolate && !this.isolate.isDisposed) {
-      this.log.error(`[isolate] disposing isolate: ${reason}`)
+      if (!quiet) this.log.error(`[isolate] disposing isolate: ${reason}`)
       try {
         this.isolate.dispose()
       } catch {}
@@ -100,7 +100,7 @@ export class IsolateRunner {
 
   dispose(): void {
     this.disposed = true
-    this.kill('runner disposed')
+    this.kill('runner disposed', true)
     this.isolate = null
   }
 }

@@ -3,13 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": { "poc": "./bin/poc.js" },
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc -p ." },
+  "bin": {
+    "poc": "./bin/poc.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "NODE_OPTIONS=--no-node-snapshot vitest run"
+  },
   "dependencies": {
     "@poc/sdk": "workspace:*",
     "esbuild": "0.28.2",
     "tsx": "4.23.15"
   },
-  "devDependencies": { "@types/node": "26.6.4", "typescript": "7.0.2" }
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "typescript": "7.0.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "@types/react": "19.3.0",
+    "vitest": "5.0.3"
+  }
 }

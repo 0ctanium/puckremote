@@ -155,8 +155,9 @@ export function buildEditorConfig(manifest: Manifest, deps: EditorDeps): Config 
       ? {
           fields: rootFields,
           defaultProps: root.defaultProps,
-          resolveFields: makeResolveFields(rootFields, root),
-          resolveData: Object.keys(root.data).length ? makeResolveData('root', root, deps) : undefined,
+          // Root data has the same { props } shape at runtime; Puck types it separately.
+          resolveFields: makeResolveFields(rootFields, root) as never,
+          resolveData: (Object.keys(root.data).length ? makeResolveData('root', root, deps) : undefined) as never,
           render: (props: AnyProps) => <>{renderEditorBlock('root', 'root', root, props, deps, { children: props.children })}</>,
         }
       : undefined,

@@ -23,7 +23,7 @@ function renderBlock(id: string, name: string, meta: BlockMeta, props: AnyProps,
   if (!r || !r.ok) return <Failed name={name} />
   const slots: Record<string, any> = { ...extraSlots }
   for (const s of meta.slots) slots[s] = props[s]
-  return htmlToReact(r.html, { nonce: r.nonce, slots, allowed: [...meta.slots, ...Object.keys(extraSlots)] })
+  return <>{htmlToReact(r.html, { nonce: r.nonce, slots, allowed: [...meta.slots, ...Object.keys(extraSlots)] })}</>
 }
 
 export function buildRscConfig(manifest: Manifest): Config {

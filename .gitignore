@@ -7,3 +7,5 @@ dist
 artifacts/*
 !artifacts/.gitkeep
 next-env.d.ts
+packages/cli/test/.fixtures
+.claude/

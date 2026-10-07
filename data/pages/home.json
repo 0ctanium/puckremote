@@ -60,6 +60,14 @@
       }
     },
     {
+      "type": "quote",
+      "props": {
+        "id": "quote-1",
+        "text": "Untrusted code, trusted pipeline.",
+        "author": "POC"
+      }
+    },
+    {
       "type": "latest-posts",
       "props": {
         "content": [],

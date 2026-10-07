@@ -5,7 +5,7 @@
   "packageManager": "pnpm@12.9.1",
   "engines": { "node": ">=26" },
   "scripts": {
-    "test": "NODE_OPTIONS=--no-node-snapshot vitest run",
+    "test": "pnpm -r --workspace-concurrency=1 test",
     "typecheck": "pnpm -r typecheck"
   }
 }

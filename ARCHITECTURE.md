@@ -52,10 +52,12 @@ The claim this POC validates is that **untrusted React can drive a Puck editor a
 
 ## 3. Deviations from the original plan
 - **D1. Host walker for public data.** The host walks the tree (root, content, slots, zones) with its own traversal, collects every instance's data specs, and only then resolves them, with dedupe and a static budget. `resolveAllData` is not used for the public path.
-- **D2. Missing blocks.** Before data reaches Puck, unknown `type`s become `{ type: '__missing', props: { id, originalType, originalProps } }`. The editor's save path reverses this so unknown blocks survive an artifact downgrade. Public output is a comment placeholder; the editor shows a visible "Missing block" box.
+- **D2. Missing blocks.** Before data reaches Puck, unknown `type`s become `{ type: '__missing', props: { id, originalType, originalProps } }`. The editor's save path reverses this so unknown blocks survive an artifact downgrade. Public output is an empty `<div hidden data-missing-block="…">` (a failed block likewise renders `<div hidden data-block-error="…">`); the editor shows a visible "Missing block" box.
 - **D3. Pre-render pass (public).** `resolve data → new isolate context → render root and every block → map id → {html, effects}`. Puck `Render` then gets lightweight components that only parse the pre-rendered HTML and swap slots. This yields `head` effects before markup and keeps "one fresh context per request".
 - **D4. `<head>` merge** uses React 19 hoisting (`<title>`, `<meta>`, `<link rel="stylesheet" precedence>`, `<script async>`), deduped on the host.
-- **D5. Editor rendering runs `bundle.js` in the browser** (the spec's preferred path). The editor loads `/theme-assets/vN/bundle.js` into the parent window and calls `__render` synchronously in each Puck component, with `__data` from `resolveData`. **Gap:** developer JS runs on the host origin in the POC; production must serve the editor from a separate origin. The *server* never evaluates developer code outside the isolate, and a test enforces this.
+- **D5. Editor rendering runs `bundle.js` in the browser** (the spec's preferred path). The editor loads `/theme-bundle/vN` into a **hidden same-origin iframe** and calls that realm's `__render` synchronously from each Puck component, with `__data` from `resolveData`. A separate realm is required because the isolate shims replace `MessageChannel` and `TextEncoder`; doing that in the editor window would break React DOM's scheduler. It also keeps global mutation by developer code away from the editor. **Gap:** this is not a security boundary. Developer JS runs on the host origin in the POC, and production must serve the editor from a separate origin. A synchronous infinite loop in a block also freezes the editor tab, since browsers have no way to interrupt a synchronous call. The *server* never evaluates developer code outside the isolate, and a test enforces this.
+- **D6. Async host→isolate calls.** The host calls `Reference.apply` (async) rather than `applySync`. The isolate code is still fully synchronous, but the Node event loop stays free, so the wall-clock watchdog `setTimeout` can actually fire and dispose the isolate. A synchronous call would block the timer meant to stop it. This is possible because of D3: nothing has to render inside Puck's synchronous render pass.
+- **D7. Cache headers.** Next.js marks every `force-dynamic` page `Cache-Control: no-store`. The proxy (`src/proxy.ts`, Node runtime in Next 16) adds `x-page-cacheable: true|false` and `x-uncacheable-blocks`, and sets `cache-control: no-store` for `$query` pages. A CDN or ISR layer would key on `x-page-cacheable`; the POC does no caching of its own beyond the query cache.
 
 ## 4. Build-time metadata extraction (developer machine, trusted)
 `poc build`:
@@ -74,7 +76,7 @@ The host **re-validates** the manifest with zod and never trusts the CLI.
 ## 5. Isolate lifecycle
 - **One `Isolate` per artifact version** (`memoryLimit: 64` MB). `compileScript(bundle)` runs once.
 - **A fresh `Context` per page request** (and per editor RPC). The compiled script runs in it, then all of the request's calls go to that context, which is released at the end. Blocks within one request share a context; this is an accepted limitation, since a block can influence later blocks in the same request.
-- Every call is `applySync` / `evalSync` with `timeout`, plus a host-side wall-clock watchdog. If the isolate is disposed (OOM or watchdog), the runner recreates the isolate and recompiles lazily on the next request.
+- Every call is `Reference.apply` with `timeout` (V8-enforced), plus a host-side wall-clock watchdog (see D6). If the isolate is disposed (OOM or watchdog), the runner recreates the isolate and recompiles lazily on the next request.
 - Data crosses the boundary only as JSON strings, in both directions. No `Reference`s or host functions are exposed. Input and output sizes are capped.
 - Effects (`head.title/meta`, `assets.script/style`) are collected into a capped array that `__render` returns next to `html`.
 
@@ -84,6 +86,7 @@ The host **re-validates** the manifest with zod and never trusts the CLI.
 - A block's user content can't learn the nonce. It is not in props, and props are rendered by React with escaping.
 
 ## 7. Keeping `resolveData` out of saved pages
+- Verified by test 18: running Puck's `resolveAllData` with the editor config yields data where every node, nested slots included, carries `props.__data` and `readOnly.__data`. That is the in-memory editor state, and it is what `onPublish` hands us.
 - In the editor, `resolveData` calls `POST /api/blocks/resolve { blockType, props, slug }`. The response becomes `props.__data`, with `readOnly: { __data: true }`. It re-runs only when a prop named in the manifest's `propRefs` changed, or on `load`/`insert`.
 - On save, `stripResolved(data)` removes `__data` and `readOnly.__data` from every node, recursing into slots. A test asserts that saved JSON never contains `__data`.
 

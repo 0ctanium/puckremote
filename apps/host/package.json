@@ -8,7 +8,8 @@
     "build": "NODE_OPTIONS=--no-node-snapshot next build",
     "start": "NODE_OPTIONS=--no-node-snapshot next start -p ${PORT:-3100}",
     "test": "NODE_OPTIONS=--no-node-snapshot vitest run",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "bench": "NODE_OPTIONS=--no-node-snapshot tsx scripts/bench.ts"
   },
   "dependencies": {
     "@puckeditor/core": "0.23.0",
@@ -28,6 +29,7 @@
     "typescript": "7.0.2",
     "vitest": "5.0.3",
     "@poc/sdk": "workspace:*",
-    "mock-api": "workspace:*"
+    "mock-api": "workspace:*",
+    "tsx": "4.23.15"
   }
 }

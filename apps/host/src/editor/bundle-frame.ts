@@ -21,12 +21,22 @@ export function loadBundle(version: number): Promise<BundleApi> {
         frame.setAttribute('aria-hidden', 'true')
         frame.style.display = 'none'
         frame.srcdoc = `<!doctype html><script src="/theme-bundle/v${version}"></script>`
-        frame.onload = () => {
+        // The iframe can fire 'load' for its initial about:blank document before the srcdoc one,
+        // so readiness is "__render exists", checked on every load and by polling.
+        const started = Date.now()
+        const check = () => {
           const w = frame.contentWindow as (Window & { __render?: BundleApi['render'] }) | null
-          if (!w?.__render) return reject(new Error('bundle did not install __render'))
-          const r = w.__render
-          resolve({ render: (...args) => r(...args) })
+          if (typeof w?.__render === 'function') {
+            clearInterval(timer)
+            const r = w.__render
+            resolve({ render: (...args) => r(...args) })
+          } else if (Date.now() - started > 15_000) {
+            clearInterval(timer)
+            reject(new Error('bundle did not install __render'))
+          }
         }
+        const timer = setInterval(check, 50)
+        frame.addEventListener('load', check)
         frame.onerror = () => reject(new Error('failed to load bundle'))
         document.body.appendChild(frame)
       }),

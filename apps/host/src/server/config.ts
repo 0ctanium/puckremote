@@ -57,7 +57,9 @@ export interface HostConfig {
   secrets: Record<string, SecretDef>
 }
 
-const rootDir = process.env.POC_ROOT ?? path.resolve(process.cwd(), process.cwd().endsWith(path.join('apps', 'host')) ? '../..' : '.')
+// Runtime data root (artifacts, pages). Excluded from build tracing: artifacts are loaded at runtime, never bundled.
+const rootDir =
+  process.env.POC_ROOT ?? path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.cwd().endsWith(path.join('apps', 'host')) ? '../..' : '.')
 const MOCK_API = process.env.POC_MOCK_API_ORIGIN ?? 'http://localhost:4010'
 
 export function defaultHostConfig(overrides: Partial<HostConfig> = {}): HostConfig {
