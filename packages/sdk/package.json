@@ -1,0 +1,20 @@
+{
+  "name": "@poc/sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./runtime": "./src/runtime.ts",
+    "./shims": "./src/shims.ts",
+    "./constants": "./src/constants.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": { "typecheck": "tsc -p ." },
+  "peerDependencies": { "react": "19.3.0", "react-dom": "19.3.0" },
+  "devDependencies": {
+    "react": "19.3.0", "react-dom": "19.3.0",
+    "@types/react": "19.3.0", "@types/react-dom": "19.3.0",
+    "@types/node": "26.6.4", "typescript": "7.0.2"
+  }
+}

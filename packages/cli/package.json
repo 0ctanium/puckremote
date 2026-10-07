@@ -1,0 +1,15 @@
+{
+  "name": "@poc/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "poc": "./bin/poc.js" },
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p ." },
+  "dependencies": {
+    "@poc/sdk": "workspace:*",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.15"
+  },
+  "devDependencies": { "@types/node": "26.6.4", "typescript": "7.0.2" }
+}
