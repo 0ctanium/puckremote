@@ -5,5 +5,5 @@
     "paths": { "@/*": ["./src/*"] },
     "allowJs": false
   },
-  "include": ["next-env.d.ts", "src", ".next/types/**/*.ts", "next.config.ts", "poc.config.ts"]
+  "include": ["next-env.d.ts", "src", ".next/types/**/*.ts", "next.config.ts", "puck-remote.config.ts"]
 }

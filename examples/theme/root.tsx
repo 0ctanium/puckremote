@@ -1,4 +1,4 @@
-import { defineRoot, global, Slot } from '@poc/sdk'
+import { defineRoot, global, Slot } from '@puck-remote/sdk'
 
 export default defineRoot({
   fields: {

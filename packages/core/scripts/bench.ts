@@ -3,8 +3,8 @@
  * (pnpm --filter mock-api start). Run: pnpm --filter host bench
  */
 import path from 'node:path'
-import { fsPageStore } from '@poc/pages-fs'
-import { mockCms } from '@poc/source-mock'
+import { fsPageStore } from '@puck-remote/pages-fs'
+import { mockCms } from '@puck-remote/source-mock'
 import { resolveConfig } from '../src/server/config.ts'
 import { createHost } from '../src/server/host.ts'
 import { IsolateRunner } from '../src/server/isolate-runner.ts'

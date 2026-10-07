@@ -1,3 +1,3 @@
-import { poc } from '@/poc.ts'
+import { remote } from '@/puck-remote.ts'
 
-export const { GET, HEAD } = poc.theme
+export const { GET, HEAD } = remote.theme

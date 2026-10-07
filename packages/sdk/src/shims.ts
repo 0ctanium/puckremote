@@ -3,7 +3,7 @@
  * Prepended to bundle.js by the CLI. Deliberately NOT provided: setTimeout, queueMicrotask,
  * fetch, process, require — blocks must not be able to schedule work or do I/O.
  */
-export const ISOLATE_SHIMS = `/* @poc/sdk isolate shims */
+export const ISOLATE_SHIMS = `/* @puck-remote/sdk isolate shims */
 (function (g) {
   // Probed by the scheduler at module init; never fires (renderToString never yields).
   g.MessageChannel = function () { this.port1 = { onmessage: null }; this.port2 = { postMessage: function () {} }; };

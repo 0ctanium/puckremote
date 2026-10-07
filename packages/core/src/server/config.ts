@@ -1,4 +1,4 @@
-import type { AnyDataSource, PageStore } from '@poc/sdk/host'
+import type { AnyDataSource, PageStore } from '@puck-remote/sdk/host'
 
 export interface SecretDef {
   value: string
@@ -57,7 +57,7 @@ export interface Routes {
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? Partial<T[K]> : T[K] }
 
 /** What an app provides. Everything except paths and plugins has a default. */
-export interface PocConfigInput extends DeepPartial<Omit<HostConfig, 'artifactsDir' | 'source' | 'pages' | 'secrets'>> {
+export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, 'artifactsDir' | 'source' | 'pages' | 'secrets'>> {
   /** Distinguishes runtimes if one process hosts several sites. Default 'default'. */
   id?: string
   artifactsDir: string
@@ -66,14 +66,14 @@ export interface PocConfigInput extends DeepPartial<Omit<HostConfig, 'artifactsD
   secrets?: Record<string, SecretDef>
 }
 
-/** Typed identity: use in the app's poc.config.ts. Safe to import from proxy/edge code. */
-export function definePocConfig<C extends PocConfigInput>(config: C): C {
+/** Typed identity: use in the app's puck-remote.config.ts. Safe to import from proxy/edge code. */
+export function defineConfig<C extends PuckRemoteConfig>(config: C): C {
   return config
 }
 
 export const DEFAULT_ROUTES: Routes = { api: '/api', theme: '/theme', editor: '/editor' }
 
-export function resolveConfig(input: PocConfigInput): HostConfig {
+export function resolveConfig(input: PuckRemoteConfig): HostConfig {
   return {
     id: input.id ?? 'default',
     artifactsDir: input.artifactsDir,

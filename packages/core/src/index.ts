@@ -1,4 +1,4 @@
-export { createPocCore, type EditorProps, type PocCore } from './core.ts'
-export { definePocConfig, resolveConfig, DEFAULT_ROUTES, type HostConfig, type PocConfigInput, type Routes, type SecretDef } from './server/config.ts'
+export { createCore, type EditorProps, type PuckRemoteCore } from './core.ts'
+export { defineConfig, resolveConfig, DEFAULT_ROUTES, type HostConfig, type PuckRemoteConfig, type Routes, type SecretDef } from './server/config.ts'
 export type { PageContext, PreparedPage } from './server/public-render.ts'
 export { normalizeSlug } from './server/pages.ts'

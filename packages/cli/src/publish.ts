@@ -28,7 +28,7 @@ export async function activate(artifactsDir: string, version: number): Promise<v
 }
 
 export async function publish(opts: PublishOptions): Promise<{ version: number }> {
-  if (!existsSync(path.join(opts.distDir, 'manifest.json'))) throw new Error(`no manifest.json in ${opts.distDir}; run "poc build" first`)
+  if (!existsSync(path.join(opts.distDir, 'manifest.json'))) throw new Error(`no manifest.json in ${opts.distDir}; run "puck-remote build" first`)
   await mkdir(opts.artifactsDir, { recursive: true })
   const version = (await highestVersion(opts.artifactsDir)) + 1
   const target = path.join(opts.artifactsDir, `v${version}`)
@@ -38,6 +38,6 @@ export async function publish(opts: PublishOptions): Promise<{ version: number }
   await cp(opts.distDir, tmp, { recursive: true })
   await rename(tmp, target)
   await activate(opts.artifactsDir, version)
-  if (!opts.quiet) console.log(`[poc publish] published v${version} → ${target}`)
+  if (!opts.quiet) console.log(`[puck-remote publish] published v${version} → ${target}`)
   return { version }
 }

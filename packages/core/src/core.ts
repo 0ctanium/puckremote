@@ -1,9 +1,9 @@
 /**
  * The framework-agnostic host runtime. Frameworks bind to it through plain functions and
- * fetch-style handlers (Request → Response); see @poc/next for the Next.js bindings.
+ * fetch-style handlers (Request → Response); see @puck-remote/next for the Next.js bindings.
  */
 import type { Data } from '@puckeditor/core'
-import { resolveConfig, type HostConfig, type PocConfigInput, type Routes } from './server/config.ts'
+import { resolveConfig, type HostConfig, type PuckRemoteConfig, type Routes } from './server/config.ts'
 import { handleResolve } from './server/editor-rpc.ts'
 import { createHost, type Host } from './server/host.ts'
 import type { RenderSession } from './server/isolate-runner.ts'
@@ -23,7 +23,7 @@ export interface EditorProps {
   uncacheable: boolean
 }
 
-export interface PocCore {
+export interface PuckRemoteCore {
   config: HostConfig
   /** Resolves once the first artifact load was attempted (loads lazily on first use). */
   host(): Promise<Host>
@@ -45,13 +45,13 @@ function subpath(request: Request, prefix: string): string | null {
   return pathname.slice(p.length).replace(/^\/+/, '')
 }
 
-function build(config: HostConfig): PocCore {
+function build(config: HostConfig): PuckRemoteCore {
   let hostP: Promise<Host> | null = null
   const host = () =>
     (hostP ??= (async () => {
       const h = createHost(config)
       const r = await h.store.reload()
-      if (!r.ok) console.error('[poc] no artifact could be loaded at startup:', r.error)
+      if (!r.ok) console.error('[puck-remote] no artifact could be loaded at startup:', r.error)
       h.store.watch()
       return h
     })())
@@ -154,9 +154,9 @@ function build(config: HostConfig): PocCore {
  * Process-wide runtime for a config, memoized on globalThis by `config.id` so every route
  * bundle (and dev HMR) shares one artifact store, isolate, cache and file watcher.
  */
-export function createPocCore(input: PocConfigInput): PocCore {
+export function createCore(input: PuckRemoteConfig): PuckRemoteCore {
   const config = resolveConfig(input)
-  const key = Symbol.for(`poc.core:${config.id}`)
-  const g = globalThis as typeof globalThis & { [k: symbol]: PocCore | undefined }
+  const key = Symbol.for(`remote.core:${config.id}`)
+  const g = globalThis as typeof globalThis & { [k: symbol]: PuckRemoteCore | undefined }
   return (g[key] ??= build(config))
 }

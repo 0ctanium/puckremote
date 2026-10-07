@@ -1,5 +1,5 @@
 /**
- * `@poc/sdk/host` — contracts for TRUSTED host plugins (they run in Node, chosen by the host
+ * `@puck-remote/sdk/host` — contracts for TRUSTED host plugins (they run in Node, chosen by the host
  * operator, never shipped by themes):
  *
  *  - DataSource: where `find` / `findByID` / `global` queries go. Any database, CMS or API.

@@ -7,7 +7,7 @@
  * and output projection are enforced by the host core from the policy declared below.
  */
 import { readFileSync } from 'node:fs'
-import { defineCollection, defineDataSource, defineGlobal, type NormalizedFind, type NormalizedWhere, type RawDoc, type SourceContext } from '@poc/sdk/host'
+import { defineCollection, defineDataSource, defineGlobal, type NormalizedFind, type NormalizedWhere, type RawDoc, type SourceContext } from '@puck-remote/sdk/host'
 
 export interface Author {
   id: string

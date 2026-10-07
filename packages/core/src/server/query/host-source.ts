@@ -1,5 +1,5 @@
 /**
- * Host-side enforcement around a pluggable DataSource (@poc/sdk/host). Whatever backend the
+ * Host-side enforcement around a pluggable DataSource (@puck-remote/sdk/host). Whatever backend the
  * operator plugs in, theme queries only ever reach it:
  *  - for declared collections/globals,
  *  - selecting/filtering/sorting declared fields with allowed operators,
@@ -7,7 +7,7 @@
  *  - with the mode chosen by the host ('draft' only for editor requests),
  * and results are projected back to declared fields (recursively for populated relations).
  */
-import { ALL_OPERATORS, type AnyDataSource, type CollectionDef, type CollectionField, type Mode, type NormalizedFind, type NormalizedWhere, type RawDoc } from '@poc/sdk/host'
+import { ALL_OPERATORS, type AnyDataSource, type CollectionDef, type CollectionField, type Mode, type NormalizedFind, type NormalizedWhere, type RawDoc } from '@puck-remote/sdk/host'
 import { QueryError } from './params.ts'
 
 const DEFAULT_LIMIT = 10

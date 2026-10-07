@@ -1,4 +1,4 @@
-import { defineBlock, find, Slot } from '@poc/sdk'
+import { defineBlock, find, Slot } from '@puck-remote/sdk'
 
 export default defineBlock({
   label: 'Latest posts',

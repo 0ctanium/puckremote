@@ -1,6 +1,6 @@
 // Compile-time checks for the typed host data source queries (run by `tsc -p .`).
-import { find, findByID, global, source, type QueryResult, type QuerySpec } from '@poc/sdk'
-import type { Author, MockCms, Post } from '@poc/source-mock'
+import { find, findByID, global, source, type QueryResult, type QuerySpec } from '@puck-remote/sdk'
+import type { Author, MockCms, Post } from '@puck-remote/source-mock'
 
 type ResultOf<Q> = Q extends QuerySpec<infer T> ? T : never
 type Eq<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false

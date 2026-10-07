@@ -5,8 +5,8 @@ import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { SDK_MAJOR } from '@poc/sdk/constants'
-import { ISOLATE_SHIMS } from '@poc/sdk/shims'
+import { SDK_MAJOR } from '@puck-remote/sdk/constants'
+import { ISOLATE_SHIMS } from '@puck-remote/sdk/shims'
 import { BuildError, toJson, validateAdapter, validateDefinition, type BlockMeta } from './validate.ts'
 
 export interface Manifest {
@@ -93,7 +93,7 @@ async function listFiles(dir: string, base = dir): Promise<string[]> {
 export async function build(opts: BuildOptions): Promise<{ manifest: Manifest; outDir: string }> {
   const cwd = path.resolve(opts.cwd)
   const outDir = path.resolve(cwd, opts.outDir ?? 'dist')
-  const log = opts.quiet ? () => {} : (m: string) => console.log(`[poc build] ${m}`)
+  const log = opts.quiet ? () => {} : (m: string) => console.log(`[puck-remote build] ${m}`)
   const sources = await listSources(cwd)
   if (sources.blocks.length === 0) throw new BuildError('no blocks found in blocks/')
 
@@ -114,7 +114,7 @@ export async function build(opts: BuildOptions): Promise<{ manifest: Manifest; o
 export default { blocks, adapterList, adapterFiles, rootDef, categoriesDef };`
   const metaBuild = await esbuild({
     ...common,
-    stdin: { contents: metaEntry, resolveDir: cwd, loader: 'tsx', sourcefile: 'poc-meta-entry.tsx' },
+    stdin: { contents: metaEntry, resolveDir: cwd, loader: 'tsx', sourcefile: 'puck-remote-meta-entry.tsx' },
     format: 'esm',
     platform: 'node',
   })
@@ -157,13 +157,13 @@ export default { blocks, adapterList, adapterFiles, rootDef, categoriesDef };`
 
   // 2. Isolate bundle: shims + React + react-dom/server + SDK runtime + developer code, as one IIFE.
   const isolateEntry = `${registrySource(sources)}
-import { install } from '@poc/sdk/runtime';
+import { install } from '@puck-remote/sdk/runtime';
 const adapters = {};
 for (const a of adapterList) adapters[a.name] = a;
 install({ blocks, root: rootDef, adapters });`
   const isolateBuild = await esbuild({
     ...common,
-    stdin: { contents: isolateEntry, resolveDir: cwd, loader: 'tsx', sourcefile: 'poc-isolate-entry.tsx' },
+    stdin: { contents: isolateEntry, resolveDir: cwd, loader: 'tsx', sourcefile: 'puck-remote-isolate-entry.tsx' },
     format: 'iife',
     platform: 'neutral',
     mainFields: ['browser', 'module', 'main'],

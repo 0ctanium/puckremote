@@ -1,16 +1,16 @@
 /**
  * Next.js proxy (middleware) factory: cache headers for public pages. Pages using URL query
- * params ($query) are never cacheable. Imports only @poc/core/cacheability (no isolate).
+ * params ($query) are never cacheable. Imports only @puck-remote/core/cacheability (no isolate).
  *
  *   // src/proxy.ts
- *   export const proxy = createProxy(pocConfig)
+ *   export const proxy = createProxy(remoteConfig)
  *   export const config = { matcher: ['/((?!_next/|api/|editor(?:/|$)|theme/|favicon\.ico).*)'] }
  */
-import type { PocConfigInput } from '@poc/core/config'
-import { normalizeSlug, pageCacheability } from '@poc/core/cacheability'
+import type { PuckRemoteConfig } from '@puck-remote/core/config'
+import { normalizeSlug, pageCacheability } from '@puck-remote/core/cacheability'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export function createProxy(config: Pick<PocConfigInput, 'artifactsDir' | 'pages'>) {
+export function createProxy(config: Pick<PuckRemoteConfig, 'artifactsDir' | 'pages'>) {
   return async function proxy(req: NextRequest) {
     const res = NextResponse.next()
     const slug = normalizeSlug(req.nextUrl.pathname)

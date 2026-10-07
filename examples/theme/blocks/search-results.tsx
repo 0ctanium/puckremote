@@ -1,4 +1,4 @@
-import { defineBlock, find } from '@poc/sdk'
+import { defineBlock, find } from '@puck-remote/sdk'
 
 /** Reads ?q= from the URL, which makes any page containing it uncacheable. */
 export default defineBlock({

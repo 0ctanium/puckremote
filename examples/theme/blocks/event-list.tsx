@@ -1,4 +1,4 @@
-import { defineBlock, query } from '@poc/sdk'
+import { defineBlock, query } from '@puck-remote/sdk'
 
 interface Event {
   id: string

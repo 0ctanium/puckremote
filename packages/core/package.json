@@ -1,5 +1,5 @@
 {
-  "name": "@poc/core",
+  "name": "@puck-remote/core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@poc/sdk": "workspace:*",
+    "@puck-remote/sdk": "workspace:*",
     "@puckeditor/core": "0.23.0",
     "html-react-parser": "6.1.8",
     "isolated-vm": "7.0.1",
@@ -26,9 +26,9 @@
   },
   "peerDependencies": { "react": "19.3.0", "react-dom": "19.3.0" },
   "devDependencies": {
-    "@poc/cli": "workspace:*",
-    "@poc/pages-fs": "workspace:*",
-    "@poc/source-mock": "workspace:*",
+    "@puck-remote/cli": "workspace:*",
+    "@puck-remote/pages-fs": "workspace:*",
+    "@puck-remote/source-mock": "workspace:*",
     "@types/node": "26.6.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

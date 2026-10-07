@@ -6,7 +6,7 @@ import { Render } from '@puckeditor/core/rsc'
 import type { PreparedPage } from '../server/public-render.ts'
 import { buildRscConfig } from '../server/puck-rsc.tsx'
 
-export function PocPage({ page }: { page: PreparedPage }) {
+export function PuckRemotePage({ page }: { page: PreparedPage }) {
   return (
     <>
       {page.head.styles.map((href) => (

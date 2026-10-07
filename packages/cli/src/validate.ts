@@ -9,7 +9,7 @@ import {
   PAGE_REF_KEYS,
   SITE_REF_KEYS,
   WHERE_OPERATORS,
-} from '@poc/sdk/constants'
+} from '@puck-remote/sdk/constants'
 
 export class BuildError extends Error {
   constructor(message: string) {

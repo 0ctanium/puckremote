@@ -1,1 +1,1 @@
-export { PocPage, pageMetadata } from './PocPage.tsx'
+export { PuckRemotePage, pageMetadata } from './PuckRemotePage.tsx'

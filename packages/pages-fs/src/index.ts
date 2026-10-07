@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { PageStore } from '@poc/sdk/host'
+import type { PageStore } from '@puck-remote/sdk/host'
 
 export function fsPageStore(opts: { dir: string }): PageStore {
   // Slugs are validated by the host; '/' maps to '__' so nested slugs stay one file.

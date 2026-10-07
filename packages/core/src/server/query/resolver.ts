@@ -10,7 +10,7 @@ import type { Instance } from '../page-tree.ts'
 import { QueryCache } from './cache.ts'
 import type { HttpSource } from './http-source.ts'
 import { hashSpec, QueryError, substitute, type ParamEnv } from './params.ts'
-import type { Mode } from '@poc/sdk/host'
+import type { Mode } from '@puck-remote/sdk/host'
 import type { HostSource } from './host-source.ts'
 
 export type QueryResult = { ok: true; data: unknown } | { ok: false; error: string }

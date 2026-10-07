@@ -1,10 +1,10 @@
 {
-  "name": "@poc/cli",
+  "name": "@puck-remote/cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
-    "poc": "./bin/poc.js"
+    "puck-remote": "./bin/puck-remote.js"
   },
   "exports": {
     ".": "./src/index.ts"
@@ -14,7 +14,7 @@
     "test": "NODE_OPTIONS=--no-node-snapshot vitest run"
   },
   "dependencies": {
-    "@poc/sdk": "workspace:*",
+    "@puck-remote/sdk": "workspace:*",
     "esbuild": "0.28.2",
     "tsx": "4.23.15"
   },

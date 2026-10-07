@@ -140,7 +140,7 @@ export class HttpSource {
   }
 
   private resolveHeaders(headers: HttpRequestSpec['headers'], origin: string): Record<string, string> {
-    const out: Record<string, string> = { accept: 'application/json', 'user-agent': 'poc-host/0.1' }
+    const out: Record<string, string> = { accept: 'application/json', 'user-agent': 'puck-remote/0.1' }
     for (const [k, v] of Object.entries(headers)) {
       const name = k.toLowerCase()
       if (['host', 'cookie', 'authorization-proxy', 'connection', 'transfer-encoding', 'content-length'].includes(name)) {

@@ -1,10 +1,10 @@
 {
-  "name": "@poc/pages-fs",
+  "name": "@puck-remote/pages-fs",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": { ".": "./src/index.ts" },
   "scripts": { "typecheck": "tsc -p ." },
-  "dependencies": { "@poc/sdk": "workspace:*" },
+  "dependencies": { "@puck-remote/sdk": "workspace:*" },
   "devDependencies": { "@types/node": "26.6.4", "@types/react": "19.3.0", "typescript": "7.0.2" }
 }

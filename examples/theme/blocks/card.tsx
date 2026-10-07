@@ -1,4 +1,4 @@
-import { defineBlock, Slot } from '@poc/sdk'
+import { defineBlock, Slot } from '@puck-remote/sdk'
 
 export default defineBlock({
   label: 'Card',

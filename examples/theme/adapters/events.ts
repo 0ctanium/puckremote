@@ -1,4 +1,4 @@
-import { defineAdapter } from '@poc/sdk'
+import { defineAdapter } from '@puck-remote/sdk'
 
 interface RawEvent {
   uid: string

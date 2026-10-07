@@ -1,4 +1,4 @@
-import { defineBlock } from '@poc/sdk'
+import { defineBlock } from '@puck-remote/sdk'
 
 export default defineBlock({
   fields: {},

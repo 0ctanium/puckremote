@@ -1,16 +1,16 @@
 {
-  "name": "@poc/next",
+  "name": "@puck-remote/next",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Next.js App Router bindings for @poc/core.",
+  "description": "Next.js App Router bindings for @puck-remote/core.",
   "exports": {
     ".": "./src/index.ts",
     "./proxy": "./src/proxy.ts",
     "./config": "./src/config.ts"
   },
   "scripts": { "typecheck": "tsc -p ." },
-  "dependencies": { "@poc/core": "workspace:*" },
+  "dependencies": { "@puck-remote/core": "workspace:*" },
   "peerDependencies": { "next": "16.4.0", "react": "19.3.0", "react-dom": "19.3.0" },
   "devDependencies": {
     "@types/node": "26.6.4",

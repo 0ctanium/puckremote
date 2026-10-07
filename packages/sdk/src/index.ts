@@ -54,9 +54,9 @@ export function Slot({ name }: { name: string }): ReactElement {
 //
 // Typing comes from the host's data source type. Either register it once for the whole theme:
 //
-//   // poc-env.d.ts
-//   import type { MockCms } from '@poc/source-mock'
-//   declare module '@poc/sdk' { interface Register { source: MockCms } }
+//   // puck-remote-env.d.ts
+//   import type { MockCms } from '@puck-remote/source-mock'
+//   declare module '@puck-remote/sdk' { interface Register { source: MockCms } }
 //
 // and call find('posts', …) with full inference, or pass it explicitly through
 // `source<MockCms>().find('posts', …)`. (TypeScript has no partial generic inference, so

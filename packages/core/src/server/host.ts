@@ -18,7 +18,7 @@ export interface Host {
   cache: QueryCache
 }
 
-const KEY = Symbol.for('poc.host')
+const KEY = Symbol.for('puck-remote.host')
 type G = typeof globalThis & { [KEY]?: Promise<Host> }
 
 export function createHost(config: HostConfig): Host {

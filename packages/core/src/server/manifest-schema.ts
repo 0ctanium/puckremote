@@ -174,7 +174,7 @@ export type BlockMeta = z.infer<typeof blockMetaSchema>
 export const manifestSchema = z
   .strictObject({
     artifactVersion: z.string().max(100),
-    sdkMajor: z.literal(1, { message: 'artifact was built for an incompatible SDK major version; rebuild with the current @poc/sdk' }),
+    sdkMajor: z.literal(1, { message: 'artifact was built for an incompatible SDK major version; rebuild with the current @puck-remote/sdk' }),
     createdAt: z.string(),
     files: z.record(
       z.string().refine((p) => !p.split('/').some((s) => s === '..' || s === '.' || s === '') && !p.startsWith('/'), 'unsafe path'),

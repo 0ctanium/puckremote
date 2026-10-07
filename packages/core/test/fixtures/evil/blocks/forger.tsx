@@ -1,4 +1,4 @@
-import { defineBlock, Slot } from '@poc/sdk'
+import { defineBlock, Slot } from '@puck-remote/sdk'
 
 /** User-controlled text tries to forge slot markers; also a raw-HTML forgery attempt. */
 export default defineBlock({

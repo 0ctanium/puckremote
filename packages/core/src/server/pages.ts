@@ -1,4 +1,4 @@
-import type { PageStore } from '@poc/sdk/host'
+import type { PageStore } from '@puck-remote/sdk/host'
 import { z } from 'zod'
 import { mapItems, RESERVED_DATA_PROP, type PageData, type PuckItem } from './page-tree.ts'
 

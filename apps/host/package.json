@@ -10,10 +10,10 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@poc/core": "workspace:*",
-    "@poc/next": "workspace:*",
-    "@poc/pages-fs": "workspace:*",
-    "@poc/source-mock": "workspace:*",
+    "@puck-remote/core": "workspace:*",
+    "@puck-remote/next": "workspace:*",
+    "@puck-remote/pages-fs": "workspace:*",
+    "@puck-remote/source-mock": "workspace:*",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"

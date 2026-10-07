@@ -60,7 +60,7 @@ The claim this POC validates is that **untrusted React can drive a Puck editor a
 - **D7. Cache headers.** Next.js marks every `force-dynamic` page `Cache-Control: no-store`. The proxy (`src/proxy.ts`, Node runtime in Next 16) adds `x-page-cacheable: true|false` and `x-uncacheable-blocks`, and sets `cache-control: no-store` for `$query` pages. A CDN or ISR layer would key on `x-page-cacheable`; the POC does no caching of its own beyond the query cache.
 
 ## 4. Build-time metadata extraction (developer machine, trusted)
-`poc build`:
+`puck-remote build`:
 1. Uses esbuild to produce a Node ESM build of a generated entry that imports `blocks/*.tsx`, `root.tsx`, `adapters/*.ts` and `config/categories.ts`.
 2. Imports that build in Node **on the developer's machine** and, for each definition, serializes `label, category, fields, defaultProps, data, visibleIf` (found inside fields) and `adapters[name].origin`. Building fails on:
    - any function other than `render` / `toRequest` / `fromResponse`
@@ -91,7 +91,7 @@ The host **re-validates** the manifest with zod and never trusts the CLI.
 - On save, `stripResolved(data)` removes `__data` and `readOnly.__data` from every node, recursing into slots. A test asserts that saved JSON never contains `__data`.
 
 ## 8. How the editor renders blocks
-- `Puck` is given the editor config. Each component's `render` calls `window.__pocBundle.__render(kind, name, propsJson, dataJson, ctxJson)` synchronously, then parses the HTML with the same `slot-swap` used on the server.
+- `Puck` is given the editor config. Each component's `render` calls `window.__puckRemoteBundle.__render(kind, name, propsJson, dataJson, ctxJson)` synchronously, then parses the HTML with the same `slot-swap` used on the server.
 - Parity: the same bundle, React version and `(props, data, ctx)` give byte-identical HTML. This is tested by running `bundle.js` in a separate `node:vm` realm (test-only), standing in for the browser realm, and comparing with the isolate's output.
 
 ## 9. Known limitations and gaps
@@ -103,12 +103,12 @@ The host **re-validates** the manifest with zod and never trusts the CLI.
 
 ## 10. Host plugins: data source and page store
 
-The host core is backend-agnostic. It depends on Puck and on the `@poc/sdk/host` contracts; the concrete plugins are chosen in one file, the app's `poc.config.ts`.
+The host core is backend-agnostic. It depends on Puck and on the `@puck-remote/sdk/host` contracts; the concrete plugins are chosen in one file, the app's `puck-remote.config.ts`.
 
 | Contract | Example implementation | Purpose |
 |---|---|---|
-| `DataSource` (`defineDataSource`, `defineCollection<D>()`, `defineGlobal<D>()`) | `@poc/source-mock` | Answers theme `find` / `findByID` / `global` queries |
-| `PageStore` (`get` / `put` / `list`) | `@poc/pages-fs` | Persists Puck page JSON |
+| `DataSource` (`defineDataSource`, `defineCollection<D>()`, `defineGlobal<D>()`) | `@puck-remote/source-mock` | Answers theme `find` / `findByID` / `global` queries |
+| `PageStore` (`get` / `put` / `list`) | `@puck-remote/pages-fs` | Persists Puck page JSON |
 
 **Trust.** Plugins are trusted host code chosen by the operator, so they run in Node. Theme `defineAdapter`s are different: untrusted, shipped by the theme, sans-IO, and run in the isolate.
 
@@ -121,26 +121,26 @@ The host core is backend-agnostic. It depends on Puck and on the `@poc/sdk/host`
 
 Plugins receive a validated `NormalizedFind` and only implement storage semantics, including what "draft" means for them. A plugin's optional `subscribe` change feed drives tag-based cache invalidation.
 
-**Typing.** Collection definitions carry a phantom document type. Theme queries are typed by registering the source type (`declare module '@poc/sdk' { interface Register { source: MockCms } }`) or via `source<MockCms>()`. The query spec is `{ source: 'host', op, collection, args }`. Changing it from `'payload'` was a breaking SDK change (`sdkMajor` 0 → 1), and the host rejects older artifacts with an explicit message.
+**Typing.** Collection definitions carry a phantom document type. Theme queries are typed by registering the source type (`declare module '@puck-remote/sdk' { interface Register { source: MockCms } }`) or via `source<MockCms>()`. The query spec is `{ source: 'host', op, collection, args }`. Changing it from `'payload'` was a breaking SDK change (`sdkMajor` 0 → 1), and the host rejects older artifacts with an explicit message.
 
 ## 11. Packaging: engine, bindings, app
 
 | Package | Role | May import |
 |---|---|---|
-| `@poc/sdk` | Theme API (bundled into the isolate), wire contract, adapter contracts (`/host`) | react (peer) |
-| `@poc/core` | Framework-agnostic engine | `@poc/sdk/host` only from the SDK; no Next, no concrete plugins |
-| `@poc/next` | Next.js bindings | `@poc/core`; never isolated-vm, the SDK or plugins |
-| `@poc/source-*`, `@poc/pages-*` | Trusted host plugins | `@poc/sdk/host` |
-| App (`apps/host`) | Wiring only | `@poc/next`, `@poc/core/config`; plugins only in `poc.config.ts` |
+| `@puck-remote/sdk` | Theme API (bundled into the isolate), wire contract, adapter contracts (`/host`) | react (peer) |
+| `@puck-remote/core` | Framework-agnostic engine | `@puck-remote/sdk/host` only from the SDK; no Next, no concrete plugins |
+| `@puck-remote/next` | Next.js bindings | `@puck-remote/core`; never isolated-vm, the SDK or plugins |
+| `@puck-remote/source-*`, `@puck-remote/pages-*` | Trusted host plugins | `@puck-remote/sdk/host` |
+| App (`apps/host`) | Wiring only | `@puck-remote/next`, `@puck-remote/core/config`; plugins only in `puck-remote.config.ts` |
 
 `no-dev-code.test.ts` enforces this table, along with the bundle-sink allowlist.
 
-- **One runtime per process.** `createPocCore(config)` resolves defaults and memoizes the runtime on `globalThis` by `config.id`, so every Next route bundle (public page, editor, API, theme) and dev HMR share one artifact store, isolate, query cache and file watcher. It loads lazily on first use.
+- **One runtime per process.** `createCore(config)` resolves defaults and memoizes the runtime on `globalThis` by `config.id`, so every Next route bundle (public page, editor, API, theme) and dev HMR share one artifact store, isolate, query cache and file watcher. It loads lazily on first use.
 - **Fetch-style handlers.** `handleApi(Request)` serves `pages` (GET/POST), `blocks/resolve` (POST) and `artifact/reload` (POST), with 404/405 handling. `handleTheme(Request)` serves `v<N>/bundle.js` (for the editor) and `v<N>/assets/**` (hash-verified, traversal-safe). Both work under the configurable `routes` prefixes, and asset URLs given to blocks (`ctx.assetUrl`) follow `routes.theme`.
-- **Proxy-safe imports.** `@poc/core/config` and `@poc/core/cacheability` never import isolated-vm, so the app config and the Next proxy can load them.
-- **Next specifics live only in `@poc/next`:**
+- **Proxy-safe imports.** `@puck-remote/core/config` and `@puck-remote/core/cacheability` never import isolated-vm, so the app config and the Next proxy can load them.
+- **Next specifics live only in `@puck-remote/next`:**
   - `notFound()` and `params`/`searchParams` handling.
   - React `cache()`, so `generateMetadata` and the page share one isolate pass.
   - `NextResponse` in the proxy.
-  - `withPoc`, which keeps isolated-vm external and transpiles the TS-source packages.
-- **No `import.meta.dirname` in Next server bundles.** The app's `poc.config.ts` resolves data paths from `process.cwd()`, since Next runs with the app directory as cwd. The `/*turbopackIgnore*/` hint keeps artifacts out of build tracing.
+  - `withPuckRemote`, which keeps isolated-vm external and transpiles the TS-source packages.
+- **No `import.meta.dirname` in Next server bundles.** The app's `puck-remote.config.ts` resolves data paths from `process.cwd()`, since Next runs with the app directory as cwd. The `/*turbopackIgnore*/` hint keeps artifacts out of build tracing.

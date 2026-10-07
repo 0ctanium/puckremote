@@ -5,7 +5,7 @@
  */
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { PageStore } from '@poc/sdk/host'
+import type { PageStore } from '@puck-remote/sdk/host'
 import { analyzeSpecs, type QuerySpec } from './manifest-schema.ts'
 import { readPage } from './pages.ts'
 

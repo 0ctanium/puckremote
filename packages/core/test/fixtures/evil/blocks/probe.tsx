@@ -1,4 +1,4 @@
-import { defineBlock } from '@poc/sdk'
+import { defineBlock } from '@puck-remote/sdk'
 
 /** Reports what the sandbox exposes. */
 export default defineBlock({

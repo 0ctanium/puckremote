@@ -1,7 +1,7 @@
 /**
  * Artifact tests 19–20: tamper detection, versioned publish, atomic pointer, hot swap, rollback.
  */
-import { activate, publish } from '@poc/cli'
+import { activate, publish } from '@puck-remote/cli'
 import { appendFile, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -12,7 +12,7 @@ import { readArtifactFile } from '../src/server/static-files.ts'
 import { buildEvil, buildExample, quietLog, testConfig } from './helpers.ts'
 
 async function setup() {
-  const artifactsDir = await mkdtemp(path.join(os.tmpdir(), 'poc-art-'))
+  const artifactsDir = await mkdtemp(path.join(os.tmpdir(), 'puck-remote-art-'))
   const disposed: number[] = []
   const store = new ArtifactStore({
     artifactsDir,

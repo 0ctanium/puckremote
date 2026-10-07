@@ -1,9 +1,9 @@
 import type { NextConfig } from 'next'
 
-const PACKAGES = ['@poc/core', '@poc/next', '@poc/sdk']
+const PACKAGES = ['@puck-remote/core', '@puck-remote/next', '@puck-remote/sdk']
 
-/** Adds what the host needs: isolated-vm stays external (native addon), POC packages are transpiled. */
-export function withPoc(config: NextConfig = {}): NextConfig {
+/** Adds what the host needs: isolated-vm stays external (native addon), @puck-remote packages are transpiled. */
+export function withPuckRemote(config: NextConfig = {}): NextConfig {
   return {
     ...config,
     serverExternalPackages: [...new Set([...(config.serverExternalPackages ?? []), 'isolated-vm'])],

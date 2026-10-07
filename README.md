@@ -5,7 +5,7 @@ Developers write Puck blocks in React with `defineBlock(...)`. A CLI builds them
 The host never builds and never runs developer code outside `isolated-vm`:
 
 - It builds real Puck configs from the manifest's JSON.
-- It runs every data query itself: declarative, validated, deduped and budgeted, against a **pluggable data source** that the host operator wires in. The host core is backend-agnostic and depends only on Puck plus the `@poc/sdk/host` contracts.
+- It runs every data query itself: declarative, validated, deduped and budgeted, against a **pluggable data source** that the host operator wires in. The host core is backend-agnostic and depends only on Puck plus the `@puck-remote/sdk/host` contracts.
 - It executes only the synchronous `render` functions and adapter translators, inside an isolate.
 
 Block output is an HTML string with nonce-protected slot markers. The host swaps those markers for real Puck slots, and the public site is served with Puck's RSC renderer.
@@ -28,7 +28,7 @@ pnpm install
 pnpm --filter theme release
 ```
 
-`release` runs `poc build && poc publish` and produces `artifacts/v1` and `current.json`.
+`release` runs `puck-remote build && puck-remote publish` and produces `artifacts/v1` and `current.json`.
 
 ```bash
 pnpm --filter mock-api start
@@ -50,7 +50,7 @@ To publish a new theme version, edit `examples/theme` and run `pnpm --filter the
 Rollback is just moving the pointer:
 
 ```bash
-cd examples/theme && ./node_modules/.bin/poc activate 1 --artifacts ../../artifacts
+cd examples/theme && ./node_modules/.bin/puck-remote activate 1 --artifacts ../../artifacts
 ```
 
 Tests (58, covering every item in the spec's list):
@@ -62,71 +62,71 @@ pnpm test
 Rough cost measurements (needs a published artifact and the mock API running):
 
 ```bash
-pnpm --filter @poc/core bench
+pnpm --filter @puck-remote/core bench
 ```
 
 ## Integrating into a Next app
 
-All logic lives in `@poc/core` (framework-agnostic) and `@poc/next` (thin bindings). The app in `apps/host` is only wiring:
+All logic lives in `@puck-remote/core` (framework-agnostic) and `@puck-remote/next` (thin bindings). The app in `apps/host` is only wiring:
 
 ```ts
-// poc.config.ts — the only file that knows the backend
-export default definePocConfig({
+// puck-remote.config.ts — the only file that knows the backend
+export default defineConfig({
   artifactsDir, source: mockCms({ dataFile }), pages: fsPageStore({ dir }),
   site: { name: 'POC Site', locale: 'en' }, http: { allowedOrigins }, secrets,
   // routes: { api: '/api', theme: '/theme', editor: '/editor' }   (defaults)
 })
 
-// src/poc.ts
-export const poc = createPoc(config)
+// src/puck-remote.ts
+export const remote = createPuckRemote(config)
 
 // src/proxy.ts — cache headers ($query pages are no-store); matcher must be a literal
-export const proxy = createProxy(pocConfig)
+export const proxy = createProxy(remoteConfig)
 export const config = { matcher: ['/((?!_next/|api/|editor(?:/|$)|theme/|favicon\\.ico).*)'] }
 
 // src/app/[[...path]]/page.tsx — public site (Puck RSC)
 export const dynamic = 'force-dynamic'
-export const generateMetadata = poc.generateMetadata
+export const generateMetadata = remote.generateMetadata
 export default async function Page(props: PageProps) {
-  const page = await poc.loadPage(props /*, { locale } */)
-  return <PocPage page={page} />
+  const page = await remote.loadPage(props /*, { locale } */)
+  return <PuckRemotePage page={page} />
 }
 
 // src/app/editor/[[...path]]/page.tsx
-export default async (props) => <EditorClient {...await poc.loadEditor(props)} />
+export default async (props) => <EditorClient {...await remote.loadEditor(props)} />
 
 // src/app/api/[[...path]]/route.ts — pages, blocks/resolve, artifact/reload
-export const { GET, POST } = poc.api
+export const { GET, POST } = remote.api
 
 // src/app/theme/[[...path]]/route.ts — /theme/v<N>/bundle.js (editor only) and /theme/v<N>/assets/**
-export const { GET, HEAD } = poc.theme
+export const { GET, HEAD } = remote.theme
 
 // next.config.ts — isolated-vm external, POC packages transpiled
-export default withPoc({ /* your config */ })
+export default withPuckRemote({ /* your config */ })
 ```
 
-Other frameworks can bind to `createPocCore(config)` from `@poc/core` directly: `preparePage(slug, query, context)` with `<PocPage>`, `loadEditor(slug)` with `<EditorClient>`, and the fetch-style `handleApi(request)` / `handleTheme(request)`.
+Other frameworks can bind to `createCore(config)` from `@puck-remote/core` directly: `preparePage(slug, query, context)` with `<PuckRemotePage>`, `loadEditor(slug)` with `<EditorClient>`, and the fetch-style `handleApi(request)` / `handleTheme(request)`.
 
-**Package boundaries.** `@poc/sdk` is deliberately not merged with the engine:
+**Package boundaries.** `@puck-remote/sdk` is deliberately not merged with the engine:
 - **Different audience and trust level.** The SDK is the only package themes depend on, and it is bundled into the untrusted isolate code. The engine needs isolated-vm, zod, undici and Puck's editor, which themes must never install.
-- **The SDK is the versioned bridge.** It holds the theme API, the QuerySpec/manifest contract (`sdkMajor`) and the adapter contracts (`@poc/sdk/host`), which adapter packages and the engine share. The engine can change freely behind it.
+- **The SDK is the versioned bridge.** It holds the theme API, the QuerySpec/manifest contract (`sdkMajor`) and the adapter contracts (`@puck-remote/sdk/host`), which adapter packages and the engine share. The engine can change freely behind it.
 
 ## Layout
 
 ```
-packages/sdk        @poc/sdk: defineBlock/defineRoot/defineAdapter, Slot, typed query builders, isolate runtime + shims
-                    @poc/sdk/host: contracts for trusted host plugins (DataSource, PageStore)
-packages/cli        @poc/cli: `poc build | publish | activate`; metadata extraction + validation
-packages/core       @poc/core: the framework-agnostic host engine (no Next imports)
-  src/core.ts         createPocCore(config): preparePage, loadEditor, handleApi, handleTheme (fetch Request → Response)
+packages/sdk        @puck-remote/sdk: defineBlock/defineRoot/defineAdapter, Slot, typed query builders, isolate runtime + shims
+                    @puck-remote/sdk/host: contracts for trusted host plugins (DataSource, PageStore)
+packages/cli        @puck-remote/cli: `puck-remote build | publish | activate`; metadata extraction + validation
+packages/core       @puck-remote/core: the framework-agnostic host engine (no Next imports)
+  src/core.ts         createCore(config): preparePage, loadEditor, handleApi, handleTheme (fetch Request → Response)
   src/server/         artifact loader, isolate runner, query resolver (data source enforcement, http/adapters), page pipeline
-  src/react/          <PocPage> (RSC-safe public render) + pageMetadata
+  src/react/          <PuckRemotePage> (RSC-safe public render) + pageMetadata
   src/editor/         'use client' EditorClient, Puck editor config, host-owned field UIs, bundle realm loader
   src/shared/         slot swap + URL layout, shared by server and editor
   test/               vitest suites (sandbox, data, rendering, editor, artifacts, routes, no-dev-code)
-packages/next       @poc/next: Next.js App Router bindings (createPoc, createProxy, withPoc)
-packages/source-mock  @poc/source-mock: example DataSource (in-memory CMS: posts, authors, site global)
-packages/pages-fs   @poc/pages-fs: example PageStore (JSON files)
+packages/next       @puck-remote/next: Next.js App Router bindings (createPuckRemote, createProxy, withPuckRemote)
+packages/source-mock  @puck-remote/source-mock: example DataSource (in-memory CMS: posts, authors, site global)
+packages/pages-fs   @puck-remote/pages-fs: example PageStore (JSON files)
 apps/host           the Next.js app: ~80 lines of wiring, see "Integrating into a Next app"
 examples/theme      the "developer repo"
 mock/api-server     external API stand-in (events, redirects, big/slow responses)
@@ -135,14 +135,14 @@ data/pages          saved Puck page JSON;  data/cms.json  seed data for the mock
 spike/              Step 0 spike: isolated-vm + React renderToString in a bare isolate
 ```
 
-## SDK reference (`@poc/sdk`)
+## SDK reference (`@puck-remote/sdk`)
 
 ### `defineBlock({ label?, category?, fields, defaultProps?, data?, render })`
 
 One file per block, `blocks/<slug>.tsx`, default export. Everything except `render` must be plain JSON. It is extracted at build time and re-validated by the host.
 
 ```tsx
-import { defineBlock, find, Slot } from '@poc/sdk'
+import { defineBlock, find, Slot } from '@puck-remote/sdk'
 
 export default defineBlock({
   label: 'Latest posts',
@@ -217,9 +217,9 @@ Lives in `root.tsx` and follows the same rules. The page body is `<Slot name="ch
 **Typing.** Host queries are typed from the host's data source type. Register it once in the theme (type-only; nothing from the source package enters the bundle):
 
 ```ts
-// examples/theme/poc-env.d.ts
-import type { MockCms } from '@poc/source-mock'
-declare module '@poc/sdk' { interface Register { source: MockCms } }
+// examples/theme/puck-remote-env.d.ts
+import type { MockCms } from '@puck-remote/source-mock'
+declare module '@puck-remote/sdk' { interface Register { source: MockCms } }
 ```
 
 After that, `find('posts', { select: ['title', 'slug'] })` returns `QuerySpec<FindResult<Pick<Post, 'id' | 'title' | 'slug'>>>`. Unknown collections, fields, sort keys and globals are compile errors (`examples/theme/type-tests.ts`).
@@ -230,9 +230,9 @@ Without registration, use `source<MockCms>().find('posts', …)`. A plain `find<
 
 Lives in `adapters/*.ts`. Adapters are sans-IO: both functions are synchronous and run in the isolate. `toRequest` returns `{ method, path, params?, headers? }`, and headers may contain `{ $secret }`. The host performs the request against the manifest's `origin`.
 
-### Host plugins (`@poc/sdk/host`, trusted, run in Node)
+### Host plugins (`@puck-remote/sdk/host`, trusted, run in Node)
 
-The operator wires these in `apps/host/poc.config.ts`. Themes never ship them.
+The operator wires these in `apps/host/puck-remote.config.ts`. Themes never ship them.
 
 **`defineDataSource({ name, collections, globals, subscribe? })`** backs `find` / `findByID` / `global`. Collections declare their policy and implement storage:
 
@@ -266,9 +266,9 @@ Theme `defineAdapter`s are a different thing: untrusted, sandboxed, sans-IO adap
 
 ### CLI
 
-- `poc build [--cwd .] [--out dist]` writes `dist/manifest.json`, `dist/bundle.js` and `dist/assets/**`.
-- `poc publish --artifacts <dir>` copies to `v<N+1>` (temp dir, then rename) and switches `current.json` atomically (temp file, then rename).
-- `poc activate <N> --artifacts <dir>` repoints `current.json`; this is how you roll back.
+- `puck-remote build [--cwd .] [--out dist]` writes `dist/manifest.json`, `dist/bundle.js` and `dist/assets/**`.
+- `puck-remote publish --artifacts <dir>` copies to `v<N+1>` (temp dir, then rename) and switches `current.json` atomically (temp file, then rename).
+- `puck-remote activate <N> --artifacts <dir>` repoints `current.json`; this is how you roll back.
 
 ## Test map
 
@@ -291,7 +291,7 @@ Theme `defineAdapter`s are a different thing: untrusted, sandboxed, sans-IO adap
 | 20 | Publish increments; atomic pointer under concurrent reads; hot swap disposes old isolate; rollback | `artifacts.test.ts` |
 | 21 | Build rejects function options, custom/external, permissions/resolve*, non-JSON, expression `visibleIf`, bad refs | `packages/cli/test/build.test.ts` |
 | — | Framework-agnostic entry points: `handleApi` / `handleTheme` routing, prefixes, 404/405, memoized runtime | `routes.test.ts` |
-| A7 | No developer code outside the isolate: static scan, bundle-sink allowlist, runtime realm check; host core imports only `@poc/sdk/host`, concrete plugins only in `poc.config.ts` | `no-dev-code.test.ts` |
+| A7 | No developer code outside the isolate: static scan, bundle-sink allowlist, runtime realm check; host core imports only `@puck-remote/sdk/host`, concrete plugins only in `puck-remote.config.ts` | `no-dev-code.test.ts` |
 
 ## Findings
 
@@ -316,7 +316,7 @@ Theme `defineAdapter`s are a different thing: untrusted, sandboxed, sans-IO adap
 - **Select options are JSON-encoded in the DOM** and drag-and-drop requires trusted pointer events. Both only matter for browser automation.
 - `getItemSummary` is a function, so a declarative `itemSummary: '<field>'` maps to a host function.
 
-### Measured costs (M1 Max, arm64 Node 26.10, 221 KB bundle, `pnpm --filter @poc/core bench`)
+### Measured costs (M1 Max, arm64 Node 26.10, 221 KB bundle, `pnpm --filter @puck-remote/core bench`)
 
 | Step | Cost |
 |---|---|
@@ -339,7 +339,7 @@ Per-request cost is dominated by context creation. If that matters, a pool of pr
 
 ### Before integrating with Payload
 
-1. Write a `@poc/source-payload` DataSource: translate `NormalizedFind` to the Payload Local API with `overrideAccess: false`, a public (or draft-preview) user, and `draft: ctx.mode === 'draft'`. Generate the collection policies from Payload collection configs if convenient. Emit `afterChange` hooks through `subscribe` for cache invalidation. Wire it in `poc.config.ts`; the host core doesn't change. A `PageStore` backed by a Payload collection replaces `@poc/pages-fs`.
+1. Write a `@puck-remote/source-payload` DataSource: translate `NormalizedFind` to the Payload Local API with `overrideAccess: false`, a public (or draft-preview) user, and `draft: ctx.mode === 'draft'`. Generate the collection policies from Payload collection configs if convenient. Emit `afterChange` hooks through `subscribe` for cache invalidation. Wire it in `puck-remote.config.ts`; the host core doesn't change. A `PageStore` backed by a Payload collection replaces `@puck-remote/pages-fs`.
 2. Serve the editor from its **own origin**. Load the theme bundle there, or switch the editor to a server-render RPC if developer JS in the admin realm is unacceptable.
 3. Move rendering of hostile code **out of process**, behind the same `__render` / `__toRequest` / `__fromResponse` JSON protocol. The protocol is already JSON-strings-only, so the transport can change without touching blocks.
 4. Replace the local `artifacts/` directory and file watcher with an upload API: verify hashes, sign manifests, store versions immutably, and keep the pointer in the database.

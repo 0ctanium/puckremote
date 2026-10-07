@@ -15,7 +15,7 @@ const ORIGINAL = { TextEncoder: globalThis.TextEncoder, MessageChannel: globalTh
 const ROOTS = {
   core: ['packages/core/src'],
   next: ['packages/next/src'],
-  app: ['apps/host/src', 'apps/host/poc.config.ts', 'apps/host/next.config.ts'],
+  app: ['apps/host/src', 'apps/host/puck-remote.config.ts', 'apps/host/next.config.ts'],
 } as const
 
 async function sources(p: string): Promise<string[]> {
@@ -33,7 +33,7 @@ async function sources(p: string): Promise<string[]> {
 type Rule = [RegExp, string]
 const EVERYWHERE: Rule[] = [
   [/from\s+['"][^'"]*(examples|artifacts)\//, 'imports from examples/ or artifacts/'],
-  [/from\s+['"]@poc\/cli(\/[^'"]*)?['"]/, 'imports the CLI'],
+  [/from\s+['"]@puck-remote\/cli(\/[^'"]*)?['"]/, 'imports the CLI'],
   [/\bimport\s*\(/, 'dynamic import()'],
   [/\brequire\s*\(/, 'require()'],
   [/\beval\s*\(/, 'eval()'],
@@ -45,19 +45,19 @@ const EVERYWHERE: Rule[] = [
 const PER_ROOT: Record<keyof typeof ROOTS, Rule[]> = {
   // Engine + bindings: only the trusted contracts from the SDK; never a concrete plugin.
   core: [
-    [/from\s+['"]@poc\/sdk(\/(?!host['"])[^'"]*)?['"]/, 'imports the theme-facing SDK (only @poc/sdk/host allowed)'],
-    [/from\s+['"]@poc\/(source-|pages-|next)[^'"]*['"]/, 'imports a plugin or framework binding'],
+    [/from\s+['"]@puck-remote\/sdk(\/(?!host['"])[^'"]*)?['"]/, 'imports the theme-facing SDK (only @puck-remote/sdk/host allowed)'],
+    [/from\s+['"]@puck-remote\/(source-|pages-|next)[^'"]*['"]/, 'imports a plugin or framework binding'],
     [/from\s+['"]next(\/[^'"]*)?['"]/, 'imports next (core must stay framework-agnostic)'],
   ],
   next: [
-    [/from\s+['"]@poc\/sdk[^'"]*['"]/, 'imports the SDK directly'],
-    [/from\s+['"]@poc\/(source-|pages-)[^'"]*['"]/, 'imports a concrete plugin'],
+    [/from\s+['"]@puck-remote\/sdk[^'"]*['"]/, 'imports the SDK directly'],
+    [/from\s+['"]@puck-remote\/(source-|pages-)[^'"]*['"]/, 'imports a concrete plugin'],
     [/(from|import)\s+['"]isolated-vm['"]/, 'imports isolated-vm (only the core may)'],
   ],
-  // The app wires plugins (poc.config.ts only) and uses the bindings; no SDK, no engine internals.
+  // The app wires plugins (puck-remote.config.ts only) and uses the bindings; no SDK, no engine internals.
   app: [
-    [/from\s+['"]@poc\/sdk[^'"]*['"]/, 'imports the SDK'],
-    [/from\s+['"]@poc\/core\/(?!config['"])[^'"]*['"]/, 'imports @poc/core internals'],
+    [/from\s+['"]@puck-remote\/sdk[^'"]*['"]/, 'imports the SDK'],
+    [/from\s+['"]@puck-remote\/core\/(?!config['"])[^'"]*['"]/, 'imports @puck-remote/core internals'],
     [/(from|import)\s+['"]isolated-vm['"]/, 'imports isolated-vm'],
   ],
 }
@@ -92,8 +92,8 @@ describe('acceptance 7: no developer code outside the isolate', () => {
           for (const [re, what] of rules) {
             if (re.test(src)) violations.push(`${rel}: ${what}`)
           }
-          if (root === 'app' && rel !== 'apps/host/poc.config.ts' && /from\s+['"]@poc\/(source-|pages-)/.test(src)) {
-            violations.push(`${rel}: concrete plugins may only be wired in poc.config.ts`)
+          if (root === 'app' && rel !== 'apps/host/puck-remote.config.ts' && /from\s+['"]@puck-remote\/(source-|pages-)/.test(src)) {
+            violations.push(`${rel}: concrete plugins may only be wired in puck-remote.config.ts`)
           }
         }
       }

@@ -6,7 +6,7 @@ import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { build, BuildError } from '../src/index.ts'
 
-// Fixtures must live under this package so `@poc/sdk` and `react` resolve.
+// Fixtures must live under this package so `@puck-remote/sdk` and `react` resolve.
 const ROOT = path.join(import.meta.dirname, '.fixtures')
 const made: string[] = []
 afterAll(() => Promise.all(made.map((d) => rm(d, { recursive: true, force: true }))))
@@ -22,7 +22,7 @@ async function theme(files: Record<string, string>) {
   return dir
 }
 
-const block = (body: string) => `import { defineBlock, find, Slot } from '@poc/sdk'\nexport default ${body}\n`
+const block = (body: string) => `import { defineBlock, find, Slot } from '@puck-remote/sdk'\nexport default ${body}\n`
 const ok = `defineBlock({ fields: { title: { type: 'text' } }, render: (p) => <h1>{p.title}</h1> })`
 
 async function expectBuildError(files: Record<string, string>, pattern: RegExp) {

@@ -5,9 +5,9 @@ import { activate, publish } from './publish.ts'
 import { BuildError } from './validate.ts'
 
 const USAGE = `usage:
-  poc build   [--cwd .] [--out dist]
-  poc publish [--cwd .] [--out dist] --artifacts <dir>
-  poc activate <version> --artifacts <dir>     (rollback = activate an older version)`
+  puck-remote build   [--cwd .] [--out dist]
+  puck-remote publish [--cwd .] [--out dist] --artifacts <dir>
+  puck-remote activate <version> --artifacts <dir>     (rollback = activate an older version)`
 
 async function main() {
   const { values, positionals } = parseArgs({
@@ -15,13 +15,13 @@ async function main() {
     options: {
       cwd: { type: 'string', default: process.cwd() },
       out: { type: 'string', default: 'dist' },
-      artifacts: { type: 'string', default: process.env.POC_ARTIFACTS_DIR },
+      artifacts: { type: 'string', default: process.env.PUCK_REMOTE_ARTIFACTS_DIR },
     },
   })
   const cwd = path.resolve(values.cwd!)
   const [cmd, arg] = positionals
   const artifactsDir = () => {
-    if (!values.artifacts) throw new Error('--artifacts <dir> (or POC_ARTIFACTS_DIR) is required')
+    if (!values.artifacts) throw new Error('--artifacts <dir> (or PUCK_REMOTE_ARTIFACTS_DIR) is required')
     return path.resolve(cwd, values.artifacts)
   }
   switch (cmd) {
@@ -35,7 +35,7 @@ async function main() {
       const v = Number(arg)
       if (!Number.isInteger(v) || v < 1) throw new Error('activate needs a version number')
       await activate(artifactsDir(), v)
-      console.log(`[poc activate] current → v${v}`)
+      console.log(`[puck-remote activate] current → v${v}`)
       break
     }
     default:

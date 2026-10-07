@@ -1,4 +1,4 @@
-import { build } from '@poc/cli'
+import { build } from '@puck-remote/cli'
 import { readFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -17,7 +17,7 @@ export function buildTheme(dir: string) {
     cache.set(
       dir,
       (async () => {
-        const outDir = path.join(os.tmpdir(), `poc-test-${path.basename(dir)}-${process.pid}`)
+        const outDir = path.join(os.tmpdir(), `puck-remote-test-${path.basename(dir)}-${process.pid}`)
         const { manifest } = await build({ cwd: dir, outDir, quiet: true })
         return { outDir, manifest, bundle: await readFile(path.join(outDir, 'bundle.js'), 'utf8') }
       })(),
@@ -63,8 +63,8 @@ export function ctx(overrides: Partial<CtxInput> = {}): CtxInput {
 import { startMockApi } from 'mock-api'
 import { QueryCache } from '../src/server/query/cache.ts'
 import { HttpSource, type Resolver } from '../src/server/query/http-source.ts'
-import { mockCms } from '@poc/source-mock'
-import { fsPageStore } from '@poc/pages-fs'
+import { mockCms } from '@puck-remote/source-mock'
+import { fsPageStore } from '@puck-remote/pages-fs'
 import { HostSource } from '../src/server/query/host-source.ts'
 import type { RenderSession } from '../src/server/isolate-runner.ts'
 
@@ -160,12 +160,12 @@ export const env = (query: Record<string, string> = {}) => ({
 // ---------------------------------------------------------------------------
 // Full-host harness (artifacts + pages in a temp dir)
 // ---------------------------------------------------------------------------
-import { publish } from '@poc/cli'
+import { publish } from '@puck-remote/cli'
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
 import { createHost } from '../src/server/host.ts'
 
 export async function testHost(opts: { theme: 'example' | 'evil'; pages: Record<string, unknown>; mockOrigin?: string; config?: Partial<HostConfig> }) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'poc-host-'))
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'puck-remote-host-'))
   const artifactsDir = path.join(dir, 'artifacts')
   const pagesDir = path.join(dir, 'pages')
   await mkdir(pagesDir, { recursive: true })
