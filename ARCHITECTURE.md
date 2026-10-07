@@ -100,3 +100,25 @@ The host **re-validates** the manifest with zod and never trusts the CLI.
 - Blocks in one request share a context.
 - Puck's `resolveData` output persists into the editor's in-memory state. We strip it on save; this is a convention, not something Puck enforces.
 - `$query` pages are uncacheable (`Cache-Control: no-store`).
+
+## 10. Host plugins: data source and page store
+
+The host core is backend-agnostic. It depends on Puck and on the `@poc/sdk/host` contracts; the concrete plugins are chosen in one file, `apps/host/poc.config.ts`.
+
+| Contract | Example implementation | Purpose |
+|---|---|---|
+| `DataSource` (`defineDataSource`, `defineCollection<D>()`, `defineGlobal<D>()`) | `@poc/source-mock` | Answers theme `find` / `findByID` / `global` queries |
+| `PageStore` (`get` / `put` / `list`) | `@poc/pages-fs` | Persists Puck page JSON |
+
+**Trust.** Plugins are trusted host code chosen by the operator, so they run in Node. Theme `defineAdapter`s are different: untrusted, shipped by the theme, sans-IO, and run in the isolate.
+
+**Enforcement lives in the host core** (`src/server/query/host-source.ts`), not in plugins:
+- Declared collections, globals and fields only. `__proto__` and undeclared names are rejected.
+- Per-field `filter` operator allowlists and `sort` flags.
+- `limit` defaults and maxima, and `depth` clamped to `maxDepth`.
+- Output projected to declared fields, recursing into populated relations with the target collection's policy.
+- `mode` is set by the host only, and draft results are never cached.
+
+Plugins receive a validated `NormalizedFind` and only implement storage semantics, including what "draft" means for them. A plugin's optional `subscribe` change feed drives tag-based cache invalidation.
+
+**Typing.** Collection definitions carry a phantom document type. Theme queries are typed by registering the source type (`declare module '@poc/sdk' { interface Register { source: MockCms } }`) or via `source<MockCms>()`. The query spec is `{ source: 'host', op, collection, args }`. Changing it from `'payload'` was a breaking SDK change (`sdkMajor` 0 → 1), and the host rejects older artifacts with an explicit message.

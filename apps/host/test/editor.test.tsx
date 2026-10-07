@@ -84,7 +84,7 @@ describe('16. parity: editor and public render the same HTML for the same (props
     const session = await h.host.store.get().runtime.session()
     const { byInstance } = await resolvePageData(
       { instances: collectInstances(data, manifest), env: { page: { slug: 'home', locale: 'en' }, site: h.host.config.site, query: {} }, mode: 'public' },
-      { manifest, config: h.host.config, payload: h.host.payload, http: h.host.http, cache: h.host.cache, session: async () => session },
+      { manifest, config: h.host.config, source: h.host.source, http: h.host.http, cache: h.host.cache, session: async () => session },
     )
     session.release()
     const withData = JSON.parse(JSON.stringify(data)) as PageData
@@ -118,7 +118,7 @@ describe('18. resolveData output never persists', () => {
     const deps = {
       manifest,
       config: h.host.config,
-      payload: h.host.payload,
+      source: h.host.source,
       http: h.host.http,
       cache: h.host.cache,
       site: h.host.config.site,
@@ -142,7 +142,7 @@ describe('18. resolveData output never persists', () => {
     expect(nested.props[RESERVED_DATA_PROP]).toBeDefined() // resolveAllData reaches slot content
 
     // Save path (POST /api/pages → writePage) strips it everywhere.
-    const saved = await writePage(h.pagesDir, 'home', resolved)
+    const saved = await writePage(h.host.config.pages, 'home', resolved)
     const onDisk = await readFile(path.join(h.pagesDir, 'home.json'), 'utf8')
     for (const s of [JSON.stringify(saved), onDisk, JSON.stringify(stripResolved(resolved))]) {
       expect(s).not.toContain(RESERVED_DATA_PROP)

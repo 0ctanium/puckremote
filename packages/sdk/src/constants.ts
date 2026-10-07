@@ -1,7 +1,7 @@
 // Shared, data-only contract between the SDK, the CLI and the host.
 // The host re-declares these in its zod schema; it never imports developer code.
 
-export const SDK_MAJOR = 0
+export const SDK_MAJOR = 1
 
 export const FIELD_TYPES = [
   'text',

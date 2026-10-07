@@ -26,7 +26,7 @@ async function uncacheableTypes(artifactsDir: string): Promise<Set<string>> {
 
 export async function pageCacheability(slug: string): Promise<{ cacheable: boolean; blocks: string[] } | null> {
   const cfg = defaultHostConfig()
-  const page = await readPage(cfg.pagesDir, slug).catch(() => null)
+  const page = await readPage(cfg.pages, slug).catch(() => null)
   if (!page) return null
   const types = await uncacheableTypes(cfg.artifactsDir)
   const found = new Set<string>()

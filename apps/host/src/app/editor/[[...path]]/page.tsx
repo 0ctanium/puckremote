@@ -13,7 +13,7 @@ export default async function EditorPage({ params }: { params: Promise<{ path?: 
   if (!slug) notFound()
   const host = await getHost()
   const { manifest, version } = host.store.get()
-  const page = (await readPage(host.config.pagesDir, slug)) ?? { root: { props: { ...(manifest.root?.defaultProps ?? {}) } }, content: [] }
+  const page = (await readPage(host.config.pages, slug)) ?? { root: { props: { ...(manifest.root?.defaultProps ?? {}) } }, content: [] }
   const data = rewriteMissing(stripResolved(page), manifest)
   const uncacheable = collectInstances(data, manifest).some((i) => i.meta?.usesRequestParams)
   return (

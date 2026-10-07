@@ -122,7 +122,7 @@ const origin = z.string().refine((s) => {
 export const querySpecSchema = z.discriminatedUnion('source', [
   z.discriminatedUnion('op', [
     z.strictObject({
-      source: z.literal('payload'),
+      source: z.literal('host'),
       op: z.literal('find'),
       collection: z.string(),
       args: z.strictObject({
@@ -134,8 +134,14 @@ export const querySpecSchema = z.discriminatedUnion('source', [
         page: z.union([z.number().int(), paramRefSchema]).optional(),
       }),
     }),
-    z.strictObject({ source: z.literal('payload'), op: z.literal('findByID'), collection: z.string(), id: z.union([z.string(), paramRefSchema]) }),
-    z.strictObject({ source: z.literal('payload'), op: z.literal('global'), slug: z.string() }),
+    z.strictObject({
+      source: z.literal('host'),
+      op: z.literal('findByID'),
+      collection: z.string(),
+      id: z.union([z.string(), paramRefSchema]),
+      args: z.strictObject({ select: z.array(z.string()).optional(), depth: z.number().int().optional() }),
+    }),
+    z.strictObject({ source: z.literal('host'), op: z.literal('global'), slug: z.string() }),
   ]),
   z.strictObject({ source: z.literal('adapter'), adapter: ident, op: z.string().max(64), params: z.record(z.string(), paramValue) }),
   z.strictObject({
@@ -168,7 +174,7 @@ export type BlockMeta = z.infer<typeof blockMetaSchema>
 export const manifestSchema = z
   .strictObject({
     artifactVersion: z.string().max(100),
-    sdkMajor: z.literal(0),
+    sdkMajor: z.literal(1, { message: 'artifact was built for an incompatible SDK major version; rebuild with the current @poc/sdk' }),
     createdAt: z.string(),
     files: z.record(
       z.string().refine((p) => !p.split('/').some((s) => s === '..' || s === '.' || s === '') && !p.startsWith('/'), 'unsafe path'),

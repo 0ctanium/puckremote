@@ -20,10 +20,13 @@ export default defineBlock({
   },
   defaultProps: { heading: 'Latest', count: 3, layout: 'list', columns: 2, items: [] },
   data: {
-    posts: find<{ title: string; slug: string }>('posts', {
+    // Typed from the registered host data source: collection names, fields, sort keys and the
+    // result shape (Pick<Post, 'id' | 'title' | 'slug' | 'author'>) are all checked.
+    posts: find('posts', {
       limit: { $prop: 'count' },
       sort: '-publishedAt',
-      select: ['title', 'slug'],
+      select: ['title', 'slug', 'author'],
+      depth: 1,
       where: { status: { equals: 'published' } },
     }),
   },
@@ -35,6 +38,7 @@ export default defineBlock({
           {data.posts.data.docs.map((p) => (
             <li key={p.slug}>
               <a href={`/posts/${p.slug}`}>{p.title}</a>
+              {typeof p.author === 'object' && <span className="t-author"> by {p.author.name}</span>}
             </li>
           ))}
         </ul>

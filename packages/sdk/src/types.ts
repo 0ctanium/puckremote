@@ -98,11 +98,11 @@ export type WhereCondition =
   | { gt: Param }
   | { lt: Param }
 
-export interface FindArgs {
+export interface FindArgs<D = Doc, Sel extends readonly string[] | undefined = readonly string[] | undefined> {
   where?: WhereClause
   limit?: number | ParamRef
-  sort?: string
-  select?: string[]
+  sort?: (keyof D & string) | `-${keyof D & string}`
+  select?: Sel
   depth?: number
   page?: number | ParamRef
 }
@@ -112,9 +112,9 @@ declare const __result: unique symbol
 export type QuerySpec<T = unknown> = QueryDescriptor & { readonly [__result]?: T }
 
 export type QueryDescriptor =
-  | { source: 'payload'; op: 'find'; collection: string; args: FindArgs }
-  | { source: 'payload'; op: 'findByID'; collection: string; id: string | ParamRef }
-  | { source: 'payload'; op: 'global'; slug: string }
+  | { source: 'host'; op: 'find'; collection: string; args: FindArgs<any, any> }
+  | { source: 'host'; op: 'findByID'; collection: string; id: string | ParamRef; args: { select?: readonly string[]; depth?: number } }
+  | { source: 'host'; op: 'global'; slug: string }
   | { source: 'adapter'; adapter: string; op: string; params: Record<string, ParamValue> }
   | {
       source: 'http'

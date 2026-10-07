@@ -14,7 +14,7 @@ export default defineRoot({
   },
   defaultProps: { title: 'Untitled page', description: '', theme: 'light' },
   data: {
-    site: global<{ tagline: string; footer: string }>('site'),
+    site: global('site'),
   },
   render: (props, data, ctx) => {
     ctx.head.title(`${props.title} · ${ctx.site.name}`)

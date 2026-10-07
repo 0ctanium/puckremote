@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   const slug = normalizeSlug(new URL(req.url).searchParams.get('slug') ?? 'home')
   if (!slug) return Response.json({ error: 'invalid slug' }, { status: 400 })
   const host = await getHost()
-  const page = await readPage(host.config.pagesDir, slug)
+  const page = await readPage(host.config.pages, slug)
   return page ? Response.json(page) : Response.json({ error: 'not found' }, { status: 404 })
 }
 
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (!slug || !body?.data) return Response.json({ error: 'invalid body' }, { status: 400 })
   const host = await getHost()
   try {
-    const saved = await writePage(host.config.pagesDir, slug, restoreMissing(body.data as PageData))
+    const saved = await writePage(host.config.pages, slug, restoreMissing(body.data as PageData))
     return Response.json({ ok: true, slug, blocks: saved.content.length })
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : 'invalid page' }, { status: 400 })

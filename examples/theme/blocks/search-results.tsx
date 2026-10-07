@@ -7,7 +7,7 @@ export default defineBlock({
   fields: { heading: { type: 'text' } },
   defaultProps: { heading: 'Search' },
   data: {
-    results: find<{ title: string; slug: string }>('posts', {
+    results: find('posts', {
       limit: 10,
       select: ['title', 'slug'],
       where: { title: { contains: { $query: 'q' } } },

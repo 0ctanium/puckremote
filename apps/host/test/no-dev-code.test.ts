@@ -23,7 +23,11 @@ async function sources(dir: string): Promise<string[]> {
 
 const FORBIDDEN: [RegExp, string][] = [
   [/from\s+['"][^'"]*(examples|artifacts)\//, 'imports from examples/ or artifacts/'],
-  [/from\s+['"]@poc\/(sdk|cli)(\/[^'"]*)?['"]/, 'imports developer-facing SDK/CLI at runtime'],
+  // Only the trusted host-plugin contracts (@poc/sdk/host) may be imported; never the theme-facing
+  // SDK, its isolate runtime, or the CLI.
+  [/from\s+['"]@poc\/(sdk(\/(?!host['"])[^'"]*)?|cli(\/[^'"]*)?)['"]/, 'imports developer-facing SDK/CLI at runtime'],
+  // The core is backend-agnostic: concrete plugins are wired only in poc.config.ts.
+  [/from\s+['"]@poc\/(source-|pages-)[^'"]*['"]/, 'imports a concrete host plugin outside poc.config.ts'],
   [/\bimport\s*\(/, 'dynamic import()'],
   [/\brequire\s*\(/, 'require()'],
   [/\beval\s*\(/, 'eval()'],

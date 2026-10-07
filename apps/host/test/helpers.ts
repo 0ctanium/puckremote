@@ -58,7 +58,9 @@ export function ctx(overrides: Partial<CtxInput> = {}): CtxInput {
 import { startMockApi } from 'mock-api'
 import { QueryCache } from '../src/server/query/cache.ts'
 import { HttpSource, type Resolver } from '../src/server/query/http-source.ts'
-import { PayloadMock } from '../src/server/query/payload-mock.ts'
+import { mockCms } from '@poc/source-mock'
+import { fsPageStore } from '@poc/pages-fs'
+import { HostSource } from '../src/server/query/host-source.ts'
 import type { RenderSession } from '../src/server/isolate-runner.ts'
 
 export type MockApi = Awaited<ReturnType<typeof startMockApi>>
@@ -117,18 +119,23 @@ export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; 
   const runner = newRunner(bundle, config)
   let session: Promise<RenderSession> | null = null
   const http = new HttpSource({ config: config.http, secrets: config.secrets, resolver: opts.resolver })
+  // A fresh source per harness so content edits in one test don't leak into another.
+  const cms = mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') })
+  const cache = new QueryCache()
+  cms.subscribe((tags) => tags.forEach((t) => cache.invalidate(t)))
   const deps = {
     manifest: m,
     config,
-    payload: new PayloadMock(config.payload, path.join(REPO_ROOT, 'data', 'payload.json')),
+    source: new HostSource(cms),
     http,
-    cache: new QueryCache(),
+    cache,
     session: () => (session ??= runner.session().then((s) => recordingSession(s, rec))),
     log: rec.log,
     site: config.site,
   }
   return {
     deps,
+    cms,
     rec,
     runner,
     async close() {
@@ -162,7 +169,13 @@ export async function testHost(opts: { theme: 'example' | 'evil'; pages: Record<
   await publish({ distDir: built.outDir, artifactsDir, quiet: true })
   const mock = opts.mockOrigin ?? 'http://localhost:4010'
   const base = dataConfig(mock)
-  const config: HostConfig = { ...base, artifactsDir, pagesDir, payloadDataFile: path.join(REPO_ROOT, 'data', 'payload.json'), ...opts.config }
+  const config: HostConfig = {
+    ...base,
+    artifactsDir,
+    source: mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') }),
+    pages: fsPageStore({ dir: pagesDir }),
+    ...opts.config,
+  }
   const host = createHost(config)
   ;(host.store as any).opts.disposeGraceMs = 0
   ;(host.store as any).log = quietLog

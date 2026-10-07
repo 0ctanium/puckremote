@@ -82,7 +82,7 @@ describe('15. slots render real child blocks', () => {
     expect(iRoot).toBeLessThan(iHero)
     expect(iHero).toBeLessThan(iCard)
     expect(iCard).toBeLessThan(iPosts)
-    expect(html).toContain('Sandboxing React with isolated-vm') // payload data
+    expect(html).toContain('Sandboxing React with isolated-vm') // host data source
     expect(html).toContain('Puck meetup') // adapter data via mock API
     expect(html).toContain('data-theme="dark"')
     expect(html).not.toMatch(/data-puck-slot="(content|children)" data-nonce="[0-9a-f]{32}"/) // all real markers swapped

@@ -10,14 +10,16 @@ import type { Instance } from '../page-tree.ts'
 import { QueryCache } from './cache.ts'
 import type { HttpSource } from './http-source.ts'
 import { hashSpec, QueryError, substitute, type ParamEnv } from './params.ts'
-import type { Mode, PayloadMock } from './payload-mock.ts'
+import type { Mode } from '@poc/sdk/host'
+import type { HostSource } from './host-source.ts'
 
 export type QueryResult = { ok: true; data: unknown } | { ok: false; error: string }
 
 export interface ResolveDeps {
   manifest: Manifest
   config: HostConfig
-  payload: PayloadMock
+  /** The operator's data source, wrapped in host-side policy enforcement. */
+  source: HostSource
   http: HttpSource
   cache: QueryCache
   /** Lazily provides an isolate context for adapter translators (shared with the render pass). */
@@ -71,7 +73,7 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
     for (const [key, spec] of Object.entries(inst.meta.data)) {
       planned++
       const concrete = substitute(spec, { ...input.env, props: inst.props }) as QuerySpec
-      const hash = hashSpec({ mode: concrete.source === 'payload' ? input.mode : 'any', concrete })
+      const hash = hashSpec({ mode: concrete.source === 'host' ? input.mode : 'any', concrete })
       const p = plan.get(hash) ?? { hash, spec: concrete, consumers: [] }
       p.consumers.push({ instanceId: inst.id, key })
       plan.set(hash, p)
@@ -104,7 +106,7 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
           data = cached.value
         } else {
           executed++
-          data = await Promise.race([execute(p.spec, input.mode, deps, deadline), overDeadline])
+          data = await Promise.race([execute(p.spec, input.mode, input.env.page.locale, deps, deadline), overDeadline])
           cacheSet(p, data, input.mode, deps)
         }
         const bytes = Buffer.byteLength(JSON.stringify(data) ?? '')
@@ -142,21 +144,22 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
 
 function cacheSet(p: Planned, data: unknown, mode: Mode, deps: ResolveDeps) {
   const spec = p.spec
-  if (spec.source === 'payload') {
+  if (spec.source === 'host') {
     if (mode === 'draft') return // never cache draft reads
-    const tag = spec.op === 'global' ? `global:${spec.slug}` : deps.payload.tagFor(spec.collection)
-    deps.cache.set(p.hash, data, { tags: [tag] })
+    deps.cache.set(p.hash, data, { tags: deps.source.tagsFor(spec) })
   } else {
     deps.cache.set(p.hash, data, { ttlMs: deps.config.http.cacheTtlMs })
   }
 }
 
-async function execute(spec: QuerySpec, mode: Mode, deps: ResolveDeps, signal: AbortSignal): Promise<unknown> {
+async function execute(spec: QuerySpec, mode: Mode, locale: string, deps: ResolveDeps, signal: AbortSignal): Promise<unknown> {
   switch (spec.source) {
-    case 'payload':
-      if (spec.op === 'find') return deps.payload.find(spec.collection, spec.args, mode)
-      if (spec.op === 'findByID') return deps.payload.findByID(spec.collection, spec.id, mode)
-      return deps.payload.global(spec.slug)
+    case 'host': {
+      const ctx = { mode, locale, signal }
+      if (spec.op === 'find') return deps.source.find(spec.collection, spec.args as Record<string, unknown>, ctx)
+      if (spec.op === 'findByID') return deps.source.findByID(spec.collection, spec.id, spec.args as Record<string, unknown>, ctx)
+      return deps.source.global(spec.slug, ctx)
+    }
     case 'http': {
       const res = await deps.http.fetchJson(
         { origin: spec.origin, path: spec.path, method: spec.method, params: spec.params as Record<string, unknown>, headers: spec.headers },

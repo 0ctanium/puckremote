@@ -1,1 +1,1 @@
-{ "extends": "../../tsconfig.base.json", "include": ["blocks", "adapters", "config", "root.tsx"] }
+{ "extends": "../../tsconfig.base.json", "include": ["blocks", "adapters", "config", "root.tsx", "poc-env.d.ts", "type-tests.ts"] }

@@ -7,12 +7,13 @@ import { defaultHostConfig, type HostConfig } from './config.ts'
 import { IsolateRunner } from './isolate-runner.ts'
 import { QueryCache } from './query/cache.ts'
 import { HttpSource } from './query/http-source.ts'
-import { PayloadMock } from './query/payload-mock.ts'
+import { HostSource } from './query/host-source.ts'
 
 export interface Host {
   config: HostConfig
   store: ArtifactStore<IsolateRunner>
-  payload: PayloadMock
+  /** Operator data source behind host-side policy enforcement. */
+  source: HostSource
   http: HttpSource
   cache: QueryCache
 }
@@ -21,6 +22,9 @@ const KEY = Symbol.for('poc.host')
 type G = typeof globalThis & { [KEY]?: Promise<Host> }
 
 export function createHost(config: HostConfig = defaultHostConfig()): Host {
+  const cache = new QueryCache()
+  // Content changes in the backend invalidate cached query results by tag.
+  config.source.subscribe?.((tags) => tags.forEach((t) => cache.invalidate(t)))
   return {
     config,
     store: new ArtifactStore<IsolateRunner>({
@@ -28,9 +32,9 @@ export function createHost(config: HostConfig = defaultHostConfig()): Host {
       createRuntime: ({ bundle }) => new IsolateRunner(bundle, config.isolate),
       disposeGraceMs: 30_000,
     }),
-    payload: new PayloadMock(config.payload, config.payloadDataFile),
+    source: new HostSource(config.source),
     http: new HttpSource({ config: config.http, secrets: config.secrets }),
-    cache: new QueryCache(),
+    cache,
   }
 }
 

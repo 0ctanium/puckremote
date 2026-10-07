@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const res = await handleResolve(body, {
       manifest,
       config: host.config,
-      payload: host.payload,
+      source: host.source,
       http: host.http,
       cache: host.cache,
       site: host.config.site,

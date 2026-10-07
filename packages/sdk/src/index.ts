@@ -1,11 +1,11 @@
 import { createElement, type ReactElement } from 'react'
+import type { AnyDataSource, CollectionName, DocOf, GlobalDocOf, GlobalName } from './host.ts'
 import { renderState } from './state.ts'
 import type {
   AdapterDefinition,
   BlockDefinition,
   Categories,
   DataSpecs,
-  Doc,
   Fields,
   FindArgs,
   FindResult,
@@ -50,17 +50,52 @@ export function Slot({ name }: { name: string }): ReactElement {
 // Query builders: they only build JSON descriptors. Nothing executes here.
 // ---------------------------------------------------------------------------
 
-export function find<T = Doc>(collection: string, args: FindArgs = {}): QuerySpec<FindResult<T>> {
-  return { source: 'payload', op: 'find', collection, args }
+// --- Host data source queries --------------------------------------------------------------
+//
+// Typing comes from the host's data source type. Either register it once for the whole theme:
+//
+//   // poc-env.d.ts
+//   import type { MockCms } from '@poc/source-mock'
+//   declare module '@poc/sdk' { interface Register { source: MockCms } }
+//
+// and call find('posts', …) with full inference, or pass it explicitly through
+// `source<MockCms>().find('posts', …)`. (TypeScript has no partial generic inference, so
+// `find<MockCms>('posts')` could not also infer the collection name.)
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface Register {}
+export type RegisteredSource = Register extends { source: infer S extends AnyDataSource } ? S : AnyDataSource
+
+type Selected<D, Sel> = Sel extends readonly (infer F)[] ? Pick<D, Extract<F, keyof D> | Extract<'id', keyof D>> : D
+
+function hostQueries<S extends AnyDataSource>() {
+  return {
+    find<K extends CollectionName<S>, const Sel extends readonly (keyof DocOf<S, K> & string)[] | undefined = undefined>(
+      collection: K,
+      args: FindArgs<DocOf<S, K>, Sel> = {},
+    ): QuerySpec<FindResult<Selected<DocOf<S, K>, Sel>>> {
+      return { source: 'host', op: 'find', collection, args }
+    },
+    findByID<K extends CollectionName<S>, const Sel extends readonly (keyof DocOf<S, K> & string)[] | undefined = undefined>(
+      collection: K,
+      id: string | ParamRef,
+      args: { select?: Sel; depth?: number } = {},
+    ): QuerySpec<Selected<DocOf<S, K>, Sel> | null> {
+      return { source: 'host', op: 'findByID', collection, id, args }
+    },
+    global<K extends GlobalName<S>>(slug: K): QuerySpec<GlobalDocOf<S, K>> {
+      return { source: 'host', op: 'global', slug }
+    },
+  }
 }
 
-export function findByID<T = Doc>(collection: string, id: string | ParamRef): QuerySpec<T | null> {
-  return { source: 'payload', op: 'findByID', collection, id }
-}
+/** Query builders typed by an explicit data source type. */
+export const source = <S extends AnyDataSource>() => hostQueries<S>()
 
-export function global<T = Doc>(slug: string): QuerySpec<T> {
-  return { source: 'payload', op: 'global', slug }
-}
+const registered = hostQueries<RegisteredSource>()
+export const find = registered.find
+export const findByID = registered.findByID
+export const global = registered.global
 
 export function query<T = unknown>(adapter: string, op: string, params: Record<string, ParamValue> = {}): QuerySpec<T> {
   return { source: 'adapter', adapter, op, params }
@@ -82,3 +117,4 @@ export function http<T = unknown>(spec: {
     headers: spec.headers ?? {},
   }
 }
+export type { AnyDataSource, DataSource, CollectionDef, GlobalDef } from './host.ts'

@@ -51,7 +51,7 @@ export function restoreMissing(data: PageData): PageData {
 export async function preparePage(host: Host, slug: string, query: Record<string, string>): Promise<PreparedPage | null> {
   const artifact = host.store.get()
   const { manifest, runtime: runner, version } = artifact
-  const page = await readPage(host.config.pagesDir, slug)
+  const page = await readPage(host.config.pages, slug)
   if (!page) return null
   const data = rewriteMissing(stripResolved(page), manifest)
   const instances = collectInstances(data, manifest)
@@ -67,7 +67,7 @@ export async function preparePage(host: Host, slug: string, query: Record<string
     const env = { page: { slug, locale: host.config.site.locale }, site: host.config.site, query: uncacheableBlocks.length ? query : {} }
     const { byInstance, stats } = await resolvePageData(
       { instances, env, mode: 'public' },
-      { manifest, config: host.config, payload: host.payload, http: host.http, cache: host.cache, session: getSession },
+      { manifest, config: host.config, source: host.source, http: host.http, cache: host.cache, session: getSession },
     )
 
     const rendered: Record<string, RenderedBlock> = {}

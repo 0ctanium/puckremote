@@ -175,11 +175,11 @@ export function validateQuery(spec: unknown, path: string, adapters: Set<string>
   if (!isPlainObject(json)) fail(path, 'query must be built with find/findByID/global/query/http')
   const a: QueryAnalysis = { propRefs: [], usesRequestParams: false }
   switch (json.source) {
-    case 'payload': {
+    case 'host': {
       if (json.op === 'find') {
         const args = (json.args ?? {}) as Record<string, unknown>
         if (args.where !== undefined) validateWhere(args.where, `${path}.where`)
-      } else if (json.op !== 'findByID' && json.op !== 'global') fail(path, `unknown payload op ${json.op}`)
+      } else if (json.op !== 'findByID' && json.op !== 'global') fail(path, `unknown host data source op ${json.op}`)
       walkRefs(json, path, a, false)
       break
     }

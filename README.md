@@ -5,7 +5,7 @@ Developers write Puck blocks in React with `defineBlock(...)`. A CLI builds them
 The host never builds and never runs developer code outside `isolated-vm`:
 
 - It builds real Puck configs from the manifest's JSON.
-- It runs every data query itself: declarative, validated, deduped and budgeted.
+- It runs every data query itself: declarative, validated, deduped and budgeted, against a **pluggable data source** that the host operator wires in. The host core is backend-agnostic and depends only on Puck plus the `@poc/sdk/host` contracts.
 - It executes only the synchronous `render` functions and adapter translators, inside an isolate.
 
 Block output is an HTML string with nonce-protected slot markers. The host swaps those markers for real Puck slots, and the public site is served with Puck's RSC renderer.
@@ -53,7 +53,7 @@ Rollback is just moving the pointer:
 cd examples/theme && ./node_modules/.bin/poc activate 1 --artifacts ../../artifacts
 ```
 
-Tests (52, covering every item in the spec's list):
+Tests (54, covering every item in the spec's list):
 
 ```bash
 pnpm test
@@ -68,10 +68,14 @@ pnpm --filter host bench
 ## Layout
 
 ```
-packages/sdk        @poc/sdk: defineBlock/defineRoot/defineAdapter, Slot, query builders, isolate runtime + shims
+packages/sdk        @poc/sdk: defineBlock/defineRoot/defineAdapter, Slot, typed query builders, isolate runtime + shims
+                    @poc/sdk/host: contracts for trusted host plugins (DataSource, PageStore)
 packages/cli        @poc/cli: `poc build | publish | activate`; metadata extraction + validation
+packages/source-mock  @poc/source-mock: example DataSource (in-memory CMS: posts, authors, site global)
+packages/pages-fs   @poc/pages-fs: example PageStore (JSON files)
 apps/host           Next.js 16 host
-  src/server/         artifact loader, isolate runner, query resolver (payload mock, http/adapters), page pipeline
+  poc.config.ts       the ONLY place concrete plugins are wired (data source, page store)
+  src/server/         artifact loader, isolate runner, query resolver (host data source enforcement, http/adapters), page pipeline
   src/editor/         Puck editor config, host-owned field UIs, bundle realm loader
   src/shared/         slot swap (html-react-parser), used by both RSC and editor
   src/app/            public catch-all (Puck RSC), /editor, /api/*, /theme-assets, /theme-bundle
@@ -80,7 +84,7 @@ apps/host           Next.js 16 host
 examples/theme      the "developer repo"
 mock/api-server     external API stand-in (events, redirects, big/slow responses)
 artifacts/          published versions (git-ignored) + current.json
-data/pages          saved Puck page JSON;  data/payload.json  mocked Payload collections/globals
+data/pages          saved Puck page JSON;  data/cms.json  seed data for the mock data source
 spike/              Step 0 spike: isolated-vm + React renderToString in a bare isolate
 ```
 
@@ -153,9 +157,9 @@ Lives in `root.tsx` and follows the same rules. The page body is `<Slot name="ch
 
 | Builder | Source |
 |---|---|
-| `find(collection, { where, limit, sort, select, depth, page })` | Host payload source (mocked) |
-| `findByID(collection, id)` | Host payload source |
-| `global(slug)` | Host payload source |
+| `find(collection, { where, limit, sort, select, depth, page })` | Host data source |
+| `findByID(collection, id, { select?, depth? })` | Host data source |
+| `global(slug)` | Host data source |
 | `query(adapterName, op, params)` | Adapter |
 | `http({ origin, path, method?, params?, headers? })` | Generic JSON endpoint, size-capped |
 
@@ -163,9 +167,55 @@ Lives in `root.tsx` and follows the same rules. The page body is `<Slot name="ch
 
 **`where` operators:** `equals`, `in`, `contains`, `gt`, `lt`, `and`, `or`.
 
+**Typing.** Host queries are typed from the host's data source type. Register it once in the theme (type-only; nothing from the source package enters the bundle):
+
+```ts
+// examples/theme/poc-env.d.ts
+import type { MockCms } from '@poc/source-mock'
+declare module '@poc/sdk' { interface Register { source: MockCms } }
+```
+
+After that, `find('posts', { select: ['title', 'slug'] })` returns `QuerySpec<FindResult<Pick<Post, 'id' | 'title' | 'slug'>>>`. Unknown collections, fields, sort keys and globals are compile errors (`examples/theme/type-tests.ts`).
+
+Without registration, use `source<MockCms>().find('posts', …)`. A plain `find<MockCms>('posts')` isn't offered because TypeScript can't infer the collection name once one generic is given explicitly.
+
 ### `defineAdapter({ name, origin, toRequest(q), fromResponse(json, q) })`
 
 Lives in `adapters/*.ts`. Adapters are sans-IO: both functions are synchronous and run in the isolate. `toRequest` returns `{ method, path, params?, headers? }`, and headers may contain `{ $secret }`. The host performs the request against the manifest's `origin`.
+
+### Host plugins (`@poc/sdk/host`, trusted, run in Node)
+
+The operator wires these in `apps/host/poc.config.ts`. Themes never ship them.
+
+**`defineDataSource({ name, collections, globals, subscribe? })`** backs `find` / `findByID` / `global`. Collections declare their policy and implement storage:
+
+```ts
+posts: defineCollection<Post>()({
+  fields: {                                      // exposed fields; everything else is invisible
+    title: { type: 'text' },                     // filter: all operators, sortable
+    slug: { type: 'text', filter: ['equals', 'in'] },
+    excerpt: { type: 'text', filter: false, sort: false },
+    author: { type: 'relation', to: 'authors' }, // populated docs use the authors policy
+  },
+  limits: { default: 10, max: 12, maxDepth: 1 },
+  tags: ['posts'],                               // cache tags (default `collection:<name>`)
+  find: async (query, ctx) => ({ docs, totalDocs }),  // query is validated + normalized
+  findByID: async (id, { select, depth }, ctx) => doc, // optional; falls back to find
+}),
+```
+
+The host core enforces the policy around every call:
+- Only declared collections, globals and fields can be reached.
+- `where` operators are checked per field, and `sort` only on sortable fields.
+- `limit` and `depth` are clamped.
+- Output is projected to declared fields, recursively through populated relations.
+- `mode` (`public`/`draft`) is decided by the host only.
+
+The plugin receives a `NormalizedFind` (`where` tree, `sort`, `limit`, `page`, `select`, `depth`) and translates it for its own backend. Visibility semantics (what "draft" means) belong to the plugin. The optional `subscribe(onChange)` feed lets the host invalidate cached results by tag.
+
+**`PageStore`** (`get`, `put`, `list`) persists page JSON. The host validates pages and strips resolved data before `put`.
+
+Theme `defineAdapter`s are a different thing: untrusted, sandboxed, sans-IO adapters to external HTTP APIs, shipped by the theme.
 
 ### CLI
 
@@ -184,16 +234,16 @@ Lives in `adapters/*.ts`. Adapters are sans-IO: both functions are synchronous a
 | 10 | Budget: query count, response bytes, wall time; tree-order degradation | `data.test.ts` |
 | 11 | `/api/blocks/resolve` ignores client-supplied spec/data/query/mode | `data.test.ts` |
 | 12 | Drafts only in editor mode; no cache bleed | `data.test.ts` |
-| 13 | Payload allowlist (collections, globals, fields, sort, where), `limit` clamp, projection, tag invalidation | `data.test.ts` |
+| 13 | Host data source policy: undeclared collections/globals/fields, per-field operators, sortability, `limit`/`depth` clamps, projection incl. populated relations, change-feed cache invalidation | `data.test.ts` (types: `examples/theme/type-tests.ts`) |
 | 14 | Forged slot markers are not swapped; each slot is swapped once | `rendering.test.tsx` |
-| 15 | hero → card → latest-posts nested via slots, with payload and adapter data and head effects | `rendering.test.tsx` |
+| 15 | hero → card → latest-posts nested via slots, with host data source and adapter data and head effects | `rendering.test.tsx` |
 | 16 | Parity: isolate vs browser-realm HTML per block, and whole page editor config vs RSC | `editor.test.tsx` |
 | 17 | Missing block fallback; stale or missing props | `rendering.test.tsx` |
 | 18 | `resolveData` output (`__data`, `readOnly`) is stripped on save | `editor.test.tsx` |
 | 19 | Tampered bundle, manifest or asset is rejected; previous version keeps serving | `artifacts.test.ts` |
 | 20 | Publish increments; atomic pointer under concurrent reads; hot swap disposes old isolate; rollback | `artifacts.test.ts` |
 | 21 | Build rejects function options, custom/external, permissions/resolve*, non-JSON, expression `visibleIf`, bad refs | `packages/cli/test/build.test.ts` |
-| A7 | No developer code outside the isolate: static scan, bundle-sink allowlist, runtime realm check | `no-dev-code.test.ts` |
+| A7 | No developer code outside the isolate: static scan, bundle-sink allowlist, runtime realm check; host core imports only `@poc/sdk/host`, concrete plugins only in `poc.config.ts` | `no-dev-code.test.ts` |
 
 ## Findings
 
@@ -203,7 +253,7 @@ Lives in `adapters/*.ts`. Adapters are sans-IO: both functions are synchronous a
 - **Async can't escape a call.** V8 drains microtasks before `apply` returns, so an `await` loop runs under the call's timeout and is killed. There are no timers, so nothing can be scheduled for later.
 - **Memory blow-ups are contained.** A 64 MB limit makes the isolate dispose itself. The runner recreates it lazily and the rest of the page still renders.
 - **Fresh context per request** stops `Object.prototype` and global pollution from crossing requests. Within one request, blocks share a context; this is accepted and tested.
-- **Declarative data works.** Dedupe, the static budget, draft/public separation, the payload allowlist, origin-bound secrets and SSRF defenses are all enforced on the host, and secrets never reach the isolate. Adapters stay sans-IO.
+- **Declarative data works.** Dedupe, the static budget, draft/public separation, per-collection data source policy, origin-bound secrets and SSRF defenses are all enforced on the host, and secrets never reach the isolate. Theme adapters stay sans-IO.
 - **Puck integration from pure JSON.** Both configs (editor and RSC) are built from manifest metadata. Slots render nested sandboxed blocks in both the editor and the public site. Editor HTML is byte-identical to public HTML for the same inputs.
 - **Artifact swap without a host rebuild.** The file watcher, hash verification and zod validation run first; on failure the last good version keeps serving. Rollback is a pointer write.
 
@@ -241,7 +291,7 @@ Per-request cost is dominated by context creation. If that matters, a pool of pr
 
 ### Before integrating with Payload
 
-1. Replace `PayloadMock` with a Payload Local API source using `overrideAccess: false` and a public (or draft-preview) user. Keep the host-side collection/field allowlist, `limit`/`depth` clamps and projection as defense in depth. Wire Payload `afterChange` hooks to `cache.invalidate(tag)`.
+1. Write a `@poc/source-payload` DataSource: translate `NormalizedFind` to the Payload Local API with `overrideAccess: false`, a public (or draft-preview) user, and `draft: ctx.mode === 'draft'`. Generate the collection policies from Payload collection configs if convenient. Emit `afterChange` hooks through `subscribe` for cache invalidation. Wire it in `poc.config.ts`; the host core doesn't change. A `PageStore` backed by a Payload collection replaces `@poc/pages-fs`.
 2. Serve the editor from its **own origin**. Load the theme bundle there, or switch the editor to a server-render RPC if developer JS in the admin realm is unacceptable.
 3. Move rendering of hostile code **out of process**, behind the same `__render` / `__toRequest` / `__fromResponse` JSON protocol. The protocol is already JSON-strings-only, so the transport can change without touching blocks.
 4. Replace the local `artifacts/` directory and file watcher with an upload API: verify hashes, sign manifests, store versions immutably, and keep the pointer in the database.

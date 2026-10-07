@@ -4,7 +4,7 @@ interface Entry {
   tags: string[]
 }
 
-/** In-memory cache: TTL entries (http/adapters) and tag-invalidated entries (payload). */
+/** In-memory cache: TTL entries (http/adapters) and tag-invalidated entries (host data source). */
 export class QueryCache {
   private entries = new Map<string, Entry>()
 

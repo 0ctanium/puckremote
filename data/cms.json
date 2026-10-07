@@ -1,0 +1,109 @@
+{
+  "collections": {
+    "posts": [
+      {
+        "id": "p1",
+        "title": "Sandboxing React with isolated-vm",
+        "slug": "sandboxing-react",
+        "excerpt": "Untrusted render functions, safely.",
+        "publishedAt": "2026-09-30",
+        "status": "published",
+        "_status": "published",
+        "author": "a1",
+        "secretNotes": "internal only"
+      },
+      {
+        "id": "p2",
+        "title": "Declarative data for blocks",
+        "slug": "declarative-data",
+        "excerpt": "The host runs the queries.",
+        "publishedAt": "2026-09-21",
+        "status": "published",
+        "_status": "published",
+        "author": "a2",
+        "secretNotes": "internal only"
+      },
+      {
+        "id": "p3",
+        "title": "Slots and nonces",
+        "slug": "slots-and-nonces",
+        "excerpt": "Forging markers is futile.",
+        "publishedAt": "2026-09-12",
+        "status": "published",
+        "_status": "published",
+        "author": "a1",
+        "secretNotes": "internal only"
+      },
+      {
+        "id": "p4",
+        "title": "Puck RSC in practice",
+        "slug": "puck-rsc",
+        "excerpt": "Server-rendered pages.",
+        "publishedAt": "2026-08-30",
+        "status": "published",
+        "_status": "published",
+        "author": "a3",
+        "secretNotes": "internal only"
+      },
+      {
+        "id": "p5",
+        "title": "DRAFT: Unannounced feature",
+        "slug": "unannounced",
+        "excerpt": "Not public yet.",
+        "publishedAt": "2026-10-10",
+        "status": "published",
+        "_status": "draft",
+        "author": "a2",
+        "secretNotes": "embargoed"
+      },
+      {
+        "id": "p6",
+        "title": "Archived post",
+        "slug": "archived",
+        "excerpt": "Old.",
+        "publishedAt": "2025-01-01",
+        "status": "archived",
+        "_status": "published",
+        "author": "a1",
+        "secretNotes": ""
+      }
+    ],
+    "users": [
+      {
+        "id": "u1",
+        "email": "admin@example.com",
+        "passwordHash": "x",
+        "_status": "published"
+      }
+    ],
+    "authors": [
+      {
+        "id": "a1",
+        "name": "Ana Ruiz",
+        "bio": "Writes about sandboxes.",
+        "email": "ana@example.com"
+      },
+      {
+        "id": "a2",
+        "name": "Ben Lee",
+        "bio": "Data plumbing.",
+        "email": "ben@example.com"
+      },
+      {
+        "id": "a3",
+        "name": "Chris Moe",
+        "bio": "RSC nerd.",
+        "email": "chris@example.com"
+      }
+    ]
+  },
+  "globals": {
+    "site": {
+      "tagline": "Sandboxed blocks for Puck",
+      "footer": "\u00a9 2026 POC Site \u2014 rendered in an isolate"
+    },
+    "secrets": {
+      "stripeKey": "sk_live_nope"
+    }
+  }
+}

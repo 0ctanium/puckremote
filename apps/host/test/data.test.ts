@@ -5,7 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { handleResolve } from '../src/server/editor-rpc.ts'
 import { HttpSource, isPublicAddress } from '../src/server/query/http-source.ts'
 import { QueryError } from '../src/server/query/params.ts'
-import { PayloadMock } from '../src/server/query/payload-mock.ts'
+import { mockCms } from '@poc/source-mock'
+import { HostSource } from '../src/server/query/host-source.ts'
 import { resolvePageData } from '../src/server/query/resolver.ts'
 import { dataConfig, dataDeps, env, OTHER_SECRET, recorder, SECRET_VALUE, startMockApi, testConfig, type MockApi } from './helpers.ts'
 
@@ -216,8 +217,8 @@ describe('11. editor RPC ignores client-supplied specs', () => {
         blockType: 'latest-posts',
         props: { count: 2 },
         slug: 'home',
-        spec: { source: 'payload', op: 'find', collection: 'users', args: {} },
-        data: { posts: { source: 'payload', op: 'find', collection: 'users', args: {} } },
+        spec: { source: 'host', op: 'find', collection: 'users', args: {} },
+        data: { posts: { source: 'host', op: 'find', collection: 'users', args: {} } },
         query: { source: 'http', origin: 'https://169.254.169.254', path: '/' },
         mode: 'public',
       },
@@ -253,36 +254,71 @@ describe('12. draft visibility', () => {
   })
 })
 
-describe('13. payload source policy', () => {
-  const payload = () => new PayloadMock(testConfig().payload, { collections: { posts: Array.from({ length: 30 }, (_, i) => ({ id: `p${i}`, title: `t${i}`, _status: 'published', secretNotes: 'x' })), users: [] }, globals: { site: {}, secrets: {} } })
+describe('13. host data source policy (enforced by the host core, whatever the backend)', () => {
+  const ctx = (mode: 'public' | 'draft' = 'public') => ({ mode, locale: 'en', signal: new AbortController().signal })
+  const host = () =>
+    new HostSource(
+      mockCms({
+        data: {
+          collections: {
+            posts: Array.from({ length: 30 }, (_, i) => ({ id: `p${i}`, title: `t${i}`, slug: `s${i}`, excerpt: 'e', status: 'published', author: 'a1', secretNotes: 'x' })),
+            authors: [{ id: 'a1', name: 'Ana', bio: 'b', email: 'ana@example.com' }],
+            users: [{ id: 'u1', email: 'admin@example.com' }],
+          },
+          globals: { site: { tagline: 't', footer: 'f', internalFlag: true }, secrets: { key: 'nope' } },
+        },
+      }),
+    )
 
-  it('rejects non-allowlisted collections, globals and fields', () => {
-    const p = payload()
-    expect(() => p.find('users', {}, 'public')).toThrow(/not exposed/)
-    expect(() => p.global('secrets')).toThrow(/not exposed/)
-    expect(() => p.find('posts', { select: ['secretNotes'] }, 'public')).toThrow(/not exposed/)
-    expect(() => p.find('posts', { where: { secretNotes: { equals: 'x' } } }, 'public')).toThrow(/not exposed/)
-    expect(() => p.find('posts', { sort: '-_status' }, 'public')).toThrow(/not exposed/)
+  it('rejects undeclared collections, globals and fields', async () => {
+    const h = host()
+    await expect(h.find('users', {}, ctx())).rejects.toThrow(/not exposed/)
+    await expect(h.global('secrets', ctx())).rejects.toThrow(/not exposed/)
+    await expect(h.find('posts', { select: ['secretNotes'] }, ctx())).rejects.toThrow(/posts.secretNotes" is not exposed/)
+    await expect(h.find('authors', { where: { email: { equals: 'ana@example.com' } } }, ctx())).rejects.toThrow(/not exposed/)
+    await expect(h.find('__proto__', {}, ctx())).rejects.toThrow(/not exposed/)
   })
 
-  it('clamps limit and never returns non-allowlisted fields', () => {
-    const p = payload()
-    const r = p.find('posts', { limit: 1000 }, 'public')
+  it('enforces per-field operators and sortability', async () => {
+    const h = host()
+    await expect(h.find('posts', { where: { slug: { contains: 's1' } } }, ctx())).rejects.toThrow(/operator "contains" is not allowed on "posts.slug"/)
+    await expect(h.find('posts', { where: { excerpt: { equals: 'e' } } }, ctx())).rejects.toThrow(/not allowed/)
+    await expect(h.find('posts', { sort: '-excerpt' }, ctx())).rejects.toThrow(/not sortable/)
+    expect((await h.find('posts', { where: { or: [{ slug: { equals: 's1' } }, { slug: { in: ['s2'] } }] } }, ctx())).docs.map((d) => d.id)).toEqual(['p1', 'p2'])
+  })
+
+  it('clamps limit and projects output to declared fields', async () => {
+    const h = host()
+    const r = await h.find('posts', { limit: 1000 }, ctx())
     expect(r.docs).toHaveLength(12)
     expect(r.limit).toBe(12)
-    expect(p.find('posts', { limit: -5 }, 'public').docs).toHaveLength(1)
-    expect(Object.keys(r.docs[0]).sort()).toEqual(['id', 'title'])
+    expect((await h.find('posts', { limit: -5 }, ctx())).docs).toHaveLength(1)
+    expect(Object.keys(r.docs[0]).sort()).toEqual(['author', 'excerpt', 'id', 'publishedAt', 'slug', 'status', 'title'].filter((k) => k in r.docs[0]).sort())
+    expect(JSON.stringify(r)).not.toContain('secretNotes')
+    expect(Object.keys((await h.find('posts', { select: ['title'] }, ctx())).docs[0])).toEqual(['id', 'title'])
+    expect(await h.global('site', ctx())).toEqual({ tagline: 't', footer: 'f' })
   })
 
-  it('tag invalidation refreshes cached payload results', async () => {
+  it('populates relations only up to maxDepth, with the target collection policy', async () => {
+    const h = host()
+    const shallow = await h.find('posts', { select: ['author'], limit: 1 }, ctx())
+    expect(shallow.docs[0].author).toBe('a1')
+    const deep = await h.find('posts', { select: ['author'], limit: 1, depth: 5 }, ctx())
+    expect(deep.docs[0].author).toEqual({ id: 'a1', name: 'Ana', bio: 'b' }) // no email: not exposed on authors
+    expect(await h.findByID('posts', 'p3', { select: ['title'] }, ctx())).toEqual({ id: 'p3', title: 't3' })
+  })
+
+  it('the source change feed invalidates cached results by tag', async () => {
     const h = await dataDeps({ mockOrigin: api.origin })
     const meta = h.deps.manifest.blocks['latest-posts']
     const run = () => resolvePageData({ instances: [{ id: 'x', props: { count: 1 }, meta }], env: env(), mode: 'public' }, h.deps)
     const first = await run()
-    h.deps.payload.upsert('posts', { id: 'new', title: 'Brand new', slug: 'new', publishedAt: '2030-01-01', status: 'published', _status: 'published' })
-    expect((await run()).byInstance.get('x')).toEqual(first.byInstance.get('x')) // cached
-    expect(h.deps.cache.invalidate('posts')).toBeGreaterThan(0)
-    expect(JSON.stringify((await run()).byInstance.get('x'))).toContain('Brand new')
+    expect((await run()).stats.cacheHits).toBe(1)
+    h.cms.admin.upsert('posts', { id: 'new', title: 'Brand new', slug: 'new', publishedAt: '2030-01-01', status: 'published', author: 'a1' })
+    const after = await run()
+    expect(after.stats.cacheHits).toBe(0)
+    expect(JSON.stringify(after.byInstance.get('x'))).toContain('Brand new')
+    expect(first.byInstance.get('x')).not.toEqual(after.byInstance.get('x'))
     await h.close()
   })
 })
