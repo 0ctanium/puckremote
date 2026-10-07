@@ -168,24 +168,18 @@ importers:
 
   apps/host:
     dependencies:
+      '@poc/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@poc/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@poc/pages-fs':
         specifier: workspace:*
         version: link:../../packages/pages-fs
-      '@poc/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
       '@poc/source-mock':
         specifier: workspace:*
         version: link:../../packages/source-mock
-      '@puckeditor/core':
-        specifier: 0.23.0
-        version: 0.23.0(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
-      html-react-parser:
-        specifier: 6.1.8
-        version: 6.1.8(@types/react@19.3.0)(react@19.3.0)
-      isolated-vm:
-        specifier: 7.0.1
-        version: 7.0.1
       next:
         specifier: 16.4.0
         version: 16.4.0(@types/node@26.6.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -195,16 +189,7 @@ importers:
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
-      undici:
-        specifier: 8.11.2
-        version: 8.11.2
-      zod:
-        specifier: 4.6.5
-        version: 4.6.5
     devDependencies:
-      '@poc/cli':
-        specifier: workspace:*
-        version: link:../../packages/cli
       '@types/node':
         specifier: 26.6.4
         version: 26.6.4
@@ -214,18 +199,9 @@ importers:
       '@types/react-dom':
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
-      mock-api:
-        specifier: workspace:*
-        version: link:../../mock/api-server
-      tsx:
-        specifier: 4.23.15
-        version: 4.23.15
       typescript:
         specifier: 7.0.2
         version: 7.0.2
-      vitest:
-        specifier: 5.0.3
-        version: 5.0.3(@types/node@26.6.4)(happy-dom@20.14.5)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15))
 
   examples/theme:
     dependencies:
@@ -287,6 +263,92 @@ importers:
       vitest:
         specifier: 5.0.3
         version: 5.0.3(@types/node@26.6.4)(happy-dom@20.14.5)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/core:
+    dependencies:
+      '@poc/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@puckeditor/core':
+        specifier: 0.23.0
+        version: 0.23.0(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
+      html-react-parser:
+        specifier: 6.1.8
+        version: 6.1.8(@types/react@19.3.0)(react@19.3.0)
+      isolated-vm:
+        specifier: 7.0.1
+        version: 7.0.1
+      undici:
+        specifier: 8.11.2
+        version: 8.11.2
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@poc/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@poc/pages-fs':
+        specifier: workspace:*
+        version: link:../pages-fs
+      '@poc/source-mock':
+        specifier: workspace:*
+        version: link:../source-mock
+      '@types/node':
+        specifier: 26.6.4
+        version: 26.6.4
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      mock-api:
+        specifier: workspace:*
+        version: link:../../mock/api-server
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.3
+        version: 5.0.3(@types/node@26.6.4)(happy-dom@20.14.5)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/next:
+    dependencies:
+      '@poc/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: 26.6.4
+        version: 26.6.4
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      next:
+        specifier: 16.4.0
+        version: 16.4.0(@types/node@26.6.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
 
   packages/pages-fs:
     dependencies:

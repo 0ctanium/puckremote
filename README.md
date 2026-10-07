@@ -53,7 +53,7 @@ Rollback is just moving the pointer:
 cd examples/theme && ./node_modules/.bin/poc activate 1 --artifacts ../../artifacts
 ```
 
-Tests (54, covering every item in the spec's list):
+Tests (58, covering every item in the spec's list):
 
 ```bash
 pnpm test
@@ -62,8 +62,54 @@ pnpm test
 Rough cost measurements (needs a published artifact and the mock API running):
 
 ```bash
-pnpm --filter host bench
+pnpm --filter @poc/core bench
 ```
+
+## Integrating into a Next app
+
+All logic lives in `@poc/core` (framework-agnostic) and `@poc/next` (thin bindings). The app in `apps/host` is only wiring:
+
+```ts
+// poc.config.ts — the only file that knows the backend
+export default definePocConfig({
+  artifactsDir, source: mockCms({ dataFile }), pages: fsPageStore({ dir }),
+  site: { name: 'POC Site', locale: 'en' }, http: { allowedOrigins }, secrets,
+  // routes: { api: '/api', theme: '/theme', editor: '/editor' }   (defaults)
+})
+
+// src/poc.ts
+export const poc = createPoc(config)
+
+// src/proxy.ts — cache headers ($query pages are no-store); matcher must be a literal
+export const proxy = createProxy(pocConfig)
+export const config = { matcher: ['/((?!_next/|api/|editor(?:/|$)|theme/|favicon\\.ico).*)'] }
+
+// src/app/[[...path]]/page.tsx — public site (Puck RSC)
+export const dynamic = 'force-dynamic'
+export const generateMetadata = poc.generateMetadata
+export default async function Page(props: PageProps) {
+  const page = await poc.loadPage(props /*, { locale } */)
+  return <PocPage page={page} />
+}
+
+// src/app/editor/[[...path]]/page.tsx
+export default async (props) => <EditorClient {...await poc.loadEditor(props)} />
+
+// src/app/api/[[...path]]/route.ts — pages, blocks/resolve, artifact/reload
+export const { GET, POST } = poc.api
+
+// src/app/theme/[[...path]]/route.ts — /theme/v<N>/bundle.js (editor only) and /theme/v<N>/assets/**
+export const { GET, HEAD } = poc.theme
+
+// next.config.ts — isolated-vm external, POC packages transpiled
+export default withPoc({ /* your config */ })
+```
+
+Other frameworks can bind to `createPocCore(config)` from `@poc/core` directly: `preparePage(slug, query, context)` with `<PocPage>`, `loadEditor(slug)` with `<EditorClient>`, and the fetch-style `handleApi(request)` / `handleTheme(request)`.
+
+**Package boundaries.** `@poc/sdk` is deliberately not merged with the engine:
+- **Different audience and trust level.** The SDK is the only package themes depend on, and it is bundled into the untrusted isolate code. The engine needs isolated-vm, zod, undici and Puck's editor, which themes must never install.
+- **The SDK is the versioned bridge.** It holds the theme API, the QuerySpec/manifest contract (`sdkMajor`) and the adapter contracts (`@poc/sdk/host`), which adapter packages and the engine share. The engine can change freely behind it.
 
 ## Layout
 
@@ -71,16 +117,17 @@ pnpm --filter host bench
 packages/sdk        @poc/sdk: defineBlock/defineRoot/defineAdapter, Slot, typed query builders, isolate runtime + shims
                     @poc/sdk/host: contracts for trusted host plugins (DataSource, PageStore)
 packages/cli        @poc/cli: `poc build | publish | activate`; metadata extraction + validation
+packages/core       @poc/core: the framework-agnostic host engine (no Next imports)
+  src/core.ts         createPocCore(config): preparePage, loadEditor, handleApi, handleTheme (fetch Request → Response)
+  src/server/         artifact loader, isolate runner, query resolver (data source enforcement, http/adapters), page pipeline
+  src/react/          <PocPage> (RSC-safe public render) + pageMetadata
+  src/editor/         'use client' EditorClient, Puck editor config, host-owned field UIs, bundle realm loader
+  src/shared/         slot swap + URL layout, shared by server and editor
+  test/               vitest suites (sandbox, data, rendering, editor, artifacts, routes, no-dev-code)
+packages/next       @poc/next: Next.js App Router bindings (createPoc, createProxy, withPoc)
 packages/source-mock  @poc/source-mock: example DataSource (in-memory CMS: posts, authors, site global)
 packages/pages-fs   @poc/pages-fs: example PageStore (JSON files)
-apps/host           Next.js 16 host
-  poc.config.ts       the ONLY place concrete plugins are wired (data source, page store)
-  src/server/         artifact loader, isolate runner, query resolver (host data source enforcement, http/adapters), page pipeline
-  src/editor/         Puck editor config, host-owned field UIs, bundle realm loader
-  src/shared/         slot swap (html-react-parser), used by both RSC and editor
-  src/app/            public catch-all (Puck RSC), /editor, /api/*, /theme-assets, /theme-bundle
-  src/proxy.ts        cache headers
-  test/               vitest suites (sandbox, data, rendering, editor, artifacts, no-dev-code)
+apps/host           the Next.js app: ~80 lines of wiring, see "Integrating into a Next app"
 examples/theme      the "developer repo"
 mock/api-server     external API stand-in (events, redirects, big/slow responses)
 artifacts/          published versions (git-ignored) + current.json
@@ -141,7 +188,7 @@ Anything else fails the build: `custom`, `external`, `richtext`, any function-va
 | Member | Meaning |
 |---|---|
 | `isEditing`, `locale`, `nonce`, `page.slug`, `site.name` | Request context |
-| `assetUrl(path)` | Returns `/theme-assets/v<N>/<path>`. Traversal is rejected. |
+| `assetUrl(path)` | Returns `/theme/v<N>/assets/<path>` (prefix from `routes.theme`). Traversal is rejected. |
 | `assets.script(url, { defer?, async?, module? })`, `assets.style(url)` | Recorded effects |
 | `head.title(t)`, `head.meta(name, content)` | Recorded effects |
 
@@ -227,7 +274,7 @@ Theme `defineAdapter`s are a different thing: untrusted, sandboxed, sans-IO adap
 
 | # | Test | Where |
 |---|---|---|
-| 1–6 | Sandbox: no fetch/process/require/env/timers; `while(true)`; await and timer loops; OOM then recreate; no cross-request pollution; size caps | `apps/host/test/sandbox.test.ts`; page-level 2 in `rendering.test.tsx` |
+| 1–6 | Sandbox: no fetch/process/require/env/timers; `while(true)`; await and timer loops; OOM then recreate; no cross-request pollution; size caps | `packages/core/test/sandbox.test.ts`; page-level 2 in `rendering.test.tsx` |
 | 7 | SSRF: private/loopback/link-local literals, DNS to private, DNS rebinding (pinned lookup), redirects (other origin, private, loops), allowlist, size cap | `data.test.ts` |
 | 8 | Secrets never in isolate inputs or logs; origin-bound | `data.test.ts` |
 | 9 | Dedupe: identical queries cause one outbound request | `data.test.ts` |
@@ -243,6 +290,7 @@ Theme `defineAdapter`s are a different thing: untrusted, sandboxed, sans-IO adap
 | 19 | Tampered bundle, manifest or asset is rejected; previous version keeps serving | `artifacts.test.ts` |
 | 20 | Publish increments; atomic pointer under concurrent reads; hot swap disposes old isolate; rollback | `artifacts.test.ts` |
 | 21 | Build rejects function options, custom/external, permissions/resolve*, non-JSON, expression `visibleIf`, bad refs | `packages/cli/test/build.test.ts` |
+| — | Framework-agnostic entry points: `handleApi` / `handleTheme` routing, prefixes, 404/405, memoized runtime | `routes.test.ts` |
 | A7 | No developer code outside the isolate: static scan, bundle-sink allowlist, runtime realm check; host core imports only `@poc/sdk/host`, concrete plugins only in `poc.config.ts` | `no-dev-code.test.ts` |
 
 ## Findings
@@ -268,7 +316,7 @@ Theme `defineAdapter`s are a different thing: untrusted, sandboxed, sans-IO adap
 - **Select options are JSON-encoded in the DOM** and drag-and-drop requires trusted pointer events. Both only matter for browser automation.
 - `getItemSummary` is a function, so a declarative `itemSummary: '<field>'` maps to a host function.
 
-### Measured costs (M1 Max, arm64 Node 26.10, 221 KB bundle, `pnpm --filter host bench`)
+### Measured costs (M1 Max, arm64 Node 26.10, 221 KB bundle, `pnpm --filter @poc/core bench`)
 
 | Step | Cost |
 |---|---|

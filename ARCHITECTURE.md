@@ -55,7 +55,7 @@ The claim this POC validates is that **untrusted React can drive a Puck editor a
 - **D2. Missing blocks.** Before data reaches Puck, unknown `type`s become `{ type: '__missing', props: { id, originalType, originalProps } }`. The editor's save path reverses this so unknown blocks survive an artifact downgrade. Public output is an empty `<div hidden data-missing-block="…">` (a failed block likewise renders `<div hidden data-block-error="…">`); the editor shows a visible "Missing block" box.
 - **D3. Pre-render pass (public).** `resolve data → new isolate context → render root and every block → map id → {html, effects}`. Puck `Render` then gets lightweight components that only parse the pre-rendered HTML and swap slots. This yields `head` effects before markup and keeps "one fresh context per request".
 - **D4. `<head>` merge** uses React 19 hoisting (`<title>`, `<meta>`, `<link rel="stylesheet" precedence>`, `<script async>`), deduped on the host.
-- **D5. Editor rendering runs `bundle.js` in the browser** (the spec's preferred path). The editor loads `/theme-bundle/vN` into a **hidden same-origin iframe** and calls that realm's `__render` synchronously from each Puck component, with `__data` from `resolveData`. A separate realm is required because the isolate shims replace `MessageChannel` and `TextEncoder`; doing that in the editor window would break React DOM's scheduler. It also keeps global mutation by developer code away from the editor. **Gap:** this is not a security boundary. Developer JS runs on the host origin in the POC, and production must serve the editor from a separate origin. A synchronous infinite loop in a block also freezes the editor tab, since browsers have no way to interrupt a synchronous call. The *server* never evaluates developer code outside the isolate, and a test enforces this.
+- **D5. Editor rendering runs `bundle.js` in the browser** (the spec's preferred path). The editor loads `/theme/vN/bundle.js` into a **hidden same-origin iframe** and calls that realm's `__render` synchronously from each Puck component, with `__data` from `resolveData`. A separate realm is required because the isolate shims replace `MessageChannel` and `TextEncoder`; doing that in the editor window would break React DOM's scheduler. It also keeps global mutation by developer code away from the editor. **Gap:** this is not a security boundary. Developer JS runs on the host origin in the POC, and production must serve the editor from a separate origin. A synchronous infinite loop in a block also freezes the editor tab, since browsers have no way to interrupt a synchronous call. The *server* never evaluates developer code outside the isolate, and a test enforces this.
 - **D6. Async host→isolate calls.** The host calls `Reference.apply` (async) rather than `applySync`. The isolate code is still fully synchronous, but the Node event loop stays free, so the wall-clock watchdog `setTimeout` can actually fire and dispose the isolate. A synchronous call would block the timer meant to stop it. This is possible because of D3: nothing has to render inside Puck's synchronous render pass.
 - **D7. Cache headers.** Next.js marks every `force-dynamic` page `Cache-Control: no-store`. The proxy (`src/proxy.ts`, Node runtime in Next 16) adds `x-page-cacheable: true|false` and `x-uncacheable-blocks`, and sets `cache-control: no-store` for `$query` pages. A CDN or ISR layer would key on `x-page-cacheable`; the POC does no caching of its own beyond the query cache.
 
@@ -103,7 +103,7 @@ The host **re-validates** the manifest with zod and never trusts the CLI.
 
 ## 10. Host plugins: data source and page store
 
-The host core is backend-agnostic. It depends on Puck and on the `@poc/sdk/host` contracts; the concrete plugins are chosen in one file, `apps/host/poc.config.ts`.
+The host core is backend-agnostic. It depends on Puck and on the `@poc/sdk/host` contracts; the concrete plugins are chosen in one file, the app's `poc.config.ts`.
 
 | Contract | Example implementation | Purpose |
 |---|---|---|
@@ -112,7 +112,7 @@ The host core is backend-agnostic. It depends on Puck and on the `@poc/sdk/host`
 
 **Trust.** Plugins are trusted host code chosen by the operator, so they run in Node. Theme `defineAdapter`s are different: untrusted, shipped by the theme, sans-IO, and run in the isolate.
 
-**Enforcement lives in the host core** (`src/server/query/host-source.ts`), not in plugins:
+**Enforcement lives in the host core** (`packages/core/src/server/query/host-source.ts`), not in plugins:
 - Declared collections, globals and fields only. `__proto__` and undeclared names are rejected.
 - Per-field `filter` operator allowlists and `sort` flags.
 - `limit` defaults and maxima, and `depth` clamped to `maxDepth`.
@@ -122,3 +122,25 @@ The host core is backend-agnostic. It depends on Puck and on the `@poc/sdk/host`
 Plugins receive a validated `NormalizedFind` and only implement storage semantics, including what "draft" means for them. A plugin's optional `subscribe` change feed drives tag-based cache invalidation.
 
 **Typing.** Collection definitions carry a phantom document type. Theme queries are typed by registering the source type (`declare module '@poc/sdk' { interface Register { source: MockCms } }`) or via `source<MockCms>()`. The query spec is `{ source: 'host', op, collection, args }`. Changing it from `'payload'` was a breaking SDK change (`sdkMajor` 0 → 1), and the host rejects older artifacts with an explicit message.
+
+## 11. Packaging: engine, bindings, app
+
+| Package | Role | May import |
+|---|---|---|
+| `@poc/sdk` | Theme API (bundled into the isolate), wire contract, adapter contracts (`/host`) | react (peer) |
+| `@poc/core` | Framework-agnostic engine | `@poc/sdk/host` only from the SDK; no Next, no concrete plugins |
+| `@poc/next` | Next.js bindings | `@poc/core`; never isolated-vm, the SDK or plugins |
+| `@poc/source-*`, `@poc/pages-*` | Trusted host plugins | `@poc/sdk/host` |
+| App (`apps/host`) | Wiring only | `@poc/next`, `@poc/core/config`; plugins only in `poc.config.ts` |
+
+`no-dev-code.test.ts` enforces this table, along with the bundle-sink allowlist.
+
+- **One runtime per process.** `createPocCore(config)` resolves defaults and memoizes the runtime on `globalThis` by `config.id`, so every Next route bundle (public page, editor, API, theme) and dev HMR share one artifact store, isolate, query cache and file watcher. It loads lazily on first use.
+- **Fetch-style handlers.** `handleApi(Request)` serves `pages` (GET/POST), `blocks/resolve` (POST) and `artifact/reload` (POST), with 404/405 handling. `handleTheme(Request)` serves `v<N>/bundle.js` (for the editor) and `v<N>/assets/**` (hash-verified, traversal-safe). Both work under the configurable `routes` prefixes, and asset URLs given to blocks (`ctx.assetUrl`) follow `routes.theme`.
+- **Proxy-safe imports.** `@poc/core/config` and `@poc/core/cacheability` never import isolated-vm, so the app config and the Next proxy can load them.
+- **Next specifics live only in `@poc/next`:**
+  - `notFound()` and `params`/`searchParams` handling.
+  - React `cache()`, so `generateMetadata` and the page share one isolate pass.
+  - `NextResponse` in the proxy.
+  - `withPoc`, which keeps isolated-vm external and transpiles the TS-source packages.
+- **No `import.meta.dirname` in Next server bundles.** The app's `poc.config.ts` resolves data paths from `process.cwd()`, since Next runs with the app directory as cwd. The `/*turbopackIgnore*/` hint keeps artifacts out of build tracing.

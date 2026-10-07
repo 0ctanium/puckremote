@@ -1,0 +1,24 @@
+{
+  "name": "@poc/next",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Next.js App Router bindings for @poc/core.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./proxy": "./src/proxy.ts",
+    "./config": "./src/config.ts"
+  },
+  "scripts": { "typecheck": "tsc -p ." },
+  "dependencies": { "@poc/core": "workspace:*" },
+  "peerDependencies": { "next": "16.4.0", "react": "19.3.0", "react-dom": "19.3.0" },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "7.0.2"
+  }
+}
