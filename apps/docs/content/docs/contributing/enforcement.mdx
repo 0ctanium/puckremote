@@ -17,6 +17,11 @@ Instructions alone are not enough, so the rules are also checked automatically
 
 The Bash rule is a heuristic: it catches accidents, not determined bypasses.
 
+Markers live in `.claude/state/` (gitignored), one per session. A session that was approved
+before the hooks were installed has no marker: approve a new plan rather than creating one by
+hand. The Stop hook judges the whole branch, meaning commits not on `main` plus the working tree
+([D-0104](/decisions#D-0104)).
+
 ## Git pre-commit and CI: `scripts/check-docs-adr.mjs`
 
 - Changes to code (`packages/*/src`, `apps/host`, `examples`, `mock`) require a change under

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Enabled by `pnpm install` (root "prepare" script sets core.hooksPath=.githooks).
+exec node scripts/check-docs-adr.mjs

@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 101
+next_decision = 107
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -85,7 +85,7 @@ created = "2026-10-08"
 title = "Docs (Fumadocs), ADR decision system, agent rules and enforcement"
 description = "Fumadocs docs, decision log with provenance, agent skills, hooks/pre-commit/CI enforcement."
 tags = [ "docs", "adr", "process", "agents", "enforcement" ]
-decisions = [ "D-0092", "D-0093", "D-0094", "D-0095", "D-0096", "D-0097", "D-0098", "D-0099", "D-0100" ]
+decisions = [ "D-0092", "D-0093", "D-0094", "D-0095", "D-0096", "D-0097", "D-0098", "D-0099", "D-0100", "D-0101", "D-0102", "D-0103", "D-0104", "D-0105", "D-0106" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -889,6 +889,54 @@ date = "2026-10-08"
 provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "enforcement" ]
+
+[decisions.D-0101]
+title = "Decisions is its own docs section (/decisions) with a generated index (one anchor per ID); search covers docs and ADRs"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs", "adr" ]
+
+[decisions.D-0102]
+title = "Docs app dev dependencies pinned to exact versions (repo convention: only peers use ranges)"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs", "packaging" ]
+
+[decisions.D-0103]
+title = ".claude/launch.json untracked (machine paths); local docs dev-server entry added"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0104]
+title = "Stop hook judges the whole branch (commits not on main plus working tree)"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process", "enforcement" ]
+
+[decisions.D-0105]
+title = "CI builds docs on ubuntu/node26 only; docs-adr job diffs origin/<base> on PRs, before on pushes, HEAD~1 when there is no previous commit"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "ci", "docs", "enforcement" ]
+
+[decisions.D-0106]
+title = "Git hooks enabled by the root prepare script (core.hooksPath=.githooks), no-op outside a git checkout"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process", "enforcement" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]
