@@ -68,7 +68,7 @@ import { HttpSource, type Resolver } from '../src/server/query/http-source.ts'
 import { mockCms } from '@puck-remote/source-mock'
 import { fsPageStore } from '@puck-remote/pages-fs'
 import { HostSource } from '../src/server/query/host-source.ts'
-import type { RenderSession } from '../src/server/runtime/types.ts'
+import type { RenderRuntime, RenderSession } from '../src/server/runtime/types.ts'
 
 export type MockApi = Awaited<ReturnType<typeof startMockApi>>
 export { startMockApi }
@@ -117,13 +117,13 @@ export function recordingSession(s: RenderSession, rec: Recorder): RenderSession
   return s
 }
 
-export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; resolver?: Resolver; rec?: Recorder }) {
+export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; resolver?: Resolver; rec?: Recorder; runtime?: RenderRuntime }) {
   const { manifest, bundle } = await buildExample()
   const m = structuredClone(manifest)
   m.adapters.events.origin = opts.mockOrigin // test seam: mock API runs on a random port
   const config = opts.config ?? dataConfig(opts.mockOrigin)
   const rec = opts.rec ?? recorder()
-  const runner = newRunner(bundle, config)
+  const runner = opts.runtime ?? newRunner(bundle, config)
   let session: Promise<RenderSession> | null = null
   const http = new HttpSource({ config: config.http, secrets: config.secrets, resolver: opts.resolver })
   // A fresh source per harness so content edits in one test don't leak into another.

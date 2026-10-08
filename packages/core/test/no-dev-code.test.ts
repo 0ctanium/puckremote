@@ -65,6 +65,9 @@ const PER_ROOT: Record<keyof typeof ROOTS, Rule[]> = {
 // Where the bundle may legitimately flow: compiled in the isolate, or served to the editor as bytes.
 const BUNDLE_SINKS: Record<string, RegExp> = {
   'packages/core/src/server/runtime/in-process.ts': /compileScriptSync\(this\.bundle/,
+  // Worker pool: the bundle goes over IPC to a sandboxed worker, which compiles it in an isolate.
+  'packages/core/src/server/runtime/worker-pool.ts': /request\(\{ t: 'load', version, bundle, limits \}\)/,
+  'packages/core/src/server/runtime/render-worker.ts': /new IsolateRunner\(m\.bundle, m\.limits/,
   'packages/core/src/server/host.ts': /renderer\(\{ version, bundle, limits/,
   'packages/core/src/core.ts': /readArtifactFile\(config\.artifacts, version, rel\)/, // served as bytes
   'packages/core/src/shared/urls.ts': /\/bundle\.js`/, // URL builder
@@ -90,6 +93,9 @@ describe('acceptance 7: no developer code outside the isolate', () => {
           const src = strip(await readFile(f, 'utf8'))
           const rules = [...EVERYWHERE, ...PER_ROOT[root]]
           for (const [re, what] of rules) {
+            // The worker pool resolves isolated-vm's location (never developer code) to build the
+            // worker's filesystem allowlist.
+            if (rel === 'packages/core/src/server/runtime/worker-pool.ts' && what === 'createRequire') continue
             if (re.test(src)) violations.push(`${rel}: ${what}`)
           }
           if (root === 'app' && rel !== 'apps/host/puck-remote.config.ts' && /from\s+['"]@puck-remote\/(source-|pages-)/.test(src)) {

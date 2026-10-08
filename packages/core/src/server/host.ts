@@ -5,7 +5,7 @@
 import type { CacheStore } from '@puck-remote/sdk/host'
 import { ArtifactLoader } from './artifact-loader.ts'
 import type { HostConfig } from './config.ts'
-import { inProcessRenderer } from './runtime/in-process.ts'
+import { workerPoolRenderer } from './runtime/worker-pool.ts'
 import type { RenderRuntime } from './runtime/types.ts'
 import { HttpSource } from './query/http-source.ts'
 import { HostSource } from './query/host-source.ts'
@@ -25,7 +25,7 @@ type G = typeof globalThis & { [KEY]?: Promise<Host> }
 
 export function createHost(config: HostConfig): Host {
   // Chosen here (not in config.ts) so the config entry never imports isolated-vm.
-  const renderer = config.renderer ?? inProcessRenderer()
+  const renderer = config.renderer ?? workerPoolRenderer()
   const { cache } = config
   // Content changes in the backend invalidate cached query results by tag.
   config.source.subscribe?.((tags) => void cache.invalidateTags(tags).catch(() => {}))

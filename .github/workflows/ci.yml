@@ -36,6 +36,13 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
 
+      - name: Install bubblewrap (worker OS-sandbox test)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y bubblewrap
+          # Ubuntu 24.04 restricts unprivileged user namespaces via AppArmor; bwrap needs them.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - run: pnpm install --frozen-lockfile
 
       - name: Build packages

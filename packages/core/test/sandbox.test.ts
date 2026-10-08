@@ -1,16 +1,27 @@
 /**
- * Sandbox tests 1–6: what developer code can and cannot do inside the isolate.
+ * Sandbox tests 1–6: what developer code can and cannot do. Run against every runtime:
+ * in-process isolates and the (default) sandboxed worker pool.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { IsolateRunner } from '../src/server/runtime/in-process.ts'
+import type { HostConfig } from '../src/server/config.ts'
+import { inProcessRenderer } from '../src/server/runtime/in-process.ts'
+import type { RenderRuntime } from '../src/server/runtime/types.ts'
+import { workerPoolRenderer } from '../src/server/runtime/worker-pool.ts'
 import { renderInIsolate } from '../src/server/render.ts'
-import { buildEvil, ctx, newRunner, testConfig } from './helpers.ts'
+import { buildEvil, ctx, quietLog, testConfig } from './helpers.ts'
 
-let runner: IsolateRunner
+type Make = (bundle: string, cfg?: HostConfig) => RenderRuntime
+const RUNTIMES: [string, Make][] = [
+  ['in-process', (bundle, cfg = testConfig()) => inProcessRenderer({ log: quietLog })({ version: 1, bundle, limits: cfg.isolate })],
+  ['worker-pool', (bundle, cfg = testConfig()) => workerPoolRenderer({ size: 1, log: quietLog })({ version: 1, bundle, limits: cfg.isolate })],
+]
+
+describe.each(RUNTIMES)('%s runtime', (runtimeName, make) => {
+let runner: RenderRuntime
 
 beforeAll(async () => {
   const { bundle } = await buildEvil()
-  runner = newRunner(bundle)
+  runner = make(bundle)
 })
 afterAll(() => runner.dispose())
 
@@ -80,7 +91,7 @@ describe('4. memory blow-up', () => {
     // regardless of machine load.
     const { bundle } = await buildEvil()
     const cfg = testConfig()
-    const r2 = newRunner(bundle, { ...cfg, isolate: { ...cfg.isolate, callTimeoutMs: 5000, watchdogMs: 10_000 } })
+    const r2 = make(bundle, { ...cfg, isolate: { ...cfg.isolate, callTimeoutMs: 5000, watchdogMs: 10_000 } })
     const s = await r2.session()
     const before = r2.stats().isolatesCreated
     const r = await renderInIsolate(s, 'block', 'memory-hog', {}, {}, ctx())
@@ -90,7 +101,10 @@ describe('4. memory blow-up', () => {
     const s2 = await r2.session()
     expect((await renderInIsolate(s2, 'block', 'probe', {}, {}, ctx())).ok).toBe(true)
     s2.release()
-    expect(r2.stats().isolatesCreated).toBeGreaterThan(before)
+    // In-process: a new isolate was created. Worker pool: the isolate was recreated inside the
+    // same worker, which survived (the blow-up never reached the worker's own heap).
+    if (runtimeName === 'in-process') expect(r2.stats().isolatesCreated).toBeGreaterThan(before)
+    else expect(r2.stats().workersKilled).toBe(0)
     r2.dispose()
   })
 })
@@ -126,4 +140,5 @@ describe('6. output limits', () => {
     expect(r).toMatchObject({ ok: false, kind: 'thrown' })
     if (!r.ok) expect(r.error).toContain('boom')
   })
+})
 })
