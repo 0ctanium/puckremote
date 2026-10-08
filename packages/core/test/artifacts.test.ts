@@ -8,7 +8,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { fsArtifactStore } from '@puck-remote/artifacts-fs'
 import { ArtifactLoader } from '../src/server/artifact-loader.ts'
-import { IsolateRunner } from '../src/server/isolate-runner.ts'
+import { IsolateRunner } from '../src/server/runtime/in-process.ts'
 import { readArtifactFile } from '../src/server/static-files.ts'
 import { buildEvil, buildExample, quietLog, testConfig } from './helpers.ts'
 

@@ -2,7 +2,7 @@
  * Sandbox tests 1–6: what developer code can and cannot do inside the isolate.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { IsolateRunner } from '../src/server/isolate-runner.ts'
+import type { IsolateRunner } from '../src/server/runtime/in-process.ts'
 import { renderInIsolate } from '../src/server/render.ts'
 import { buildEvil, ctx, newRunner, testConfig } from './helpers.ts'
 
@@ -82,7 +82,7 @@ describe('4. memory blow-up', () => {
     const cfg = testConfig()
     const r2 = newRunner(bundle, { ...cfg, isolate: { ...cfg.isolate, callTimeoutMs: 5000, watchdogMs: 10_000 } })
     const s = await r2.session()
-    const before = r2.stats.isolatesCreated
+    const before = r2.stats().isolatesCreated
     const r = await renderInIsolate(s, 'block', 'memory-hog', {}, {}, ctx())
     s.release()
     expect(r.ok).toBe(false)
@@ -90,7 +90,7 @@ describe('4. memory blow-up', () => {
     const s2 = await r2.session()
     expect((await renderInIsolate(s2, 'block', 'probe', {}, {}, ctx())).ok).toBe(true)
     s2.release()
-    expect(r2.stats.isolatesCreated).toBeGreaterThan(before)
+    expect(r2.stats().isolatesCreated).toBeGreaterThan(before)
     r2.dispose()
   })
 })

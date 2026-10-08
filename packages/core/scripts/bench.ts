@@ -8,7 +8,7 @@ import { mockCms } from '@puck-remote/source-mock'
 import { fsArtifactStore } from '@puck-remote/artifacts-fs'
 import { devAllowAll, resolveConfig } from '../src/server/config.ts'
 import { createHost } from '../src/server/host.ts'
-import { IsolateRunner } from '../src/server/isolate-runner.ts'
+import { IsolateRunner } from '../src/server/runtime/in-process.ts'
 import { preparePage } from '../src/server/public-render.ts'
 import { renderInIsolate } from '../src/server/render.ts'
 

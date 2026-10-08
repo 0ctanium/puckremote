@@ -4,7 +4,7 @@
  * hand Puck's RSC <Render> a map of pre-rendered HTML. Puck components then only parse HTML.
  */
 import type { Host } from './host.ts'
-import type { RenderSession } from './isolate-runner.ts'
+import type { RenderSession } from './runtime/types.ts'
 import type { Manifest } from './manifest-schema.ts'
 import { collectInstances, mapItems, MISSING_TYPE, renderProps, ROOT_ID, type Instance, type PageData } from './page-tree.ts'
 import { readPage, stripResolved } from './pages.ts'

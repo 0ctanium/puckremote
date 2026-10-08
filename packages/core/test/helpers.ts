@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { devAllowAll, resolveConfig, type HostConfig } from '../src/server/config.ts'
-import { IsolateRunner } from '../src/server/isolate-runner.ts'
+import { IsolateRunner } from '../src/server/runtime/in-process.ts'
 import type { CtxInput } from '../src/server/render.ts'
 
 export const REPO_ROOT = path.resolve(import.meta.dirname, '../../..')
@@ -68,7 +68,7 @@ import { HttpSource, type Resolver } from '../src/server/query/http-source.ts'
 import { mockCms } from '@puck-remote/source-mock'
 import { fsPageStore } from '@puck-remote/pages-fs'
 import { HostSource } from '../src/server/query/host-source.ts'
-import type { RenderSession } from '../src/server/isolate-runner.ts'
+import type { RenderSession } from '../src/server/runtime/types.ts'
 
 export type MockApi = Awaited<ReturnType<typeof startMockApi>>
 export { startMockApi }

@@ -4,7 +4,7 @@
  */
 import { z } from 'zod'
 import type { HostConfig } from '../config.ts'
-import type { RenderSession } from '../isolate-runner.ts'
+import type { RenderSession } from '../runtime/types.ts'
 import type { Manifest, QuerySpec } from '../manifest-schema.ts'
 import type { Instance } from '../page-tree.ts'
 import type { CacheStore } from '@puck-remote/sdk/host'

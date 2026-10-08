@@ -1,5 +1,7 @@
 /**
- * The ONLY place developer code is executed on the host: inside an isolated-vm Isolate.
+ * In-process runtime: theme code runs in an isolated-vm Isolate inside this Node process.
+ * Also used INSIDE each worker of the worker-pool runtime, so there is one implementation of
+ * the isolate rules.
  *
  * Lifecycle: one Isolate per artifact, bundle compiled once; a fresh Context per request
  * (RenderSession). Data crosses the boundary only as JSON strings. No host References,
@@ -10,21 +12,10 @@
  * inside the isolate is still fully synchronous: there are no awaits and no timers.
  */
 import ivm from 'isolated-vm'
-import type { HostConfig } from './config.ts'
+import { ENTRY_POINTS, type CallResult, type Entry, type IsolateErrorKind, type IsolateLimits, type RenderRuntime, type RenderSession, type RendererFactory, type RuntimeStats } from './types.ts'
 
-export type IsolateLimits = HostConfig['isolate']
-
-export type CallResult<T> = { ok: true; value: T } | { ok: false; error: string; kind: IsolateErrorKind }
-export type IsolateErrorKind = 'timeout' | 'memory' | 'thrown' | 'oversize' | 'invalid-output' | 'disposed'
-
-export interface RunnerStats {
-  isolatesCreated: number
-  contextsCreated: number
-  lastCompileMs: number
-}
-
-const ENTRY_POINTS = ['__render', '__toRequest', '__fromResponse'] as const
-type EntryPoint = (typeof ENTRY_POINTS)[number]
+export type { CallResult, IsolateErrorKind, IsolateLimits, RenderSession, RuntimeStats } from './types.ts'
+type EntryPoint = Entry
 
 function classify(e: unknown, isolate: ivm.Isolate | null): { kind: IsolateErrorKind; error: string } {
   const msg = e instanceof Error ? e.message : String(e)
@@ -33,11 +24,11 @@ function classify(e: unknown, isolate: ivm.Isolate | null): { kind: IsolateError
   return { kind: 'thrown', error: msg.slice(0, 500) }
 }
 
-export class IsolateRunner {
+export class IsolateRunner implements RenderRuntime {
   private isolate: ivm.Isolate | null = null
   private script: ivm.Script | null = null
   private disposed = false
-  readonly stats: RunnerStats = { isolatesCreated: 0, contextsCreated: 0, lastCompileMs: 0 }
+  private readonly counters: RuntimeStats = { isolatesCreated: 0, contextsCreated: 0, lastCompileMs: 0 }
 
   constructor(
     private readonly bundle: string,
@@ -53,8 +44,8 @@ export class IsolateRunner {
       const t = performance.now()
       this.isolate = new ivm.Isolate({ memoryLimit: this.limits.memoryLimitMb })
       this.script = this.isolate.compileScriptSync(this.bundle, { filename: 'bundle.js' })
-      this.stats.lastCompileMs = performance.now() - t
-      this.stats.isolatesCreated++
+      this.counters.lastCompileMs = performance.now() - t
+      this.counters.isolatesCreated++
     }
     return { isolate: this.isolate, script: this.script }
   }
@@ -73,7 +64,7 @@ export class IsolateRunner {
   async session(): Promise<RenderSession> {
     const { isolate, script } = this.ensure()
     const context = await isolate.createContext()
-    this.stats.contextsCreated++
+    this.counters.contextsCreated++
     try {
       await script.run(context, { timeout: this.limits.callTimeoutMs * 5 })
       const refs = {} as Record<EntryPoint, ivm.Reference<(...args: string[]) => string>>
@@ -81,13 +72,17 @@ export class IsolateRunner {
         const ref = await context.global.get(name, { reference: true })
         refs[name] = ref as ivm.Reference<(...args: string[]) => string>
       }
-      return new RenderSession(this, isolate, context, refs)
+      return new IsolateSession(this, isolate, context, refs)
     } catch (e) {
       context.release()
       const { error } = classify(e, isolate)
       if (isolate.isDisposed) this.script = null
       throw new Error(`failed to initialise bundle in context: ${error}`)
     }
+  }
+
+  stats(): RuntimeStats {
+    return { ...this.counters }
   }
 
   get isolateHeapBytes(): number | null {
@@ -105,7 +100,7 @@ export class IsolateRunner {
   }
 }
 
-export class RenderSession {
+export class IsolateSession implements RenderSession {
   private released = false
 
   constructor(
@@ -156,4 +151,9 @@ export class RenderSession {
       this.context.release()
     } catch {}
   }
+}
+
+/** Run theme code in this process (tests, constrained environments). Prefer workerPoolRenderer. */
+export function inProcessRenderer(opts: { log?: Pick<Console, 'error' | 'warn'> } = {}): RendererFactory {
+  return ({ bundle, limits }) => new IsolateRunner(bundle, limits, opts.log)
 }

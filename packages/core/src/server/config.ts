@@ -1,4 +1,5 @@
 import type { AnyDataSource, ArtifactStore, AuthAdapter, CacheStore, PageStore } from '@puck-remote/sdk/host'
+import type { RendererFactory } from './runtime/types.ts'
 import { memoryCache } from './query/cache.ts'
 
 export interface SecretDef {
@@ -18,6 +19,8 @@ export interface HostConfig {
   source: AnyDataSource
   pages: PageStore
   cache: CacheStore
+  /** Where theme code runs. null → the host's default (see host.ts). */
+  renderer: RendererFactory | null
   /** Required in production (see resolveConfig). */
   auth: AuthAdapter | null
   /**
@@ -68,7 +71,7 @@ export interface Routes {
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? Partial<T[K]> : T[K] }
 
 /** What an app provides. Everything except paths and plugins has a default. */
-type Plugins = 'artifacts' | 'source' | 'pages' | 'cache' | 'auth' | 'secrets' | 'allowedOrigins'
+type Plugins = 'artifacts' | 'source' | 'pages' | 'cache' | 'auth' | 'secrets' | 'allowedOrigins' | 'renderer'
 
 /** What an app provides. Everything except the storage plugins has a default. */
 export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, Plugins>> {
@@ -79,6 +82,8 @@ export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, Plugins>>
   pages: PageStore
   /** Default: in-process memory (single instance). Plug a shared store (Redis…) for clusters. */
   cache?: CacheStore
+  /** Where theme code runs: workerPoolRenderer() (default) or inProcessRenderer(). */
+  renderer?: RendererFactory | null
   /** Who may open the editor, read drafts, save pages, switch artifacts. Mandatory in production. */
   auth?: AuthAdapter
   allowedOrigins?: string[]
@@ -111,6 +116,7 @@ export function resolveConfig(input: PuckRemoteConfig): HostConfig {
     source: input.source,
     pages: input.pages,
     cache: input.cache ?? memoryCache(),
+    renderer: input.renderer ?? null,
     auth: requireAuthInProduction(input.auth),
     allowedOrigins: input.allowedOrigins ?? [],
     routes: { ...DEFAULT_ROUTES, ...input.routes },

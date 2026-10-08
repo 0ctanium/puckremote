@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
-import type { RenderSession, IsolateErrorKind } from './isolate-runner.ts'
+import type { RenderSession, IsolateErrorKind } from './runtime/types.ts'
 
 /** JSON ctx passed into the isolate (functions are attached on the other side). */
 export interface CtxInput {
