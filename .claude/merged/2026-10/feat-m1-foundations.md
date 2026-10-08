@@ -54,7 +54,7 @@ experience and ops (M5).
 | D-0067 | Adapter contract test suites exported from @puck-remote/core/testing | user-approved-plan | accepted |
 | D-0068 | Content migrations: block version + migrations run in the isolate, items carry props.__v, build fails on field changes without a bump (planned M3) | user-approved-plan | accepted |
 | D-0069 | Publishing workflow (drafts, publish, history, conflicts, preview links) lives in the PageStore contract (planned M3) | user | accepted |
-| D-0070 | Caching semantics (tags, invalidation events) in the core; bindings apply them (Next revalidateTag, CDN headers) (planned M3) | user-approved-plan | accepted |
+| D-0070 | Caching semantics (tags, invalidation events) in the core; bindings apply them (Next revalidateTag, CDN headers) (planned M3) | user-approved-plan | superseded by D-0149 |
 | D-0071 | Richtext, inline editing and extensible, typed host fields are mandatory for V1 (planned M4) | user | accepted |
 | D-0072 | Dependent ($ref) queries are post-V1; depth covers nested relations | user-approved-plan | accepted |
 | D-0073 | Localization is post-V1; locale detection is app-defined via a LocaleResolver (cookie, sub-path, domain…); V1 keeps locale-ready keys | user | accepted |

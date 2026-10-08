@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 116
+next_decision = 158
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -86,6 +86,16 @@ title = "Docs (Fumadocs), ADR decision system, agent rules and enforcement"
 description = "Fumadocs docs, decision log with provenance, agent skills, hooks/pre-commit/CI enforcement."
 tags = [ "docs", "adr", "process", "agents", "enforcement" ]
 decisions = [ "D-0092", "D-0093", "D-0094", "D-0095", "D-0096", "D-0097", "D-0098", "D-0099", "D-0100", "D-0101", "D-0102", "D-0103", "D-0104", "D-0105", "D-0106", "D-0107", "D-0108", "D-0109", "D-0110", "D-0111", "D-0112", "D-0113", "D-0114", "D-0115" ]
+
+[adrs."feat/m3a-content-lifecycle"]
+file = "branches/feat/m3a-content-lifecycle.md"
+type = "feat"
+status = "active"
+created = "2026-10-08"
+title = "M3a: content lifecycle (drafts, publish, history, preview, migrations)"
+description = "M3a: content lifecycle (drafts, publish, history, preview, migrations)"
+tags = [ "pages", "editor", "migrations", "preview", "roadmap" ]
+decisions = [ "D-0116", "D-0117", "D-0118", "D-0119", "D-0120", "D-0121", "D-0122", "D-0123", "D-0124", "D-0125", "D-0126", "D-0127", "D-0128", "D-0129", "D-0130", "D-0131", "D-0132", "D-0133", "D-0134", "D-0135", "D-0136", "D-0137", "D-0138", "D-0139", "D-0140", "D-0141", "D-0142", "D-0143", "D-0144", "D-0145", "D-0146", "D-0147", "D-0148", "D-0149", "D-0150", "D-0151", "D-0152", "D-0153", "D-0154", "D-0155", "D-0156", "D-0157" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -646,8 +656,9 @@ title = "Caching semantics (tags, invalidation events) in the core; bindings app
 adr = "feat/m1-foundations"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "cache", "roadmap" ]
+superseded_by = "D-0149"
 
 [decisions.D-0071]
 title = "Richtext, inline editing and extensible, typed host fields are mandatory for V1 (planned M4)"
@@ -1011,6 +1022,343 @@ date = "2026-10-08"
 provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "docs", "process" ]
+
+[decisions.D-0116]
+title = "Split M3 into M3a (lifecycle + migrations) and M3b (Payload adapters + artifact upload API), each with its own plan"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "roadmap", "process" ]
+
+[decisions.D-0117]
+title = "M3 branches start from main after the docs/ADR branch is merged"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0118]
+title = "Preview links are signed, expiring tokens; the draft revision renders with draft data"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "preview", "security" ]
+
+[decisions.D-0119]
+title = "Editor M3a scope: workflow basics (save draft, publish, status, conflict, history/restore, preview link), no autosave"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0120]
+title = "No legacy page-format reader; the repo's demo pages are converted directly"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "pages" ]
+
+[decisions.D-0121]
+title = "Commit slicing A–F (contract+fs, core API+auth, editor UI, preview, migrations, top-level docs); each commit updates its docs"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0122]
+title = "PageStore v2 contract: list, meta, getDraft, getPublished, getRevision, saveDraft, publish, unpublish, delete, history; opaque store-generated revisions; restore done by the core"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "pages", "contracts" ]
+
+[decisions.D-0123]
+title = "Optimistic concurrency: saveDraft needs the current draft as baseRevision (null = create), publish only accepts the current draft; conflicts are return values"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "pages" ]
+
+[decisions.D-0124]
+title = "Each page revision carries schemaVersion (core page format, starts at 1); higher versions are rejected; internal upgrade registry"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "pages" ]
+
+[decisions.D-0125]
+title = "Revision author is the authenticated Principal.id (optional)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "pages", "auth" ]
+
+[decisions.D-0126]
+title = "pages-fs v2 layout: <slug>/revisions/<n>.json (zero-padded counter = revision id) + <slug>/meta.json, temp+rename, revision before meta"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "pages" ]
+
+[decisions.D-0127]
+title = "pages-fs concurrency: in-process per-slug mutex; documented as single-instance only"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "pages" ]
+
+[decisions.D-0128]
+title = "pages-fs keeps maxRevisions (default 100); never prunes the current draft or published revision"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "pages" ]
+
+[decisions.D-0129]
+title = "Demo pages converted to the new layout, each published as revision 1"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "pages" ]
+
+[decisions.D-0130]
+title = "Page API routes: GET pages, POST pages/save|publish|unpublish|delete|restore|preview-link, GET pages/history|revision; 409 on conflicts"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "api", "pages" ]
+
+[decisions.D-0131]
+title = "New actions page:delete and page:preview"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth" ]
+
+[decisions.D-0132]
+title = "Every page route passes { slug } as the authorize resource"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth" ]
+
+[decisions.D-0133]
+title = "History limit default 20, max 100; invalid values are a 400"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "api" ]
+
+[decisions.D-0134]
+title = "Public render and pageCacheability read the published revision (none = 404); editor reads the draft; EditorProps gains page meta and previewEnabled"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "pages", "editor" ]
+
+[decisions.D-0135]
+title = "Save pipeline: validate, restoreMissing, stripResolved, stamp __v, saveDraft"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "pages" ]
+
+[decisions.D-0136]
+title = "Editor header replaces Puck's Publish: Save draft, Publish (saves first), status badge, History panel with Restore, Copy preview link"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0137]
+title = "Conflict banner with Reload and Overwrite"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0138]
+title = "beforeunload prompt when there are unsaved changes"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0139]
+title = "Preview token: base64url(JSON{s,r,e}).base64url(HMAC-SHA256) via Web Crypto; config preview { secret, ttlSeconds } (default 24 h, max 30 days); off without config; production secret >= 32 bytes"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "preview", "security" ]
+
+[decisions.D-0140]
+title = "Preview delivery: ?puck_preview=<token> on the site origin; no-store + noindex; invalid = 404; param hidden from $query"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "preview" ]
+
+[decisions.D-0141]
+title = "PageContext.preview; Next loadPage reads puck_preview; proxy adds no-store/noindex when present; revocation = rotate secret"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "preview", "next" ]
+
+[decisions.D-0142]
+title = "defineBlock/defineRoot accept version (default 1) and migrations keyed N (N-1 -> N); every step required; items carry props.__v (missing = 1)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "migrations", "sdk" ]
+
+[decisions.D-0143]
+title = "New __migrate isolate entry point (slots detached and reattached by the host, output validated); sdkMajor bumped 1 -> 2"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "migrations", "runtime" ]
+
+[decisions.D-0144]
+title = "Migrations run on public render (not persisted) and in loadEditor; save stamps missing __v with the current version"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "migrations" ]
+
+[decisions.D-0145]
+title = "Migration failure fails only that block (public) or keeps unmigrated props with a warning (editor); newer __v renders unmigrated with a warning"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "migrations" ]
+
+[decisions.D-0146]
+title = "build --baseline <manifest> compares field shape (names, types, nested fields, option values) and fails on unbumped changes or version decrease; also build({ baseline })"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "migrations", "cli" ]
+
+[decisions.D-0147]
+title = "publish checks against the active artifact and refuses unless --force"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "migrations", "cli" ]
+
+[decisions.D-0148]
+title = "Example theme: quote v2 renames author to cite with a migration; demo data stays v1"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "migrations", "example" ]
+
+[decisions.D-0149]
+title = "Rendered-page/HTML caching postponed to post-V1; M3 keeps only the tagged query-result cache; what to cache is decided later from M5 load tests"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "cache", "roadmap" ]
+supersedes = [ "D-0070" ]
+
+[decisions.D-0150]
+title = "A conflicting write on a missing page returns meta: null (WriteResult conflict meta is PageMeta | null)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "pages", "contracts" ]
+
+[decisions.D-0151]
+title = "pages-fs revision ids are 8-digit zero-padded counters"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "pages" ]
+
+[decisions.D-0152]
+title = "pages-fs exports its options type as FsPageStoreOptions ({ dir, maxRevisions })"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "pages", "api" ]
+
+[decisions.D-0153]
+title = "API order: CSRF, authenticate (401), parse (400), authorize with { slug } (403), handler; blocks/resolve and blocks/render pass their slug too"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "auth", "api" ]
+
+[decisions.D-0154]
+title = "Newer page format: PageFormatError ('page <slug> uses page format <n>; this version of puck-remote reads up to <max>'), HTTP 500 in the editor API, propagated on public render"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "pages", "errors" ]
+
+[decisions.D-0155]
+title = "Invalid GET query strings on the API return 400 'invalid query'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "api", "errors" ]
+
+[decisions.D-0156]
+title = "unpublish of a missing page is 404; delete is idempotent (200 { ok: true })"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "api", "pages" ]
+
+[decisions.D-0157]
+title = "handleApi fails closed if a handler returns (other than 400) without authorizing"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "auth", "security" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

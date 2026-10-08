@@ -17,6 +17,6 @@ Each factory must return a **fresh, empty** store.
 
 | Suite | Checks |
 |---|---|
-| `pageStoreContract(name, make)` | Missing pages return null; JSON round-trips; overwrite; nested slugs are listed |
+| `pageStoreContract(name, make)` | Missing pages return null; create only once; stale `baseRevision` and stale publish are conflicts; publishing pins a revision; history is newest first with `limit`/`before`; unpublish; delete; nested slugs are listed; of concurrent saves on one base exactly one wins |
 | `artifactStoreContract(name, make)` | Starts empty; versions are immutable and listed in order; pointer moves and refuses missing versions; unsafe paths never resolve |
 | `cacheStoreContract(name, make)` | Misses are undefined; JSON values (null included); TTL expiry; tag invalidation only hits matching entries |

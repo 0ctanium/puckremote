@@ -1,11 +1,15 @@
 ---
 title: Page store
-description: Where the Puck page JSON is saved.
+description: Where pages are saved, with drafts, publishing and history.
 ---
+
+The page store holds every page's revisions, plus two pointers: the **draft** (what the editor
+opens) and the **published** revision (what the public site serves). Saving never changes the
+public site; publishing does.
 
 ## `@puck-remote/pages-fs`
 
-An example store with one JSON file per page.
+A store on the local filesystem.
 
 ```npm
 npm install @puck-remote/pages-fs
@@ -17,25 +21,77 @@ import { fsPageStore } from '@puck-remote/pages-fs';
 pages: fsPageStore({ dir: path.join(process.cwd(), 'data/pages') }),
 ```
 
-<TypeTable type={{ dir: { description: "Directory of page files. Nested slugs map '/' to '__' (blog/post-1 → blog__post-1.json).", type: 'string', required: true } }} />
-
-Writes are atomic (temp file + rename).
-
-## Writing your own
-
 <TypeTable
   type={{
-    get: { description: "Page JSON for a slug, or null.", type: '(slug: string) => Promise<unknown | null>', required: true },
-    put: { description: "Save a page.", type: '(slug: string, data: unknown) => Promise<void>', required: true },
-    list: { description: "All slugs.", type: '() => Promise<string[]>', required: true },
+    dir: { description: "Directory of pages. One folder per page; nested slugs map '/' to '__' (blog/post-1 → blog__post-1).", type: 'string', required: true },
+    maxRevisions: { description: "Revisions kept per page. The oldest are pruned first; the draft and the published revision are always kept.", type: 'number', default: '100' },
   }}
 />
 
-Slugs are validated by the host before they reach you: lowercase `a-z0-9-` segments, up to 5
-levels (`home`, `blog/post-1`). The host validates pages and removes editor-only data before
-`put`. Check your store with [`pageStoreContract`](/docs/core/adapters/testing).
+```files
+data/pages
+├── home
+│   ├── meta.json
+│   └── revisions
+│       ├── 00000001.json
+│       └── 00000002.json
+└── blog__post-1
+    ├── meta.json
+    └── revisions
+        └── 00000001.json
+```
 
-<Callout>
-  A publishing workflow (drafts, history, preview links) will be added to this contract in a
-  later milestone.
+Revision ids are 8-digit counters. Writes are atomic (temp file + rename).
+
+<Callout type="warn">
+  `pages-fs` is for **a single instance**. Saves are serialized inside one process only; several
+  processes writing the same directory can lose updates. Use a database-backed store when you run
+  more than one instance ([D-0127](/docs/internal/decisions#D-0127)).
 </Callout>
+
+## Writing your own
+
+A store implements the `PageStore` contract from `@puck-remote/sdk/host`:
+
+<TypeTable
+  type={{
+    list: { description: "Every page's meta.", type: '() => Promise<PageMeta[]>', required: true },
+    meta: { description: "A page's meta, or null.", type: '(slug) => Promise<PageMeta | null>', required: true },
+    getDraft: { description: "The latest saved revision, or null.", type: '(slug) => Promise<PageRevision | null>', required: true },
+    getPublished: { description: "The published revision, or null (missing or unpublished).", type: '(slug) => Promise<PageRevision | null>', required: true },
+    getRevision: { description: "One revision by id, or null. Ids come from clients: validate them.", type: '(slug, revision) => Promise<PageRevision | null>', required: true },
+    saveDraft: { description: "Append a revision and make it the draft. baseRevision must be the current draft (null creates the page).", type: '(slug, { data, schemaVersion }, { baseRevision, author? }) => Promise<WriteResult>', required: true },
+    publish: { description: "Publish a revision. Only the current draft is accepted.", type: '(slug, { revision, author? }) => Promise<WriteResult>', required: true },
+    unpublish: { description: "Stop serving the page publicly; drafts and history stay. No-op if unpublished.", type: '(slug) => Promise<void>', required: true },
+    delete: { description: "Remove the page and its history. No-op if missing.", type: '(slug) => Promise<void>', required: true },
+    history: { description: "Revisions newest first, without data; before pages through older ones.", type: '(slug, { limit, before? }) => Promise<Omit<PageRevision, "data">[]>', required: true },
+  }}
+/>
+
+<TypeTable
+  type={{
+    'PageRevision': { description: "revision (opaque string id chosen by the store), schemaVersion (core page format), data, createdAt (ISO 8601), author?", type: 'object' },
+    'PageMeta': { description: "slug, draftRevision, publishedRevision (or null), updatedAt, publishedAt (or null)", type: 'object' },
+    'WriteResult': { description: "{ ok: true, meta } or { ok: false, reason: 'conflict', meta } where meta is the current state (null if the page doesn't exist)", type: 'union' },
+  }}
+/>
+
+### Concurrency
+
+Writes are optimistic ([D-0123](/docs/internal/decisions#D-0123)). `saveDraft` must name the
+current draft as `baseRevision`, and `publish` only accepts the current draft. Anything else
+returns a conflict and writes nothing. Two editors can't silently overwrite each other, and nobody
+publishes changes they haven't seen. Make the check and the write atomic (a transaction, a
+conditional update, a lock).
+
+Restoring an old revision is not part of the contract: the core reads it and saves it as a new
+draft ([D-0122](/docs/internal/decisions#D-0122)).
+
+### What the host guarantees
+
+Slugs are validated before they reach you: lowercase `a-z0-9-` segments, up to 5 levels (`home`,
+`blog/post-1`). Page data is validated and editor-only data is removed before `saveDraft`. Store
+`schemaVersion` and `data` as given: the core uses `schemaVersion` to read older page formats
+([D-0124](/docs/internal/decisions#D-0124)).
+
+Check your store with [`pageStoreContract`](/docs/core/adapters/testing).

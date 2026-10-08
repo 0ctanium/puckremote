@@ -12,20 +12,114 @@ import { describe, expect, it } from 'vitest'
 const bytes = (s: string) => new TextEncoder().encode(s)
 const text = (b: Uint8Array | null) => (b === null ? null : new TextDecoder().decode(b))
 
+const pageData = (title: string) => ({ root: { props: { title } }, content: [] as unknown[] })
+const titleOf = (rev: { data: unknown } | null) => (rev?.data as { root: { props: { title: string } } } | undefined)?.root.props.title
+
 export function pageStoreContract(name: string, make: () => Promise<PageStore> | PageStore): void {
   describe(`PageStore contract: ${name}`, () => {
-    it('returns null for a missing page', async () => {
-      expect(await (await make()).get('nope')).toBeNull()
-    })
-    it('round-trips JSON, overwrites, and lists slugs (nested included)', async () => {
+    it('returns null / empty for a missing page', async () => {
       const s = await make()
-      const page = { root: { props: { title: 'Ünïcode ✓' } }, content: [{ type: 'card', props: { id: 'c', n: 1, nested: { a: [1, null, true] } } }] }
-      await s.put('home', page)
-      await s.put('blog/post-1', { root: { props: {} }, content: [] })
-      expect(await s.get('home')).toEqual(page)
-      await s.put('home', { root: { props: { title: 'v2' } }, content: [] })
-      expect(((await s.get('home')) as { root: { props: { title: string } } }).root.props.title).toBe('v2')
-      expect((await s.list()).sort()).toEqual(['blog/post-1', 'home'])
+      expect(await s.meta('nope')).toBeNull()
+      expect(await s.getDraft('nope')).toBeNull()
+      expect(await s.getPublished('nope')).toBeNull()
+      expect(await s.getRevision('nope', 'x')).toBeNull()
+      expect(await s.history('nope', { limit: 10 })).toEqual([])
+      expect(await s.list()).toEqual([])
+    })
+
+    it('creates once (baseRevision null), then requires the current draft as base', async () => {
+      const s = await make()
+      const page = { root: { props: { title: 'Ünïcode ✓' } }, content: [{ type: 'card', props: { id: 'c', nested: { a: [1, null, true] } } }] }
+      const a = await s.saveDraft('home', { data: page, schemaVersion: 1 }, { baseRevision: null, author: 'alice' })
+      if (!a.ok) throw new Error('create failed')
+      expect(a.meta).toMatchObject({ slug: 'home', publishedRevision: null, publishedAt: null })
+      const draft = await s.getDraft('home')
+      expect(draft).toMatchObject({ revision: a.meta.draftRevision, schemaVersion: 1, data: page, author: 'alice' })
+      expect(typeof draft!.createdAt).toBe('string')
+
+      const again = await s.saveDraft('home', { data: pageData('x'), schemaVersion: 1 }, { baseRevision: null })
+      expect(again).toMatchObject({ ok: false, reason: 'conflict', meta: { draftRevision: a.meta.draftRevision } })
+
+      const b = await s.saveDraft('home', { data: pageData('v2'), schemaVersion: 1 }, { baseRevision: a.meta.draftRevision })
+      if (!b.ok) throw new Error('save failed')
+      expect(b.meta.draftRevision).not.toBe(a.meta.draftRevision)
+
+      const stale = await s.saveDraft('home', { data: pageData('lost'), schemaVersion: 1 }, { baseRevision: a.meta.draftRevision })
+      expect(stale).toMatchObject({ ok: false, reason: 'conflict', meta: { draftRevision: b.meta.draftRevision } })
+      expect(titleOf(await s.getDraft('home'))).toBe('v2')
+    })
+
+    it('publishes only the current draft; later drafts leave the published revision alone', async () => {
+      const s = await make()
+      const a = await s.saveDraft('home', { data: pageData('one'), schemaVersion: 1 }, { baseRevision: null })
+      if (!a.ok) throw new Error()
+      const b = await s.saveDraft('home', { data: pageData('two'), schemaVersion: 1 }, { baseRevision: a.meta.draftRevision })
+      if (!b.ok) throw new Error()
+      expect((await s.publish('home', { revision: a.meta.draftRevision })).ok).toBe(false)
+      expect(await s.getPublished('home')).toBeNull()
+
+      const p = await s.publish('home', { revision: b.meta.draftRevision })
+      if (!p.ok) throw new Error()
+      expect(p.meta.publishedRevision).toBe(b.meta.draftRevision)
+      expect(typeof p.meta.publishedAt).toBe('string')
+
+      const c = await s.saveDraft('home', { data: pageData('three'), schemaVersion: 1 }, { baseRevision: b.meta.draftRevision })
+      if (!c.ok) throw new Error()
+      expect(c.meta.publishedRevision).toBe(b.meta.draftRevision)
+      expect(titleOf(await s.getPublished('home'))).toBe('two')
+      expect(titleOf(await s.getDraft('home'))).toBe('three')
+      expect(titleOf(await s.getRevision('home', a.meta.draftRevision))).toBe('one')
+      expect((await s.publish('nope', { revision: c.meta.draftRevision })).ok).toBe(false)
+    })
+
+    it('unpublishes and deletes', async () => {
+      const s = await make()
+      const a = await s.saveDraft('blog/post-1', { data: pageData('p'), schemaVersion: 1 }, { baseRevision: null })
+      if (!a.ok) throw new Error()
+      await s.publish('blog/post-1', { revision: a.meta.draftRevision })
+      await s.unpublish('blog/post-1')
+      expect(await s.getPublished('blog/post-1')).toBeNull()
+      expect(await s.meta('blog/post-1')).toMatchObject({ publishedRevision: null, publishedAt: null })
+      expect(titleOf(await s.getDraft('blog/post-1'))).toBe('p')
+      await s.unpublish('blog/post-1')
+      await s.delete('blog/post-1')
+      expect(await s.meta('blog/post-1')).toBeNull()
+      expect(await s.history('blog/post-1', { limit: 10 })).toEqual([])
+      await s.delete('blog/post-1')
+    })
+
+    it('lists pages (nested slugs included)', async () => {
+      const s = await make()
+      await s.saveDraft('home', { data: pageData('h'), schemaVersion: 1 }, { baseRevision: null })
+      await s.saveDraft('blog/post-1', { data: pageData('p'), schemaVersion: 1 }, { baseRevision: null })
+      expect((await s.list()).map((m) => m.slug).sort()).toEqual(['blog/post-1', 'home'])
+    })
+
+    it('history is newest first, without data, paged with limit/before', async () => {
+      const s = await make()
+      let base: string | null = null
+      const revs: string[] = []
+      for (let i = 0; i < 5; i++) {
+        const r = await s.saveDraft('home', { data: pageData(`v${i}`), schemaVersion: 1 }, { baseRevision: base })
+        if (!r.ok) throw new Error()
+        base = r.meta.draftRevision
+        revs.push(base)
+      }
+      const first = await s.history('home', { limit: 2 })
+      expect(first.map((r) => r.revision)).toEqual([revs[4], revs[3]])
+      expect(first[0]).not.toHaveProperty('data')
+      const next = await s.history('home', { limit: 10, before: first[1].revision })
+      expect(next.map((r) => r.revision)).toEqual([revs[2], revs[1], revs[0]])
+    })
+
+    it('concurrent saves on the same base: exactly one wins', async () => {
+      const s = await make()
+      const a = await s.saveDraft('home', { data: pageData('a'), schemaVersion: 1 }, { baseRevision: null })
+      if (!a.ok) throw new Error()
+      const results = await Promise.all(
+        Array.from({ length: 5 }, (_, i) => s.saveDraft('home', { data: pageData(`c${i}`), schemaVersion: 1 }, { baseRevision: a.meta.draftRevision })),
+      )
+      expect(results.filter((r) => r.ok)).toHaveLength(1)
     })
   })
 }

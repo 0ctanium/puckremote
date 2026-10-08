@@ -1,0 +1,23 @@
+{
+  "revision": "00000001",
+  "schemaVersion": 1,
+  "data": {
+    "root": {
+      "props": {
+        "title": "Search",
+        "description": "",
+        "theme": "light"
+      }
+    },
+    "content": [
+      {
+        "type": "search-results",
+        "props": {
+          "id": "search-1",
+          "heading": "Search posts"
+        }
+      }
+    ]
+  },
+  "createdAt": "2026-10-08T00:00:00.000Z"
+}
