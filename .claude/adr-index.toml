@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 243
+next_decision = 262
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -97,6 +97,16 @@ description = "M3a: content lifecycle (drafts, publish, history, preview, migrat
 tags = [ "pages", "editor", "migrations", "preview", "roadmap" ]
 decisions = [ "D-0116", "D-0117", "D-0118", "D-0119", "D-0120", "D-0121", "D-0122", "D-0123", "D-0124", "D-0125", "D-0126", "D-0127", "D-0128", "D-0129", "D-0130", "D-0131", "D-0132", "D-0133", "D-0134", "D-0135", "D-0136", "D-0137", "D-0138", "D-0139", "D-0140", "D-0141", "D-0142", "D-0143", "D-0144", "D-0145", "D-0146", "D-0147", "D-0148", "D-0149", "D-0150", "D-0151", "D-0152", "D-0153", "D-0154", "D-0155", "D-0156", "D-0157", "D-0158", "D-0159", "D-0160", "D-0161", "D-0162", "D-0163", "D-0164", "D-0165", "D-0166", "D-0167", "D-0168", "D-0169", "D-0170", "D-0171", "D-0172", "D-0173", "D-0174", "D-0175", "D-0176", "D-0177", "D-0178", "D-0179", "D-0180", "D-0181", "D-0182", "D-0183", "D-0184", "D-0185", "D-0186", "D-0187", "D-0188", "D-0189", "D-0190", "D-0191", "D-0192", "D-0193", "D-0194", "D-0195", "D-0196", "D-0197", "D-0198", "D-0199", "D-0200", "D-0201", "D-0202", "D-0203", "D-0204", "D-0205", "D-0206", "D-0207", "D-0208", "D-0209", "D-0210", "D-0211", "D-0212", "D-0213", "D-0214", "D-0215", "D-0216", "D-0217", "D-0218", "D-0219", "D-0220", "D-0221", "D-0222", "D-0223", "D-0224", "D-0225", "D-0226", "D-0227", "D-0228", "D-0229", "D-0230", "D-0231", "D-0232", "D-0233", "D-0234", "D-0235", "D-0236", "D-0237", "D-0238", "D-0239", "D-0240", "D-0241", "D-0242" ]
 
+[adrs."feat/islands"]
+file = "branches/feat/islands.md"
+type = "feat"
+status = "active"
+created = "2026-10-08"
+title = "Interactive theme components on public pages (islands)"
+description = "Interactive theme components on public pages (islands)"
+tags = [ "render", "islands", "sdk", "cli" ]
+decisions = [ "D-0243", "D-0244", "D-0245", "D-0246", "D-0247", "D-0248", "D-0249", "D-0250", "D-0251", "D-0252", "D-0253", "D-0254", "D-0255", "D-0256", "D-0257", "D-0258", "D-0259", "D-0260", "D-0261" ]
+
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
 adr = "feat/poc-sandboxed-blocks"
@@ -118,8 +128,9 @@ title = "render(props, data, ctx) is synchronous and pure, runs in isolated-vm, 
 adr = "feat/poc-sandboxed-blocks"
 date = "2026-10-07"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "isolate", "render" ]
+superseded_by = "D-0243"
 
 [decisions.D-0004]
 title = "Data is declarative: blocks declare queries, the host resolves them (parallel, deduped, budgeted); the isolate never does I/O"
@@ -2164,6 +2175,159 @@ date = "2026-10-08"
 provenance = "user"
 status = "accepted"
 tags = [ "packaging" ]
+
+[decisions.D-0243]
+title = "Theme client components are the exports of modules starting with \"use client\" (islands), detected by the CLI; SSR in the isolate, hydrated on public pages"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "render" ]
+supersedes = [ "D-0003" ]
+
+[decisions.D-0244]
+title = "Public pages load a separate islands-only bundle (bundle.islands.js); bundle.browser.js stays editor-only"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "cli" ]
+
+[decisions.D-0245]
+title = "Island hydration timing is configurable per island"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands" ]
+
+[decisions.D-0246]
+title = "Timing is a reserved use-site prop hydrate: load (default) | idle | visible, stripped before the component"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "sdk" ]
+
+[decisions.D-0247]
+title = "Island id is \"<theme-relative path>#<export>\"; only function exports become islands"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "cli" ]
+
+[decisions.D-0248]
+title = "Island props must be JSON (round-trip checked in the isolate), no children; 64 KB per island, 200 islands per page; violations fail the block"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "security" ]
+
+[decisions.D-0249]
+title = "SDK gains internal island() and hydrate typing; RenderOutput carries islands; SDK_MAJOR stays 3"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "sdk" ]
+
+[decisions.D-0250]
+title = "Core: RenderedBlock.islands, htmlToReact swaps nonce-checked island markers for a use-client ThemeIsland, PreparedPage.islandsUrl, bundle.islands.js public"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "render" ]
+
+[decisions.D-0251]
+title = "One shared helper registers __puckRemoteModules for the editor and for islands"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "editor" ]
+
+[decisions.D-0252]
+title = "No new site CSP directive for islands (same-origin bundle under self + strict-dynamic); verify enforced, ask if blocked"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "security" ]
+
+[decisions.D-0253]
+title = "Hydration mismatches between isolate and host React are left to React 19 recovery; documented as a known gap"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands" ]
+
+[decisions.D-0254]
+title = "Islands work happens on feat/islands from feat/m3a-content-lifecycle; owner uncommitted changes untouched except the counter example"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0255]
+title = "Example: Counter island in the Card with a start prop and one hydrate=\"visible\" use"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "examples" ]
+
+[decisions.D-0256]
+title = "Islands tests: CLI detection and bundle, core markers/records/limits/forged markers, parity, browser verification"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "testing" ]
+
+[decisions.D-0257]
+title = "registerSharedModules() lives in a new @puck-remote/sdk/browser subpath, used by the editor and islands"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "sdk", "packaging" ]
+
+[decisions.D-0258]
+title = "ThemeIsland ships as its own use-client entry, exported as @puck-remote/core/island (internal, used by PuckRemotePage)"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "packaging" ]
+
+[decisions.D-0259]
+title = "Island HTML is normalized on the server (html-react-parser htmlToDOM + dom-serializer 3.1.1 as a direct core dependency) before raw insertion"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "security" ]
+
+[decisions.D-0260]
+title = "no-dev-code guard: explicit BROWSER_ONLY allowlist (ThemeIsland.tsx) exempt from the dynamic-import and SDK rules, plus a runtime check that server rendering never loads islands"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "security", "testing" ]
+
+[decisions.D-0261]
+title = "Shared-modules error now says \"is not provided by the page (registerSharedModules from @puck-remote/sdk/browser)\"; nav places the islands guide after Theme development and the internal page after Slot swap"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "islands", "docs" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

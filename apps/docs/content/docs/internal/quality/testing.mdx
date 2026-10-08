@@ -20,19 +20,20 @@ suppressed; debug with `process.stderr.write`. Sandbox suites run against **both
 | 13 | Data source policy: undeclared names, operators, sort, clamps, projection | `data.test.ts`, types in `examples/theme/type-tests.ts` |
 | 14 | Forged slot markers are not swapped | `rendering.test.tsx` |
 | 15 | hero → card → latest-posts nested, with data and head effects | `rendering.test.tsx` |
-| 16 | Parity: the editor config (theme browser bundle loaded through the editor globals, Puck slots) renders the same HTML as the public isolate render | `editor.test.tsx` |
+| 16 | Parity: the editor config (theme browser bundle loaded through the editor globals, Puck slots) renders the same HTML as the public isolate render (island wrappers unwrapped) | `editor.test.tsx` |
+| — | Islands: record with JSON props and `hydrate`, marker swapped for `ThemeIsland`; non-JSON props, `children` and more than 200 per page fail the block; forged markers stay inert; no `islandsUrl` without islands; server rendering never registers the shared modules | `islands.test.tsx` |
 | 17 | Missing blocks; stale props; page-level infinite loop | `rendering.test.tsx` |
 | 18 | `resolveData` output is stripped by `writePage` | `editor.test.tsx` |
 | 19 | Tampered bundle, page, manifest or asset rejected; previous artifact keeps serving; non-public files never served | `artifacts.test.ts` |
 | 20 | Publish by id (identical content dedupes); atomic pointer; hot swap disposes old runtime; rollback | `artifacts.test.ts` |
 | 21 | Build rejects functions, custom/external fields, forbidden keys, non-JSON, bad refs | `packages/cli/test/build.test.ts` |
 | — | Entry points: theme route (assets, browser bundle, CORS, 404/405), `readPage`, `writePage` (new id, pointer untouched, cleaning, invalid input), `editorPayload`, `resolveBlockData`, origins config, a counter-id store end to end | `routes.test.ts` |
-| A7 | No developer code outside the isolate: static scan, bundle-sink allowlist, realm check, import boundaries | `no-dev-code.test.ts` |
+| A7 | No developer code outside the isolate: static scan, bundle-sink allowlist, realm check, import boundaries; `ThemeIsland.tsx` is the only browser-only exception (one `import()`, only `@puck-remote/sdk/browser`, [D-0260](/docs/internal/decisions#D-0260)) | `no-dev-code.test.ts` |
 | M1 | Contract suite against `artifacts-fs` and a counter-id store; content-hash ids | `adapters.test.ts` |
 | M2 | Worker permissions (fs, network, child processes, threads, env), watchdog kill, crash, recycling, no secrets over IPC, bubblewrap (Linux) | `worker.test.ts` |
 | M2 | `requestOrigin` | `surface.test.ts` |
 | M2 | CSP for site, admin (frames only the editor) and editor (framed by host origins only), dev relaxations, nonces, effects allowlist | `headers.test.ts` |
-| — | Build: pages shipped and listed in the manifest, unknown blocks (slots included) and invalid page files rejected, browser bundle has no bare imports, refuses to load without the editor globals and exports the blocks with them; `pull` | `packages/cli/test/build.test.ts` |
+| — | Build: pages shipped and listed in the manifest, unknown blocks (slots included) and invalid page files rejected, browser bundle has no bare imports, refuses to load without the editor globals and exports the blocks with them; `"use client"` exports wrapped in the isolate and editor bundles, `bundle.islands.js` with only function exports and no bare imports, none without islands; `pull` | `packages/cli/test/build.test.ts` |
 | — | Editor protocol: message schemas and version, `measure`, rate limiter, frame origin checks, `ready`→`init`, origin **and** source checks, change validation, allow-listed RPCs with size and rate limits, uploads, bridge `init` checks | `packages/editor/test/protocol.test.ts` |
 
 Fixtures: `packages/core/test/fixtures/evil` is a hostile theme; `helpers.ts` builds artifacts and

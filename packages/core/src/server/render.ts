@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto'
+import render from 'dom-serializer'
+import { htmlToDOM } from 'html-react-parser'
 import { z } from 'zod'
 import type { RenderSession, IsolateErrorKind } from './runtime/types.ts'
 
@@ -25,10 +27,28 @@ const effectSchema = z.discriminatedUnion('kind', [
 ])
 export type Effect = z.infer<typeof effectSchema>
 
-const outputSchema = z.strictObject({ html: z.string(), effects: z.array(effectSchema).max(64) })
+// Same values as @puck-remote/sdk/constants (the host never imports theme-facing SDK modules).
+export const HYDRATE_MODES = ['load', 'idle', 'visible'] as const
+export const ISLAND_LIMITS = { maxPropsBytes: 64 * 1024, maxPerPage: 200 } as const
+
+// Isolate output is untrusted: re-check what the SDK runtime promises about islands.
+const islandSchema = z.strictObject({
+  key: z.string().regex(/^i\d{1,4}$/),
+  id: z.string().regex(/^[^#\s]{1,256}#[A-Za-z_$][\w$]{0,127}$/),
+  props: z.record(z.string(), z.unknown()).refine((p) => JSON.stringify(p).length <= ISLAND_LIMITS.maxPropsBytes, 'island props too large'),
+  hydrate: z.enum(HYDRATE_MODES),
+  html: z.string(),
+})
+export type Island = z.infer<typeof islandSchema>
+
+const outputSchema = z.strictObject({
+  html: z.string(),
+  effects: z.array(effectSchema).max(64),
+  islands: z.array(islandSchema).max(ISLAND_LIMITS.maxPerPage),
+})
 
 export type RenderResult =
-  | { ok: true; html: string; effects: Effect[]; ms: number }
+  | { ok: true; html: string; effects: Effect[]; islands: Island[]; ms: number }
   | { ok: false; error: string; kind: IsolateErrorKind | 'invalid-output'; ms: number }
 
 export const newNonce = () => randomBytes(16).toString('hex')
@@ -56,7 +76,10 @@ export async function renderInIsolate(
   }
   const out = outputSchema.safeParse(parsed)
   if (!out.success) return { ok: false, kind: 'invalid-output', error: `invalid render output: ${out.error.issues[0]?.message}`, ms }
-  return { ok: true, html: out.data.html, effects: out.data.effects, ms }
+  // Island HTML reaches the page raw (a separate React root hydrates it): re-serialize it so
+  // unbalanced markup can't escape the island's wrapper.
+  const islands = out.data.islands.map((i) => ({ ...i, html: render(htmlToDOM(i.html) as never) }))
+  return { ok: true, html: out.data.html, effects: out.data.effects, islands, ms }
 }
 
 /**

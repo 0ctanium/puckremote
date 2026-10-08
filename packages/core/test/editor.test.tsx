@@ -4,6 +4,8 @@
  * isolate. Both must show the same thing.
  */
 import { Render, resolveAllData } from '@puckeditor/core/rsc'
+import render from 'dom-serializer'
+import { htmlToDOM } from 'html-react-parser'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { renderToString } from 'react-dom/server'
@@ -66,15 +68,23 @@ const ctx = (assetBase: string) => ({
   head: { title() {}, meta() {} },
 })
 
-/** React text-node separators (<!-- -->) and isolate slot wrappers differ by construction; nothing else may. */
-const normalize = (html: string) => html.replace(/<!-- -->/g, '').replace(/<small class="t-edit-hint">[^<]*<\/small>/g, '')
+/** Unwrap island wrappers (the editor renders islands directly). */
+function unwrapIslands(html: string): string {
+  const walk = (nodes: any[]): any[] =>
+    nodes.flatMap((n) => (n.attribs?.['data-puck-island'] !== undefined ? walk(n.children) : (n.children && (n.children = walk(n.children)), [n])))
+  return render(walk(htmlToDOM(html) as any[]) as never)
+}
+
+/** React text-node separators (<!-- -->), isolate slot wrappers and island wrappers differ by construction; nothing else may. */
+const normalize = (html: string) => unwrapIslands(html.replace(/<!-- -->/g, '').replace(/<small class="t-edit-hint">[^<]*<\/small>/g, ''))
 
 describe('16. parity: the editor shows exactly what the public site renders', () => {
   it('whole page: browser components with Puck slots equal the public isolate render', async () => {
     const h = await testHost({ theme: 'example', mockOrigin: api.origin, pages: { home: PAGE } })
     const { manifest } = h.host.store.get()
     const pub = (await preparePage(h.host, 'home', {}))!
-    const publicHtml = renderToString(<Render config={buildRscConfig(manifest)} data={pub.data} metadata={{ rendered: pub.rendered }} />)
+    expect(pub.islandsUrl).toBe(`/theme/${pub.artifact}/bundle.islands.js`)
+    const publicHtml = renderToString(<Render config={buildRscConfig(manifest)} data={pub.data} metadata={{ rendered: pub.rendered, islandsUrl: pub.islandsUrl }} />)
 
     // Editor state: page data with __data from resolveData (public mode, to compare like for like).
     const data = rewriteMissing(PAGE, manifest)
@@ -97,6 +107,7 @@ describe('16. parity: the editor shows exactly what the public site renders', ()
     const editorHtml = renderToString(<Render config={editorConfig} data={withData as any} />)
     expect(normalize(editorHtml)).toBe(normalize(publicHtml))
     expect(publicHtml).toContain('Puck meetup')
+    expect(publicHtml).toContain('data-puck-island="blocks/components/counter.tsx#Counter"') // the Card's counter island
     await h.close()
   })
 })

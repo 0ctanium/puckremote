@@ -14,7 +14,7 @@ may be actively hostile.
 | Theme code on the server (`render`, adapter `toRequest`/`fromResponse`) | **No** | isolated-vm isolate, inside a permission-restricted worker process |
 | Theme code in the editor (`render` from `bundle.browser.js`) | **No** | The editor's origin, another site: no cookies, no secrets |
 | Theme metadata and pages | **No**, validated as data | Read from the artifact, hash-checked and re-validated by the host with zod |
-| Theme client scripts (`ctx.assets.script`) | **No** | The visitor's browser, on the public site only |
+| Theme client scripts (`ctx.assets.script`) and islands (`bundle.islands.js`, [D-0243](/docs/internal/decisions#D-0243)) | **No** | The visitor's browser, on the public site only |
 | The editor page (`<PuckRemoteEditor>`, served by the app on the editor origin) | Holds no authority | The editor origin; can only send typed messages to the admin page |
 | Host plugins (`DataSource`, `ArtifactStore`), the app's admin pages, RPC handlers and publish plugin | Yes, chosen by the operator | Node and the admin origin |
 | The CLI on the developer's machine | Not by the host | The developer's machine; its output is re-checked |

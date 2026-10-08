@@ -9,10 +9,10 @@ import { SDK_MAJOR } from '@puck-remote/sdk/constants'
 import { ISOLATE_SHIMS } from '@puck-remote/sdk/shims'
 import { BuildError, toJson, validateAdapter, validateDefinition, validatePage, type BlockMeta } from './validate.ts'
 
-/** Modules the browser bundle takes from the editor (globalThis.__puckRemoteModules) instead of bundling. */
+/** Modules the browser and islands bundles take from the page (globalThis.__puckRemoteModules) instead of bundling. */
 export const BROWSER_EXTERNALS = ['react', 'react/jsx-runtime', 'react-dom', 'react-dom/client', '@puck-remote/sdk'] as const
 
-/** Where the editor registers the modules the theme's browser bundle shares with it. */
+/** Where the page (editor or island host) registers the modules the theme bundles share with it. */
 export const BROWSER_MODULES_GLOBAL = '__puckRemoteModules'
 
 const IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/
@@ -35,11 +35,52 @@ function editorGlobals(cwd: string): Plugin {
         const names = Object.keys(mod).filter((k) => k !== 'default' && IDENT.test(k)).sort()
         const contents = [
           `const m = globalThis.${BROWSER_MODULES_GLOBAL}?.[${JSON.stringify(spec)}];`,
-          `if (!m) throw new Error(${JSON.stringify(`${spec} is not provided by the editor`)});`,
+          `if (!m) throw new Error(${JSON.stringify(`${spec} is not provided by the page (registerSharedModules from @puck-remote/sdk/browser)`)});`,
           'export default m.default ?? m;',
           names.length ? `export const { ${names.join(', ')} } = m;` : '',
         ].join('\n')
         return { contents, loader: 'js' }
+      })
+    },
+  }
+}
+
+const USE_CLIENT = /^(?:\s|\/\/[^\n]*\n|\/\*[\s\S]*?\*\/)*(['"])use client\1/
+const ORIGINAL = '?puck-original'
+
+/** Theme-relative posix path of a source file (the first part of an island id). */
+const relPath = (cwd: string, file: string) => path.relative(cwd, file).split(path.sep).join('/')
+
+/** Export names of a module (esbuild metafile; no code runs). */
+async function exportNames(file: string): Promise<string[]> {
+  const r = await esbuild({ entryPoints: [file], bundle: false, write: false, metafile: true, format: 'esm', jsx: 'automatic', logLevel: 'silent', outdir: '/tmp-unused' })
+  return Object.values(r.metafile!.outputs).flatMap((o) => o.exports)
+}
+
+/**
+ * Islands: every function export of a theme module starting with "use client" is wrapped in
+ * island("<path>#<export>", fn). Dependencies (node_modules) are never islands. Detected files are
+ * added to `found` (the islands bundle's entries).
+ */
+function useClient(cwd: string, found: Set<string>): Plugin {
+  return {
+    name: 'use-client',
+    setup(b) {
+      b.onResolve({ filter: /\?puck-original$/ }, (args) => ({ path: args.path.slice(0, -ORIGINAL.length), suffix: ORIGINAL }))
+      b.onLoad({ filter: SOURCE_EXT }, async (args) => {
+        if (args.suffix === ORIGINAL || args.namespace !== 'file') return undefined
+        if (!args.path.startsWith(cwd + path.sep) || args.path.split(path.sep).includes('node_modules')) return undefined
+        if (!USE_CLIENT.test(await readFile(args.path, 'utf8'))) return undefined
+        found.add(args.path)
+        const rel = relPath(cwd, args.path)
+        const wrap = (name: string) => `typeof m[${JSON.stringify(name)}] === 'function' ? island(${JSON.stringify(`${rel}#${name}`)}, m[${JSON.stringify(name)}]) : m[${JSON.stringify(name)}]`
+        const names = await exportNames(args.path)
+        const contents = [
+          `import { island } from '@puck-remote/sdk';`,
+          `import * as m from ${JSON.stringify(args.path + ORIGINAL)};`,
+          ...names.map((n) => (n === 'default' ? `export default ${wrap(n)};` : `export const ${n} = ${wrap(n)};`)),
+        ].join('\n')
+        return { contents, loader: 'js', resolveDir: cwd }
       })
     },
   }
@@ -197,8 +238,10 @@ import { install } from '@puck-remote/sdk/runtime';
 const adapters = {};
 for (const a of adapterList) adapters[a.name] = a;
 install({ blocks, root: rootDef, adapters });`
+  const islandFiles = new Set<string>()
   const isolateBuild = await esbuild({
     ...common,
+    plugins: [useClient(cwd, islandFiles), singleReact(cwd)],
     stdin: { contents: isolateEntry, resolveDir: cwd, loader: 'tsx', sourcefile: 'puck-remote-isolate-entry.tsx' },
     format: 'iife',
     platform: 'neutral',
@@ -217,7 +260,7 @@ install({ blocks, root: rootDef, adapters });`
 export default { blocks, root: rootDef };`
   const browserBuild = await esbuild({
     ...common,
-    plugins: [editorGlobals(cwd)],
+    plugins: [useClient(cwd, new Set()), editorGlobals(cwd)],
     stdin: { contents: browserEntry, resolveDir: cwd, loader: 'tsx', sourcefile: 'puck-remote-browser-entry.tsx' },
     format: 'esm',
     platform: 'browser',
@@ -226,10 +269,31 @@ export default { blocks, root: rootDef };`
   })
   await writeFile(path.join(outDir, 'bundle.browser.js'), browserBuild.outputFiles![0].text)
 
-  // 4. Assets.
+  // 4. Islands bundle for public pages: only the "use client" modules, unwrapped, keyed by island id.
+  if (islandFiles.size) {
+    const files = [...islandFiles].sort()
+    const islandsEntry = [
+      ...files.map((f, i) => `import * as m${i} from ${JSON.stringify(f)};`),
+      'const islands = {};',
+      ...files.map((f, i) => `for (const [k, v] of Object.entries(m${i})) if (typeof v === 'function') islands[${JSON.stringify(relPath(cwd, f) + '#')} + k] = v;`),
+      'export default islands;',
+    ].join('\n')
+    const islandsBuild = await esbuild({
+      ...common,
+      plugins: [editorGlobals(cwd)],
+      stdin: { contents: islandsEntry, resolveDir: cwd, loader: 'js', sourcefile: 'puck-remote-islands-entry.js' },
+      format: 'esm',
+      platform: 'browser',
+      target: 'es2022',
+      minify: true,
+    })
+    await writeFile(path.join(outDir, 'bundle.islands.js'), islandsBuild.outputFiles![0].text)
+  }
+
+  // 5. Assets.
   if (existsSync(path.join(cwd, 'assets'))) await cp(path.join(cwd, 'assets'), path.join(outDir, 'assets'), { recursive: true })
 
-  // 5. Pages (Shopify-like: content ships with the theme).
+  // 6. Pages (Shopify-like: content ships with the theme).
   const pageFiles = await listFiles(path.join(cwd, 'pages'))
   for (const rel of pageFiles) {
     const file = `pages/${rel}`
@@ -253,6 +317,6 @@ export default { blocks, root: rootDef };`
     categories,
   }
   await writeFile(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
-  log(`${Object.keys(blocks).length} blocks, ${Object.keys(adapters).length} adapters, ${pageFiles.length} pages, bundle ${(bundle.length / 1024).toFixed(0)} KB → ${path.relative(process.cwd(), outDir) || outDir}`)
+  log(`${Object.keys(blocks).length} blocks, ${islandFiles.size} island modules, ${Object.keys(adapters).length} adapters, ${pageFiles.length} pages, bundle ${(bundle.length / 1024).toFixed(0)} KB → ${path.relative(process.cwd(), outDir) || outDir}`)
   return { manifest, outDir }
 }

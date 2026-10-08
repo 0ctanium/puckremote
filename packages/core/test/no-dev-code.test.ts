@@ -79,6 +79,13 @@ const BUNDLE_READERS = new Set([
   'packages/core/src/server/pages.ts', // copies every file's bytes into a new artifact, never evaluates
 ])
 
+// Browser-only modules: their code runs only in effects (never during SSR), where loading the
+// theme's islands bundle is the point (D-0243). Only these two rules are lifted, and the only
+// theme-facing SDK import allowed is @puck-remote/sdk/browser.
+const BROWSER_ONLY: Record<string, string[]> = {
+  'packages/core/src/react/ThemeIsland.tsx': ['dynamic import()', 'imports the theme-facing SDK (only @puck-remote/sdk/host allowed)'],
+}
+
 const strip = (src: string) => src.replace(/\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm, '')
 
 describe('acceptance 7: no developer code outside the isolate', () => {
@@ -94,7 +101,13 @@ describe('acceptance 7: no developer code outside the isolate', () => {
             // The worker pool resolves isolated-vm's location (never developer code) to build the
             // worker's filesystem allowlist.
             if (rel === 'packages/core/src/server/runtime/worker-pool.ts' && what === 'createRequire') continue
+            if (BROWSER_ONLY[rel]?.includes(what)) continue
             if (re.test(src)) violations.push(`${rel}: ${what}`)
+          }
+          if (BROWSER_ONLY[rel]) {
+            const sdk = [...src.matchAll(/from\s+['"](@puck-remote\/sdk[^'"]*)['"]/g)].map((m) => m[1])
+            if (sdk.some((s) => s !== '@puck-remote/sdk/browser')) violations.push(`${rel}: browser-only modules may only import @puck-remote/sdk/browser`)
+            if ((src.match(/\bimport\s*\(/g) ?? []).length !== 1) violations.push(`${rel}: exactly one dynamic import() (the islands bundle)`)
           }
           if (root === 'app' && rel !== 'apps/host/puck-remote.config.ts' && /from\s+['"]@puck-remote\/(source-|artifacts-)/.test(src)) {
             violations.push(`${rel}: concrete plugins may only be wired in puck-remote.config.ts`)

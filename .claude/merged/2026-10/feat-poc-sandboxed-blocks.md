@@ -36,7 +36,7 @@ hardened process-level sandboxing. These were the spec's own non-goals.
 |---|---|---|---|
 | D-0001 | One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files | user | accepted |
 | D-0002 | Everything except render is JSON, extracted at build time on the developer machine and re-validated by the host | user | accepted |
-| D-0003 | render(props, data, ctx) is synchronous and pure, runs in isolated-vm, renderToString inside the isolate; no handlers/state reach the page | user | accepted |
+| D-0003 | render(props, data, ctx) is synchronous and pure, runs in isolated-vm, renderToString inside the isolate; no handlers/state reach the page | user | superseded by D-0243 |
 | D-0004 | Data is declarative: blocks declare queries, the host resolves them (parallel, deduped, budgeted); the isolate never does I/O | user | accepted |
 | D-0005 | Theme adapters are sans-IO: toRequest/fromResponse synchronous in the isolate, host performs HTTP | user | accepted |
 | D-0006 | No custom/external Puck fields, no permissions/resolvePermissions/function options; visibleIf replaces resolveFields; rich pickers only as host:* fields | user | accepted |

@@ -16,6 +16,7 @@ artifacts
 │   ├── manifest.json
 │   ├── bundle.js
 │   ├── bundle.browser.js
+│   ├── bundle.islands.js
 │   ├── assets
 │   │   └── theme.css
 │   └── pages
@@ -29,6 +30,7 @@ artifacts
 | `manifest.json` | Blocks, root, fields, queries, adapters, categories, and the sha256 of every other file (pages included) |
 | `bundle.js` | The theme for the server sandbox: isolate shims, React, `react-dom/server`, the SDK runtime and the theme code |
 | `bundle.browser.js` | The theme for the editor: ESM, React and the SDK left to the editor |
+| `bundle.islands.js` | Only the theme's `"use client"` modules, hydrated on public pages ([interactive components](/docs/guides/interactive-components)); absent without islands |
 | `assets/**` | CSS, client scripts, images |
 | `pages/<slug>.json` | Puck page data |
 | `current.json` | The current artifact's id |
@@ -89,7 +91,7 @@ a shared store (S3-style). See [Core › Adapters](/docs/core/adapters).
 
 ## Serving files
 
-`/theme/<id>/assets/**` and `/theme/<id>/bundle.browser.js` are served only if listed in that
+`/theme/<id>/assets/**`, `/theme/<id>/bundle.browser.js` and `/theme/<id>/bundle.islands.js` are served only if listed in that
 artifact's manifest **and** their hash still matches, with `immutable` caching and `nosniff`.
 `bundle.js`, the manifest and pages are never served. When the editor is configured, these
 responses allow the editor origin (CORS), which loads the browser bundle

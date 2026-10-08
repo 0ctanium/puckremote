@@ -18,8 +18,9 @@ description: From opening the admin page to publishing, step by step.
    to each allowed parent origin (only the real parent receives it), then waits for `init` from
    `window.parent` on an allowed origin. `initProblem` checks it runs on `payload.origins.editor`,
    that the sender is a host origin and that the theme URLs are on a host origin.
-4. **Theme**: the component registers your app's `react`, `react/jsx-runtime`, `react-dom`,
-   `react-dom/client` and `@puck-remote/sdk` on `globalThis.__puckRemoteModules`, imports
+4. **Theme**: the component calls `registerSharedModules()` from `@puck-remote/sdk/browser`
+   ([D-0257](/docs/internal/decisions#D-0257)), which puts your app's `react`, `react/jsx-runtime`,
+   `react-dom`, `react-dom/client` and `@puck-remote/sdk` on `globalThis.__puckRemoteModules`, imports
    `bundle.browser.js` (which reads them from there, [D-0229](/docs/internal/decisions#D-0229)) and calls
    `buildEditorConfig(manifest, theme, deps)`, then your `transformConfig`:
    - fields via `mapFields` (`host:*` fields are the editor's own Puck custom fields, or yours

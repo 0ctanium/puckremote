@@ -10,30 +10,13 @@
  */
 import { Puck, type Config, type Data, type Overrides, type Plugin, type Viewports } from '@puckeditor/core'
 import type { Manifest } from '@puck-remote/core'
-import * as Sdk from '@puck-remote/sdk'
 import type { RenderCtx } from '@puck-remote/sdk'
+import { registerSharedModules } from '@puck-remote/sdk/browser'
 import * as React from 'react'
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from 'react'
-import * as ReactDOM from 'react-dom'
-import * as ReactDOMClient from 'react-dom/client'
-import * as JSXRuntime from 'react/jsx-runtime'
 import { buildEditorConfig, type ThemeModule } from './config.tsx'
 import type { HostFieldFactories } from './fields.ts'
 import { hostToEditorSchema, LIMITS, measure, PROTOCOL_VERSION, type EditorOptions, type EditorPayload, type EditorToHost } from './protocol.ts'
-
-/** Where theme browser bundles find the modules they share with the editor (see the CLI's BROWSER_EXTERNALS). */
-export const BROWSER_MODULES_GLOBAL = '__puckRemoteModules'
-
-/** Give theme bundles this app's React and SDK, so the theme and Puck share one copy of each. */
-function registerSharedModules() {
-  ;(globalThis as Record<string, unknown>)[BROWSER_MODULES_GLOBAL] = {
-    react: React,
-    'react/jsx-runtime': JSXRuntime,
-    'react-dom': ReactDOM,
-    'react-dom/client': ReactDOMClient,
-    '@puck-remote/sdk': Sdk,
-  }
-}
 
 /** Why the editor refuses an init, or null. */
 export function initProblem(payload: EditorPayload, parentOrigin: string, selfOrigin: string): string | null {

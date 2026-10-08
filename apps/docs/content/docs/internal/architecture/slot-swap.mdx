@@ -14,6 +14,10 @@ that only acts on `div` elements carrying `data-puck-slot`:
 The slot value is either Puck's slot component (a function, rendered with `createElement`) or a
 React node (the root's `children`). Everything else in the HTML is parsed as-is.
 
+Island markers (`data-puck-island`) follow the same rules: the render's nonce, a key the block
+reported, and at most one swap per key. They are replaced by `islands.render(key)`, which is a
+`<ThemeIsland>` on public pages ([islands](/docs/internal/architecture/islands)).
+
 On the theme side, `<Slot name>` reads the nonce from module state set by `__render` for the
 duration of one render call (`sdk/src/state.ts`), so it can only produce the right nonce while the
 host is rendering that block.

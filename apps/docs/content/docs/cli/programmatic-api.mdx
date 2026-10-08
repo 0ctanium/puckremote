@@ -23,7 +23,8 @@ await activate(myS3Store, id);
 />
 
 Returns `{ manifest, outDir }`. Throws `BuildError` with a path-prefixed message.
-`BROWSER_EXTERNALS` lists the imports `bundle.browser.js` leaves to the editor.
+`BROWSER_EXTERNALS` lists the imports `bundle.browser.js` and `bundle.islands.js` leave to the page
+(`BROWSER_MODULES_GLOBAL` names the global they read them from).
 
 ## `publish(options)`
 

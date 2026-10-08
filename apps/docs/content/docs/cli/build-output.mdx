@@ -8,6 +8,7 @@ dist
 ├── manifest.json
 ├── bundle.js
 ├── bundle.browser.js
+├── bundle.islands.js
 ├── assets
 │   ├── theme.css
 │   └── enhance.js
@@ -20,6 +21,7 @@ dist
     'manifest.json': { description: "Everything except code: blocks, root, fields, defaults, queries, adapters (name and origin), categories, and the sha256 of every other file, pages included. See the manifest format.", type: 'JSON' },
     'bundle.js': { description: "One minified script with the sandbox shims, React, react-dom/server, the SDK runtime and your blocks. It exposes only __render, __toRequest and __fromResponse. Runs on the server only; never served.", type: 'JavaScript' },
     'bundle.browser.js': { description: "Your blocks and root as an ES module (default export { blocks, root }) for the editor. React, react-dom and @puck-remote/sdk are not bundled: it reads them from globalThis.__puckRemoteModules, which <PuckRemoteEditor> fills. Served at /theme/<id>/bundle.browser.js.", type: 'JavaScript' },
+    'bundle.islands.js': { description: "Only when the theme has islands: the \"use client\" modules (and what they import) as an ES module whose default export maps island ids (<path>#<export>) to components. Like bundle.browser.js it reads React and the SDK from globalThis.__puckRemoteModules. Loaded by public pages that have islands, at /theme/<id>/bundle.islands.js.", type: 'JavaScript' },
     'assets/**': { description: "Your assets folder, copied as-is. Served at /theme/<id>/assets/** only if listed in the manifest with a matching hash.", type: 'files' },
     'pages/**': { description: "Your pages folder, validated against the blocks and re-serialized. Never served; read by the host.", type: 'JSON' },
   }}

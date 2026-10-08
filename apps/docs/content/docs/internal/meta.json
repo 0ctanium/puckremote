@@ -18,6 +18,7 @@
     "architecture/host-source",
     "architecture/http-source",
     "architecture/slot-swap",
+    "architecture/islands",
     "architecture/missing-blocks",
     "architecture/build-pipeline",
     "architecture/packaging",

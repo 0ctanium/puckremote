@@ -3,13 +3,15 @@
  * render is a synchronous host function: look up the pre-rendered HTML, parse it, swap slots.
  */
 import type { Config } from '@puckeditor/core'
+// Its own 'use client' entry: a relative import would be bundled into this server module.
+import { ThemeIsland } from '@puck-remote/core/island'
 import { basicFields } from '../shared/fields-basic.ts'
 import { htmlToReact } from '../shared/slot-swap.tsx'
 import type { BlockMeta, Manifest } from './manifest-schema.ts'
 import { MISSING_TYPE, ROOT_ID } from './page-tree.ts'
 import type { RenderedBlock } from './public-render.ts'
 
-type AnyProps = Record<string, any> & { id?: string; puck?: { metadata?: { rendered?: Record<string, RenderedBlock> } } }
+type AnyProps = Record<string, any> & { id?: string; puck?: { metadata?: { rendered?: Record<string, RenderedBlock>; islandsUrl?: string } } }
 
 const cache = new WeakMap<Manifest, Config>()
 
@@ -23,7 +25,18 @@ function renderBlock(id: string, name: string, meta: BlockMeta, props: AnyProps,
   if (!r || !r.ok) return <Failed name={name} />
   const slots: Record<string, any> = { ...extraSlots }
   for (const s of meta.slots) slots[s] = props[s]
-  return <>{htmlToReact(r.html, { nonce: r.nonce, slots, allowed: [...meta.slots, ...Object.keys(extraSlots)] })}</>
+  const src = props.puck?.metadata?.islandsUrl
+  const islands =
+    src && r.islands.length
+      ? {
+          keys: r.islands.map((i) => i.key),
+          render: (key: string) => {
+            const i = r.islands.find((x) => x.key === key)!
+            return <ThemeIsland src={src} id={i.id} props={i.props} hydrate={i.hydrate} html={i.html} />
+          },
+        }
+      : undefined
+  return <>{htmlToReact(r.html, { nonce: r.nonce, slots, allowed: [...meta.slots, ...Object.keys(extraSlots)], islands })}</>
 }
 
 export function buildRscConfig(manifest: Manifest): Config {

@@ -21,6 +21,7 @@
     "next-js/api",
     "---Guides---",
     "guides/theme-development",
+    "guides/interactive-components",
     "guides/typing-queries",
     "guides/other-frameworks",
     "guides/publishing",

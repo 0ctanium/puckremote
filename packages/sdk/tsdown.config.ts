@@ -8,6 +8,7 @@ export default library(
   "constants": "src/constants.ts",
   "types": "src/types.ts",
   "host": "src/host.ts",
+  "browser": "src/browser.ts",
   },
   { platform: 'neutral' },
 )

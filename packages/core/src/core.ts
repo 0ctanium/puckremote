@@ -83,7 +83,7 @@ export interface PuckRemoteCore {
     slug: string,
     opts?: { artifact?: ArtifactId },
   ): Promise<EditorPayload>;
-  /** `<routes.theme>/<id>/assets/**` and `<routes.theme>/<id>/bundle.browser.js` (GET/HEAD); CORS for the editor origin. */
+  /** `<routes.theme>/<id>/assets/**`, `bundle.browser.js` and `bundle.islands.js` (GET/HEAD); CORS for the editor origin. */
   handleTheme(request: Request): Promise<Response>;
 }
 

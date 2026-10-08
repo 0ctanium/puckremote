@@ -365,6 +365,9 @@ importers:
       '@puck-remote/sdk':
         specifier: workspace:*
         version: link:../sdk
+      dom-serializer:
+        specifier: 3.1.1
+        version: 3.1.1
       html-react-parser:
         specifier: 6.1.8
         version: 6.1.8(@types/react@19.3.0)(react@19.3.0)

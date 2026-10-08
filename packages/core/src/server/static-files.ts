@@ -26,8 +26,8 @@ export function contentType(file: string): string {
   return TYPES[path.extname(file).toLowerCase()] ?? 'application/octet-stream'
 }
 
-/** Files of an artifact that browsers may load: theme assets and the editor's browser bundle. */
-export const isPublicFile = (rel: string) => rel === 'bundle.browser.js' || rel.startsWith('assets/')
+/** Files of an artifact that browsers may load: theme assets, the editor's browser bundle and the islands bundle. */
+export const isPublicFile = (rel: string) => rel === 'bundle.browser.js' || rel === 'bundle.islands.js' || rel.startsWith('assets/')
 
 /**
  * Serve a file from an artifact, only if it is public, listed in that artifact's manifest and its

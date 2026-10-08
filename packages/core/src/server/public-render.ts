@@ -9,12 +9,15 @@ import type { Manifest } from './manifest-schema.ts'
 import { collectInstances, renderProps, restoreMissing, rewriteMissing, ROOT_ID, type Instance, type PageData } from './page-tree.ts'
 import { readPage, stripResolved } from './pages.ts'
 import { resolvePageData, type ResolveStats } from './query/resolver.ts'
-import { assetBase, mergeEffects, newNonce, renderInIsolate, type Effect } from './render.ts'
+import { assetBase, ISLAND_LIMITS, mergeEffects, newNonce, renderInIsolate, type Effect, type Island } from './render.ts'
+import { themeBase } from '../shared/urls.ts'
 
 export interface RenderedBlock {
   ok: boolean
   html: string
   nonce: string
+  /** Islands in this block's HTML (theme client components, hydrated in the browser). */
+  islands: Island[]
   error?: string
 }
 
@@ -33,6 +36,8 @@ export interface PreparedPage {
   slug: string
   data: PageData
   rendered: Record<string, RenderedBlock>
+  /** The theme's islands bundle, when this page has islands. */
+  islandsUrl?: string
   head: ReturnType<typeof mergeEffects>
   cacheable: boolean
   uncacheableBlocks: string[]
@@ -65,10 +70,15 @@ export async function preparePage(host: Host, slug: string, query: Record<string
     const rendered: Record<string, RenderedBlock> = {}
     const effects: Effect[][] = []
     let failures = 0
+    let islandCount = 0
     const tRender = performance.now()
     for (const inst of instances) {
       if (!inst.meta) continue
-      const r = await renderOne(inst, byInstance.get(inst.id) ?? {}, host, slug, id, locale, session!)
+      let r = await renderOne(inst, byInstance.get(inst.id) ?? {}, host, slug, id, locale, session!)
+      if (r.ok && islandCount + r.islands.length > ISLAND_LIMITS.maxPerPage) {
+        r = { ok: false, kind: 'invalid-output', error: `more than ${ISLAND_LIMITS.maxPerPage} islands on the page`, ms: r.ms, nonce: r.nonce, effects: [] }
+      }
+      if (r.ok) islandCount += r.islands.length
       if (!r.ok && ['memory', 'disposed'].includes(r.kind!)) {
         // The isolate died (OOM / watchdog). Later blocks get a fresh isolate + context.
         session!.release()
@@ -79,7 +89,7 @@ export async function preparePage(host: Host, slug: string, query: Record<string
         failures++
         console.error(`[render] block ${inst.name}#${inst.id} failed (${r.kind}): ${r.error}`)
       } else effects.push(r.effects)
-      rendered[inst.id] = { ok: r.ok, html: r.ok ? r.html : '', nonce: r.nonce, error: r.ok ? undefined : r.kind }
+      rendered[inst.id] = { ok: r.ok, html: r.ok ? r.html : '', nonce: r.nonce, islands: r.ok ? r.islands : [], error: r.ok ? undefined : r.kind }
     }
     if (uncacheableBlocks.length) console.info(`[cache] /${slug} is uncacheable: uses request params via ${uncacheableBlocks.join(', ')}`)
     return {
@@ -88,6 +98,7 @@ export async function preparePage(host: Host, slug: string, query: Record<string
       slug,
       data,
       rendered,
+      islandsUrl: islandCount && manifest.files['bundle.islands.js'] ? `${themeBase(host.config.routes.theme, id)}bundle.islands.js` : undefined,
       head: mergeEffects(effects, assetBase(host.config.routes.theme, id), host.config.security),
       cacheable: uncacheableBlocks.length === 0,
       uncacheableBlocks,

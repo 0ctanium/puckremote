@@ -7,8 +7,8 @@ description: How the packages are built, exported and kept apart.
 
 | Package | Role | May import |
 |---|---|---|
-| `@puck-remote/sdk` | Theme API (bundled into the isolate), wire contract, host contracts (`/host`) | react (peer) |
-| `@puck-remote/core` | Framework-agnostic engine | `@puck-remote/sdk/host` only from the SDK; no Next, no concrete plugins |
+| `@puck-remote/sdk` | Theme API (bundled into the isolate), wire contract, host contracts (`/host`), `registerSharedModules` for pages that load theme bundles (`/browser`) | react, react-dom (peers) |
+| `@puck-remote/core` | Framework-agnostic engine; `/island` is the internal `'use client'` island component | `@puck-remote/sdk/host` only from the SDK (`/island` alone may use `@puck-remote/sdk/browser`); no Next, no concrete plugins |
 | `@puck-remote/next` | Next.js bindings | `@puck-remote/core`; never isolated-vm, the SDK or plugins |
 | `@puck-remote/editor` | `<PuckRemoteEditor>` and `useEditor` (`/react`), `<PuckEditorFrame>` (`/frame`), the protocol (`/protocol`) | `@puck-remote/sdk`, React, `@puckeditor/core` (all peers), types from `@puck-remote/core` |
 | `@puck-remote/source-*`, `artifacts-*` | Trusted host plugins | `@puck-remote/sdk/host` |

@@ -39,6 +39,11 @@
       "types": "./dist/host.d.ts",
       "default": "./dist/host.js"
     },
+    "./browser": {
+      "@puck-remote/source": "./src/browser.ts",
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

@@ -1,0 +1,89 @@
+---
+title: Islands
+description: How "use client" theme components are built, rendered in the isolate and hydrated on public pages.
+---
+
+Islands are the exports of theme modules starting with `"use client"`
+([D-0243](/docs/internal/decisions#D-0243)). They are server-rendered in the isolate like everything
+else, then hydrated on public pages from a separate bundle
+([D-0244](/docs/internal/decisions#D-0244)).
+
+```mermaid
+sequenceDiagram
+  participant CLI
+  participant Isolate
+  participant Host as Host (RSC)
+  participant Browser
+  CLI->>CLI: wrap "use client" exports in island(id, fn); emit bundle.islands.js
+  Host->>Isolate: __render(block)
+  Isolate-->>Host: html with markers + islands [{key, id, props, hydrate, html}]
+  Host->>Host: validate (zod), normalize island html, swap nonce-checked markers for ThemeIsland
+  Host-->>Browser: page HTML (island html inside display:contents wrappers)
+  Browser->>Browser: hydrate trigger fires: registerSharedModules, import bundle.islands.js once
+  Browser->>Browser: hydrateRoot(wrapper, Component(props))
+```
+
+## Build
+
+The CLI's `use-client` esbuild plugin runs on the isolate and editor builds. For a theme source file
+(not in `node_modules`) whose first statement is `"use client"`, it lists the module's exports
+(esbuild metafile, no code runs) and replaces the module with a proxy:
+
+```js
+import { island } from '@puck-remote/sdk'
+import * as m from '<file>?puck-original'
+export const Counter = typeof m.Counter === 'function' ? island('blocks/components/counter.tsx#Counter', m.Counter) : m.Counter
+```
+
+The island id is `<theme-relative path>#<export>` ([D-0247](/docs/internal/decisions#D-0247)). The
+detected files then become the entries of `bundle.islands.js`, an ES module whose default export
+maps island ids to the **unwrapped** components. Like `bundle.browser.js`, it reads React and the
+SDK from `globalThis.__puckRemoteModules`.
+
+## Isolate
+
+`island()` checks `renderState.island`, which the SDK runtime sets only during `__render`:
+
+- In the isolate it validates the props (JSON round-trip equality, no `children`, size cap,
+  `hydrate` value), records the island and returns a marker
+  `<div data-puck-island="i<n>" data-nonce="<per-render nonce>">`.
+- Anywhere else (the editor, the browser) it renders the component directly, without `hydrate`.
+
+`renderToString` is not reentrant, so the islands' own HTML is rendered after the block's render
+returns. Islands nested in an island render as plain components (the marker hook is off by then),
+both in the isolate and in the browser.
+
+## Host
+
+`renderInIsolate` re-validates the output with zod: island keys, ids, `hydrate` values, prop sizes
+and at most 200 per block. It then re-serializes each island's HTML (`htmlToDOM` + `dom-serializer`,
+[D-0259](/docs/internal/decisions#D-0259)), because island HTML is inserted raw while block HTML is
+always parsed. `preparePage` enforces 200 islands per page and sets `islandsUrl` when the page has
+islands.
+
+`htmlToReact` swaps an island marker exactly like a slot marker: only with the per-render nonce,
+only for a key the block reported, and at most once. The replacement is `<ThemeIsland>`
+(`@puck-remote/core/island`, its own `'use client'` entry, [D-0258](/docs/internal/decisions#D-0258)).
+
+## Browser
+
+`<ThemeIsland>` renders `<div data-puck-island="<id>" style="display:contents">` holding the
+island's HTML. In an effect, once its trigger fires (`load`, `idle` with `requestIdleCallback`, or
+`visible` with an `IntersectionObserver` on the first child, since the wrapper has no box), it
+calls `registerSharedModules()` (`@puck-remote/sdk/browser`,
+[D-0257](/docs/internal/decisions#D-0257)), imports the bundle once per URL and calls `hydrateRoot`.
+The outer React tree never touches the wrapper's children, so the two roots don't conflict. On
+unmount, the island's root is unmounted one task later, so a StrictMode remount reuses it.
+
+The site CSP needs no change ([D-0252](/docs/internal/decisions#D-0252)). The bundle is same-origin,
+and the `import()` comes from a nonce'd script under `'strict-dynamic'`.
+
+<Source path="packages/cli/src/build.ts" />
+<Source path="packages/sdk/src/index.ts" />
+<Source path="packages/sdk/src/runtime.ts" />
+<Source path="packages/sdk/src/browser.ts" />
+<Source path="packages/core/src/server/render.ts" />
+<Source path="packages/core/src/server/public-render.ts" />
+<Source path="packages/core/src/shared/slot-swap.tsx" />
+<Source path="packages/core/src/server/puck-rsc.tsx" />
+<Source path="packages/core/src/react/ThemeIsland.tsx" />

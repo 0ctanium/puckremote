@@ -129,7 +129,7 @@ describe('pages and the browser bundle', () => {
     expect([...src.matchAll(/(?:from|import)\s*"([^"]+)"/g)]).toEqual([])
     for (const spec of ['react/jsx-runtime', '@puck-remote/sdk']) expect(src).toContain(`${BROWSER_MODULES_GLOBAL}?.[${JSON.stringify(spec)}]`)
     // Without the editor's globals it refuses to load; with them it exports the blocks.
-    await expect(import(`${pathToFileURL(file).href}?missing`)).rejects.toThrow(/is not provided by the editor/)
+    await expect(import(`${pathToFileURL(file).href}?missing`)).rejects.toThrow(/is not provided by the page/)
     const g = globalThis as Record<string, unknown>
     g[BROWSER_MODULES_GLOBAL] = Object.fromEntries(
       await Promise.all(BROWSER_EXTERNALS.map(async (spec) => [spec, await import(spec)])),
@@ -140,6 +140,50 @@ describe('pages and the browser bundle', () => {
     } finally {
       delete g[BROWSER_MODULES_GLOBAL]
     }
+  })
+})
+
+describe('islands ("use client" modules)', () => {
+  const counter = `'use client'
+import { useState } from 'react'
+export function Counter({ start = 0 }) { const [n, setN] = useState(start); return <button onClick={() => setN(n + 1)}>{n}</button> }
+export const STEP = 1
+`
+  const plain = `export function Label() { return <span>label</span> }\n`
+  const usesBoth = block(`defineBlock({ fields: {}, render: () => <div><Counter start={2} /><Label /></div> })`).replace(
+    "from '@puck-remote/sdk'",
+    "from '@puck-remote/sdk'\nimport { Counter } from './parts/counter'\nimport { Label } from './parts/label'",
+  )
+
+  it('wraps function exports in the isolate and editor bundles and emits an islands-only bundle', async () => {
+    const dir = await theme({ 'blocks/a.tsx': usesBoth, 'blocks/parts/counter.tsx': counter, 'blocks/parts/label.tsx': plain })
+    const { outDir, manifest } = await build({ cwd: dir, quiet: true })
+    expect(manifest.files['bundle.islands.js']).toMatch(/^[0-9a-f]{64}$/)
+    for (const f of ['bundle.js', 'bundle.browser.js']) {
+      const src = await readFile(path.join(outDir, f), 'utf8')
+      expect(src).toContain('"blocks/parts/counter.tsx#Counter"')
+      expect(src).not.toContain('blocks/parts/label.tsx#')
+    }
+    const file = path.join(outDir, 'bundle.islands.js')
+    const src = await readFile(file, 'utf8')
+    expect([...src.matchAll(/(?:from|import)\s*"([^"]+)"/g)]).toEqual([])
+    expect(src).not.toContain('label')
+    const g = globalThis as Record<string, unknown>
+    g[BROWSER_MODULES_GLOBAL] = Object.fromEntries(await Promise.all(BROWSER_EXTERNALS.map(async (spec) => [spec, await import(spec)])))
+    try {
+      const mod = await import(pathToFileURL(file).href)
+      // Only function exports, keyed by "<path>#<export>"; the islands bundle holds the originals.
+      expect(Object.keys(mod.default)).toEqual(['blocks/parts/counter.tsx#Counter'])
+      expect(mod.default['blocks/parts/counter.tsx#Counter'].displayName).toBeUndefined() // not island()-wrapped
+    } finally {
+      delete g[BROWSER_MODULES_GLOBAL]
+    }
+  })
+
+  it('emits no islands bundle without "use client" modules', async () => {
+    const dir = await theme({ 'blocks/a.tsx': simpleBlock() })
+    const { manifest } = await build({ cwd: dir, quiet: true })
+    expect(manifest.files['bundle.islands.js']).toBeUndefined()
   })
 })
 

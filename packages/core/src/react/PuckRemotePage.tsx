@@ -13,7 +13,7 @@ export function PuckRemotePage({ page }: { page: PreparedPage }) {
         // React 19 hoists precedence stylesheets into <head>, deduped.
         <link key={href} rel="stylesheet" href={href} precedence="theme" />
       ))}
-      <Render config={buildRscConfig(page.manifest)} data={page.data} metadata={{ rendered: page.rendered }} />
+      <Render config={buildRscConfig(page.manifest)} data={page.data} metadata={{ rendered: page.rendered, islandsUrl: page.islandsUrl }} />
       {page.head.scripts.map((s) => (
         <script key={s.url} src={s.url} defer={s.defer} async={s.async} type={s.module ? 'module' : undefined} nonce={page.scriptNonce} />
       ))}
