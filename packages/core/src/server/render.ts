@@ -63,16 +63,18 @@ export async function renderInIsolate(
  * Merge and dedupe effects from all blocks of a page. URLs are restricted to this artifact's
  * assets or absolute https URLs (Shopify-like permissiveness for third-party scripts).
  */
-export function mergeEffects(all: Effect[][], base: string): {
+export function mergeEffects(all: Effect[][], base: string, allow: { scriptOrigins: string[]; styleOrigins: string[] } = { scriptOrigins: [], styleOrigins: [] }): {
   title: string | null
   meta: { name: string; content: string }[]
   styles: string[]
   scripts: { url: string; defer: boolean; async: boolean; module: boolean }[]
 } {
-  const okUrl = (u: string) => {
+  // The theme's own assets are always fine; other origins only if the host allowlisted them.
+  const okUrl = (u: string, origins: string[]) => {
     if (u.startsWith(base)) return !u.includes('..')
     try {
-      return new URL(u).protocol === 'https:'
+      const url = new URL(u)
+      return url.protocol === 'https:' && origins.includes(url.origin)
     } catch {
       return false
     }
@@ -87,9 +89,9 @@ export function mergeEffects(all: Effect[][], base: string): {
       else if (e.kind === 'meta') {
         if (!meta.has(e.name)) meta.set(e.name, e.content)
       } else if (e.kind === 'style') {
-        if (okUrl(e.url)) styles.add(e.url)
+        if (okUrl(e.url, allow.styleOrigins)) styles.add(e.url)
       } else if (e.kind === 'script') {
-        if (okUrl(e.url) && !scripts.has(e.url)) scripts.set(e.url, { url: e.url, ...e.opts })
+        if (okUrl(e.url, allow.scriptOrigins) && !scripts.has(e.url)) scripts.set(e.url, { url: e.url, ...e.opts })
       }
     }
   }

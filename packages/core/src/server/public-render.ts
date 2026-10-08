@@ -26,6 +26,8 @@ export interface PageContext {
 }
 
 export interface PreparedPage {
+  /** CSP nonce for the page's <script> tags; set by framework bindings when they enforce a CSP. */
+  scriptNonce?: string
   version: number
   /** The artifact manifest the page was rendered with (to build the matching Puck config). */
   manifest: Manifest
@@ -106,7 +108,7 @@ export async function preparePage(host: Host, slug: string, query: Record<string
       slug,
       data,
       rendered,
-      head: mergeEffects(effects, assetBase(host.config.routes.theme, version)),
+      head: mergeEffects(effects, assetBase(host.config.routes.theme, version), host.config.security),
       cacheable: uncacheableBlocks.length === 0,
       uncacheableBlocks,
       stats: { data: stats, renderMs: performance.now() - tRender, blocks: Object.keys(rendered).length, failures, contextMs },

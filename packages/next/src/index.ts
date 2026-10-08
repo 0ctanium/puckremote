@@ -79,7 +79,9 @@ export function createPuckRemote(config: PuckRemoteConfig, options: NextBindingO
     const qs = new URLSearchParams(firstValues((await searchParams) ?? {})).toString()
     const page = await prepare(slug, qs, context.locale)
     if (!page) notFound()
-    return page
+    // Theme <script> tags need the per-request CSP nonce set by createProxy.
+    const nonce = (await headers()).get('x-nonce')
+    return nonce ? { ...page, scriptNonce: nonce } : page
   }
   return {
     core,

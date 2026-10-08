@@ -1,6 +1,7 @@
 'use client'
 import { Puck, type Data } from '@puckeditor/core'
-import '@puckeditor/core/puck.css'
+// The variant without external imports: the editor's CSP allows no third-party origins.
+import '@puckeditor/core/no-external.css'
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { EditorProps } from '../core.ts'
 import { apiUrl, themeAssetBase } from '../shared/urls.ts'

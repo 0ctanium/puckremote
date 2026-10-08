@@ -15,7 +15,7 @@ export function PuckRemotePage({ page }: { page: PreparedPage }) {
       ))}
       <Render config={buildRscConfig(page.manifest)} data={page.data} metadata={{ rendered: page.rendered }} />
       {page.head.scripts.map((s) => (
-        <script key={s.url} src={s.url} defer={s.defer} async={s.async} type={s.module ? 'module' : undefined} />
+        <script key={s.url} src={s.url} defer={s.defer} async={s.async} type={s.module ? 'module' : undefined} nonce={page.scriptNonce} />
       ))}
     </>
   )

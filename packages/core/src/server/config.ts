@@ -1,6 +1,6 @@
 import type { AnyDataSource, ArtifactStore, AuthAdapter, CacheStore, PageStore } from '@puck-remote/sdk/host'
 import type { RendererFactory } from './runtime/types.ts'
-import { normalizeOrigin, type OriginsConfig } from './surface.ts'
+import { DEFAULT_SECURITY, normalizeOrigin, type OriginsConfig, type SecurityPolicy } from './surface.ts'
 import { memoryCache } from './query/cache.ts'
 
 export interface SecretDef {
@@ -34,6 +34,8 @@ export interface HostConfig {
    * development only (or with allowSharedOrigin).
    */
   origins: OriginsConfig | null
+  /** CSP and related policy (see surface.ts securityHeaders). */
+  security: SecurityPolicy
   site: { name: string; locale: string }
   isolate: {
     memoryLimitMb: number
@@ -77,7 +79,7 @@ export interface Routes {
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? Partial<T[K]> : T[K] }
 
 /** What an app provides. Everything except paths and plugins has a default. */
-type Plugins = 'artifacts' | 'source' | 'pages' | 'cache' | 'auth' | 'secrets' | 'allowedOrigins' | 'renderer' | 'origins'
+type Plugins = 'artifacts' | 'source' | 'pages' | 'cache' | 'auth' | 'secrets' | 'allowedOrigins' | 'renderer' | 'origins' | 'security'
 
 /** What an app provides. Everything except the storage plugins has a default. */
 export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, Plugins>> {
@@ -99,6 +101,8 @@ export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, Plugins>>
    * editor's session. Point both DNS names at the same app.
    */
   origins?: OriginsConfig | null
+  /** CSP and related headers; see DEFAULT_SECURITY. */
+  security?: Partial<Omit<SecurityPolicy, 'csp'>> & { csp?: Partial<SecurityPolicy['csp']> }
   /** Escape hatch: serve site and editor from one origin in production (not recommended). */
   allowSharedOrigin?: boolean
   secrets?: Record<string, SecretDef>
@@ -142,9 +146,18 @@ function resolveOrigins(input: PuckRemoteConfig): OriginsConfig | null {
   return null
 }
 
+function resolveSecurity(input: Pick<PuckRemoteConfig, 'security'>): SecurityPolicy {
+  const s = input.security ?? {}
+  return { ...DEFAULT_SECURITY, ...s, csp: { ...DEFAULT_SECURITY.csp, ...s.csp } } as SecurityPolicy
+}
+
 /** Just what request routing needs (proxy/middleware), without resolving the rest. */
-export function resolveSurfaces(input: Pick<PuckRemoteConfig, 'routes' | 'origins' | 'allowSharedOrigin'>): { routes: Routes; origins: OriginsConfig | null } {
-  return { routes: { ...DEFAULT_ROUTES, ...input.routes }, origins: resolveOrigins(input as PuckRemoteConfig) }
+export function resolveSurfaces(input: Pick<PuckRemoteConfig, 'routes' | 'origins' | 'allowSharedOrigin' | 'security'>): {
+  routes: Routes
+  origins: OriginsConfig | null
+  security: SecurityPolicy
+} {
+  return { routes: { ...DEFAULT_ROUTES, ...input.routes }, origins: resolveOrigins(input as PuckRemoteConfig), security: resolveSecurity(input) }
 }
 
 export function resolveConfig(input: PuckRemoteConfig): HostConfig {
@@ -160,6 +173,7 @@ export function resolveConfig(input: PuckRemoteConfig): HostConfig {
     renderer: input.renderer ?? null,
     auth,
     origins,
+    security: resolveSecurity(input),
     // CSRF: mutations may come from the request's own origin, the editor origins, or this list.
     allowedOrigins: [...new Set([...(input.allowedOrigins ?? []), ...(origins?.editor ?? [])])],
     routes: { ...DEFAULT_ROUTES, ...input.routes },
