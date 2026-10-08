@@ -50,8 +50,10 @@ The host runs on http://localhost:3100. Set `PORT=…` to change it. `pnpm dev` 
 
 In development the editor is open (`devAllowAll()`). A production build refuses to start without an `auth` adapter. The example app uses `sharedSecretAuth`: set `PUCK_REMOTE_ADMIN_TOKEN`, then send `Authorization: Bearer <token>` or a `puck_remote_token` cookie.
 
-- Public site: http://localhost:3100/ and http://localhost:3100/search?q=nonce. The search page is uncacheable.
-- Editor: http://localhost:3100/editor and http://localhost:3100/editor/search.
+The site and the editor are two hostnames on the same app (`*.localhost` resolves to loopback):
+
+- Public site: http://localhost:3100/ (or http://site.localhost:3100/) and http://localhost:3100/search?q=nonce. The search page is uncacheable.
+- Editor: http://editor.localhost:3100/editor and http://editor.localhost:3100/editor/search. On the site hostname, `/editor` and `/api/*` answer 404.
 
 To publish a new theme version, edit `examples/theme` and run `pnpm --filter theme release`. The artifact store's change feed (or polling, for stores without one) picks up the new pointer and swaps in the new artifact (new isolate, old one disposed) with no host rebuild or restart. The editor picks it up on page reload or via its **Reload theme** button.
 
@@ -83,16 +85,21 @@ export default defineConfig({
   artifacts: fsArtifactStore({ dir }), source: mockCms({ dataFile }), pages: fsPageStore({ dir }),
   auth: isProd ? sharedSecretAuth({ secret }) : devAllowAll(), // or your own AuthAdapter
   // cache: memoryCache() (default) — plug a shared CacheStore (Redis…) for several instances
+  // Two DNS names, one app. Required in production: theme scripts run on the site origin and
+  // must not share it with the editor's session.
+  origins: { site: ['https://www.example.com'], editor: ['https://admin.example.com'] },
   site: { name: 'POC Site', locale: 'en' }, http: { allowedOrigins }, secrets,
+  // renderer: workerPoolRenderer() (default) | workerPoolRenderer({ wrap: bubblewrap() }) | inProcessRenderer()
+  // security: { csp: { site: 'enforce' }, scriptOrigins: ['https://cdn.example.com'] }
   // routes: { api: '/api', theme: '/theme', editor: '/editor' }   (defaults)
 })
 
 // src/puck-remote.ts
 export const remote = createPuckRemote(config)
 
-// src/proxy.ts — cache headers ($query pages are no-store); matcher must be a literal
+// src/proxy.ts — per-hostname surface routing, CSP/security headers, cache headers. Matcher must be a literal.
 export const proxy = createProxy(remoteConfig)
-export const config = { matcher: ['/((?!_next/|api/|editor(?:/|$)|theme/|favicon\\.ico).*)'] }
+export const config = { matcher: ['/((?!_next/|favicon\\.ico).*)'] }
 
 // src/app/[[...path]]/page.tsx — public site (Puck RSC)
 export const dynamic = 'force-dynamic'
@@ -108,7 +115,7 @@ export default async (props) => <EditorClient {...await remote.loadEditor(props)
 // src/app/api/[[...path]]/route.ts — pages, blocks/resolve, artifact/reload
 export const { GET, POST } = remote.api
 
-// src/app/theme/[[...path]]/route.ts — /theme/v<N>/bundle.js (editor only) and /theme/v<N>/assets/**
+// src/app/theme/[[...path]]/route.ts — /theme/v<N>/assets/** (theme code itself is never served)
 export const { GET, HEAD } = remote.theme
 
 // next.config.ts — keeps isolated-vm external (packages ship compiled ESM; nothing to transpile)
@@ -352,26 +359,30 @@ Theme `defineAdapter`s are a different thing: untrusted, sandboxed, sans-IO adap
 - **Select options are JSON-encoded in the DOM** and drag-and-drop requires trusted pointer events. Both only matter for browser automation.
 - `getItemSummary` is a function, so a declarative `itemSummary: '<field>'` maps to a host function.
 
-### Measured costs (M1 Max, arm64 Node 26.10, 221 KB bundle, `pnpm --filter @puck-remote/core bench`)
+### Measured costs (M1 Max, arm64 Node 26.10, 222 KB bundle, `pnpm --filter @puck-remote/core bench`)
 
-| Step | Cost |
-|---|---|
-| Isolate create + `compileScript` (once per artifact) | ~17 ms |
-| Fresh context + run bundle (per page request) | ~6 ms (median) |
-| Render one block | ~0.3 ms median, ~1 ms p95 |
-| `preparePage('home')`, 8 blocks, warm data | ~13 ms (context 5, render 7, data 0.4) |
-| Same page, cold data (4 unique queries incl. mock HTTP) | ~56 ms data |
+| runtime | first session (cold) | session (warm, median) | block render median / p95 | `preparePage('home')`, 8 blocks, warm data |
+|---|---|---|---|---|
+| in-process | 5.4 ms | 1.5 ms | 0.08 / 0.16 ms | 3.8 ms |
+| worker pool (default) | 91 ms (spawns a worker, once) | 1.4 ms | 0.16 / 0.28 ms | 4.3 ms |
 
-Per-request cost is dominated by context creation. If that matters, a pool of pre-warmed contexts discarded after each use keeps the "fresh context per request" property.
+The process sandbox costs about 0.1 ms per block over IPC; the only notable cost is spawning a worker (about 90 ms, once per worker, then reused until recycled). Cold data (4 unique queries including mock HTTP) adds about 55 ms the first time.
 
 ### Gaps (accepted for the POC)
 
-- **isolated-vm is V8-in-process and in maintenance mode.** Hostile code in production needs an out-of-process renderer: a separate process or container, seccomp, and per-tenant isolation.
-- **The editor runs developer JS on the host origin** (hidden same-origin iframe). Production needs a separate editor origin. A synchronous infinite loop in a block freezes the editor tab; a worker can't help because Puck render is synchronous.
+- **isolated-vm is in maintenance mode, and a V8 escape runs native code.** Render workers use Node's permission model (no fs beyond their code, no network, no child processes, empty env), but Node's checks don't constrain native code. Against hostile native code, wrap workers in an OS sandbox (`workerPoolRenderer({ wrap: bubblewrap() })`, Linux, experimental) or run rendering on separate machines/containers (remote renderer: planned).
 - Blocks in one request share a context and can affect each other.
-- `enhance.js`-style client scripts aren't run in the editor canvas, only on the public site.
+- `enhance.js`-style client scripts aren't run in the editor canvas, only on the public site (by design: no theme code in the editor's origin).
 - Next.js marks dynamic pages `no-store`. `x-page-cacheable` is the signal a CDN or ISR layer would act on.
-- No `$ref` dependent queries, no pagination, no auth (all out of scope).
+- No `$ref` dependent queries, no pagination (out of scope).
+
+## Deploying safely
+
+1. **Two hostnames, one app.** Point e.g. `www.example.com` (site) and `admin.example.com` (editor) at the same deployment and set `origins`. The editor, `/api/*` and the editor's assets are served only on the editor origin; public pages only on site origins; everything else is 404. Production refuses to start without separate origins (`allowSharedOrigin: true` opts out).
+2. **Host-only auth cookies on the editor domain.** Never `Domain=.example.com`: theme scripts run on the site origin and same-site requests would carry the cookie. Ideally use a different registrable domain for the editor.
+3. **Forward the addressed host.** Behind your own reverse proxy, forward `X-Forwarded-Host`/`X-Forwarded-Proto` (or preserve `Host`): surface routing uses the origin the browser addressed.
+4. **Rendering.** The default `workerPoolRenderer()` runs theme code in permission-restricted worker processes (`size` defaults to min(4, CPUs); `maxCallsPerWorker` recycles them). On Linux, `workerPoolRenderer({ wrap: bubblewrap() })` adds namespaces (no network, read-only root) — experimental, needs unprivileged user namespaces. Keep `@puck-remote/core` external to your bundler (`withPuckRemote` does it for Next): it forks workers from its own files.
+5. **CSP.** The editor gets an enforced CSP. The public site's CSP starts in report-only: list the third-party script/style origins your themes need in `security.scriptOrigins`/`styleOrigins` (theme effects from other origins are dropped), watch the reports, then set `security.csp.site: 'enforce'`.
 
 ### Before integrating with Payload
 
