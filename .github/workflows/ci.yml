@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # isolated-vm requires it on Node >= 20.
+  NODE_OPTIONS: --no-node-snapshot
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / node ${{ matrix.node }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # isolated-vm ships prebuilds for linux x64/arm64 (glibc + musl) and darwin arm64.
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15]
+        node: [24, 26]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4 # version from package.json "packageManager"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm -r --workspace-concurrency=1 test
+
+      - name: Package lint (publint + attw)
+        if: matrix.os == 'ubuntu-24.04' && matrix.node == 26
+        run: pnpm lint:pkg
+
+      - name: 'Smoke: build + publish the example theme with the CLI'
+        run: pnpm --filter theme release
+
+      - name: 'Smoke: production build of the example Next app'
+        run: pnpm --filter host build

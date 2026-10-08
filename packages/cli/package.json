@@ -1,22 +1,39 @@
 {
   "name": "@puck-remote/cli",
   "version": "0.1.0",
-  "private": true,
+  "description": "puck-remote CLI: build and publish theme artifacts.",
+  "license": "MIT",
   "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=24"
+  },
   "bin": {
     "puck-remote": "./bin/puck-remote.js"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "@puck-remote/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.*"
+  ],
   "scripts": {
     "typecheck": "tsc -p .",
-    "test": "NODE_OPTIONS=--no-node-snapshot vitest run"
+    "test": "NODE_OPTIONS=--no-node-snapshot vitest run",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "lint:pkg": "publint && attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
   },
   "dependencies": {
     "@puck-remote/sdk": "workspace:*",
     "esbuild": "0.28.2",
-    "tsx": "4.23.15",
     "@puck-remote/artifacts-fs": "workspace:*"
   },
   "devDependencies": {
@@ -26,5 +43,8 @@
     "react-dom": "19.3.0",
     "@types/react": "19.3.0",
     "vitest": "5.0.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

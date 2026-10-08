@@ -144,3 +144,19 @@ Plugins receive a validated `NormalizedFind` and only implement storage semantic
   - `NextResponse` in the proxy.
   - `withPuckRemote`, which keeps isolated-vm external and transpiles the TS-source packages.
 - **No `import.meta.dirname` in Next server bundles.** The app's `puck-remote.config.ts` resolves data paths from `process.cwd()`, since Next runs with the app directory as cwd. The `/*turbopackIgnore*/` hint keeps artifacts out of build tracing.
+
+## 12. V1 foundations: storage, cache and auth contracts
+
+All three are adapters, like `DataSource` and `PageStore`, declared in `@puck-remote/sdk/host`.
+
+| Contract | Default | Core keeps |
+|---|---|---|
+| `ArtifactStore` | `@puck-remote/artifacts-fs` | manifest validation (zod), per-file sha256 verification, "keep last good version", change detection (store `watch`, else polling every `artifactPollMs`) |
+| `CacheStore` | `memoryCache()` (per process) | key namespacing, tag computation, draft-never-cached rule, failures treated as misses |
+| `AuthAdapter` | none (required in production) | per-route actions, CSRF checks, 401/403 mapping, `editor:open` on `loadEditor` |
+
+- **Auth is framework-agnostic.** Adapters only see a standard `Request`. The Next binding rebuilds one from `headers()` for server components.
+- **CSRF.** Mutations need the `x-puck-remote` header plus an own or allowlisted `Origin`, and `Sec-Fetch-Site` is honored when present. Non-browser clients authenticate with bearer tokens and send the header.
+- **Cookie scoping (deployment rule).** Auth cookies must be host-only on the editor's domain. Theme JavaScript runs on the site origin (M2 makes the editor origin separate).
+- **Packaging.** tsdown ESM + `.d.ts`; the `@puck-remote/source` export condition maps to sources for the workspace. `'use client'` is re-added as a banner on the `editor` entry, because bundling drops module-level directives.
+

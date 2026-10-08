@@ -1,34 +1,75 @@
 {
   "name": "@puck-remote/core",
   "version": "0.1.0",
-  "private": true,
-  "type": "module",
   "description": "Framework-agnostic host engine: artifacts, isolate, data, Puck rendering, editor.",
-  "exports": {
-    ".": "./src/index.ts",
-    "./config": "./src/server/config.ts",
-    "./cacheability": "./src/server/cacheability.ts",
-    "./react": "./src/react/index.ts",
-    "./editor": "./src/editor/index.ts",
-    "./testing": "./src/testing/index.ts"
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
   },
+  "exports": {
+    ".": {
+      "@puck-remote/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./config": {
+      "@puck-remote/source": "./src/server/config.ts",
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./cacheability": {
+      "@puck-remote/source": "./src/server/cacheability.ts",
+      "types": "./dist/cacheability.d.ts",
+      "default": "./dist/cacheability.js"
+    },
+    "./react": {
+      "@puck-remote/source": "./src/react/index.ts",
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./editor": {
+      "@puck-remote/source": "./src/editor/index.ts",
+      "types": "./dist/editor.d.ts",
+      "default": "./dist/editor.js"
+    },
+    "./testing": {
+      "@puck-remote/source": "./src/testing/index.ts",
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.*"
+  ],
   "scripts": {
     "test": "NODE_OPTIONS=--no-node-snapshot vitest run",
     "bench": "NODE_OPTIONS=--no-node-snapshot tsx scripts/bench.ts",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "lint:pkg": "publint && attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
   },
   "dependencies": {
     "@puck-remote/sdk": "workspace:*",
-    "@puckeditor/core": "0.23.0",
     "html-react-parser": "6.1.8",
     "isolated-vm": "7.0.1",
     "undici": "8.11.2",
     "zod": "4.6.5"
   },
   "peerDependencies": {
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@puckeditor/core": "~0.23.0",
     "vitest": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@puck-remote/cli": "workspace:*",
@@ -43,11 +84,10 @@
     "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vitest": "5.0.3",
-    "@puck-remote/artifacts-fs": "workspace:*"
+    "@puck-remote/artifacts-fs": "workspace:*",
+    "@puckeditor/core": "0.23.0"
   },
-  "peerDependenciesMeta": {
-    "vitest": {
-      "optional": true
-    }
+  "publishConfig": {
+    "access": "public"
   }
 }

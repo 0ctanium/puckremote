@@ -24,6 +24,12 @@ Block output is an HTML string with nonce-protected slot markers. The host swaps
 pnpm install
 ```
 
+Packages ship compiled ESM, so build them once (or keep `pnpm dev` running, which watches them):
+
+```bash
+pnpm build
+```
+
 ```bash
 pnpm --filter theme release
 ```
@@ -40,12 +46,14 @@ The mock external API runs on http://localhost:4010 and serves the events adapte
 pnpm --filter host dev
 ```
 
-The host runs on http://localhost:3100. Set `PORT=…` to change it.
+The host runs on http://localhost:3100. Set `PORT=…` to change it. `pnpm dev` at the root runs the host together with `tsdown --watch` for every package.
+
+In development the editor is open (`devAllowAll()`). A production build refuses to start without an `auth` adapter. The example app uses `sharedSecretAuth`: set `PUCK_REMOTE_ADMIN_TOKEN`, then send `Authorization: Bearer <token>` or a `puck_remote_token` cookie.
 
 - Public site: http://localhost:3100/ and http://localhost:3100/search?q=nonce. The search page is uncacheable.
 - Editor: http://localhost:3100/editor and http://localhost:3100/editor/search.
 
-To publish a new theme version, edit `examples/theme` and run `pnpm --filter theme release`. The host's file watcher picks up `current.json` and swaps in the new artifact (new isolate, old one disposed) with no host rebuild or restart. The editor picks it up on page reload or via its **Reload theme** button.
+To publish a new theme version, edit `examples/theme` and run `pnpm --filter theme release`. The artifact store's change feed (or polling, for stores without one) picks up the new pointer and swaps in the new artifact (new isolate, old one disposed) with no host rebuild or restart. The editor picks it up on page reload or via its **Reload theme** button.
 
 Rollback is just moving the pointer:
 
@@ -53,7 +61,7 @@ Rollback is just moving the pointer:
 cd examples/theme && ./node_modules/.bin/puck-remote activate 1 --artifacts ../../artifacts
 ```
 
-Tests (58, covering every item in the spec's list):
+Tests (78: every item in the original spec's list, plus auth/CSRF, the adapter contract suites and routing):
 
 ```bash
 pnpm test
@@ -72,7 +80,9 @@ All logic lives in `@puck-remote/core` (framework-agnostic) and `@puck-remote/ne
 ```ts
 // puck-remote.config.ts — the only file that knows the backend
 export default defineConfig({
-  artifactsDir, source: mockCms({ dataFile }), pages: fsPageStore({ dir }),
+  artifacts: fsArtifactStore({ dir }), source: mockCms({ dataFile }), pages: fsPageStore({ dir }),
+  auth: isProd ? sharedSecretAuth({ secret }) : devAllowAll(), // or your own AuthAdapter
+  // cache: memoryCache() (default) — plug a shared CacheStore (Redis…) for several instances
   site: { name: 'POC Site', locale: 'en' }, http: { allowedOrigins }, secrets,
   // routes: { api: '/api', theme: '/theme', editor: '/editor' }   (defaults)
 })
@@ -101,7 +111,7 @@ export const { GET, POST } = remote.api
 // src/app/theme/[[...path]]/route.ts — /theme/v<N>/bundle.js (editor only) and /theme/v<N>/assets/**
 export const { GET, HEAD } = remote.theme
 
-// next.config.ts — isolated-vm external, POC packages transpiled
+// next.config.ts — keeps isolated-vm external (packages ship compiled ESM; nothing to transpile)
 export default withPuckRemote({ /* your config */ })
 ```
 
@@ -127,6 +137,7 @@ packages/core       @puck-remote/core: the framework-agnostic host engine (no Ne
 packages/next       @puck-remote/next: Next.js App Router bindings (createPuckRemote, createProxy, withPuckRemote)
 packages/source-mock  @puck-remote/source-mock: example DataSource (in-memory CMS: posts, authors, site global)
 packages/pages-fs   @puck-remote/pages-fs: example PageStore (JSON files)
+packages/artifacts-fs  @puck-remote/artifacts-fs: default ArtifactStore (version dirs + atomic pointer)
 apps/host           the Next.js app: ~80 lines of wiring, see "Integrating into a Next app"
 examples/theme      the "developer repo"
 mock/api-server     external API stand-in (events, redirects, big/slow responses)
@@ -262,13 +273,38 @@ The plugin receives a `NormalizedFind` (`where` tree, `sort`, `limit`, `page`, `
 
 **`PageStore`** (`get`, `put`, `list`) persists page JSON. The host validates pages and strips resolved data before `put`.
 
+**`ArtifactStore`** holds published theme versions and the active-version pointer: `readPointer`, `writePointer`, `listVersions`, `readFile`, `writeVersion`, and an optional `watch` change feed (without it the host polls `readPointer` every `artifactPollMs`, default 2 s). It only moves bytes: the host verifies every file hash against the manifest and validates the manifest itself. Default: `@puck-remote/artifacts-fs` (single server); an S3-style store suits serverless and multi-instance deployments.
+
+**`CacheStore`** (`get`, `set` with `ttlMs`/`tags`, `invalidateTags`) holds query results. Default: `memoryCache()` in the core (per process). Errors from a shared store are treated as cache misses, never as page failures.
+
+**`AuthAdapter`** (`authenticate(request) → Principal | null`, `authorize(principal, action, resource?)`) guards the editor and its API. It only sees a standard `Request`, so it works with any framework and any identity backend (Payload sessions, cookies, bearer tokens…). Actions: `editor:open`, `page:read-draft`, `page:write`, `page:publish`, `artifact:publish`, `artifact:activate`.
+- Unauthenticated → 401; not allowed → 403; the Next binding renders 404 for a denied editor (or redirects to `loginUrl`).
+- `/blocks/resolve` reads **drafts**, so it requires `page:read-draft`.
+- CSRF: every mutation needs the `x-puck-remote: 1` header (forces a CORS preflight, which is never granted) and, when the browser sends an `Origin`, it must be the request's own origin or listed in `allowedOrigins`.
+- Built-ins: `devAllowAll()` (development only, throws in production) and `sharedSecretAuth({ secret })`.
+
+**Contract test suites.** `@puck-remote/core/testing` exports `pageStoreContract`, `artifactStoreContract` and `cacheStoreContract` (vitest). The built-in adapters run them; third-party adapters should too:
+
+```ts
+import { artifactStoreContract } from '@puck-remote/core/testing'
+artifactStoreContract('s3', async () => s3ArtifactStore({ bucket: await freshBucket() }))
+```
+
 Theme `defineAdapter`s are a different thing: untrusted, sandboxed, sans-IO adapters to external HTTP APIs, shipped by the theme.
 
 ### CLI
 
 - `puck-remote build [--cwd .] [--out dist]` writes `dist/manifest.json`, `dist/bundle.js` and `dist/assets/**`.
-- `puck-remote publish --artifacts <dir>` copies to `v<N+1>` (temp dir, then rename) and switches `current.json` atomically (temp file, then rename).
-- `puck-remote activate <N> --artifacts <dir>` repoints `current.json`; this is how you roll back.
+- `puck-remote publish --artifacts <dir>` writes the next version through an `ArtifactStore` (`--artifacts <dir>` means `fsArtifactStore`) and switches the pointer. Programmatically, `publish({ distDir, artifacts })` accepts any `ArtifactStore`.
+- `puck-remote activate <N> --artifacts <dir>` moves the pointer; this is how you roll back.
+
+## Packaging and releases
+
+- Every `@puck-remote/*` package is built with tsdown to ESM + `.d.ts` (`dist/`), with typed `exports`. Each export also has a `@puck-remote/source` condition pointing at `src/`: the workspace's typecheck (`customConditions`) and tests resolve it, so they run against sources without a build, while apps and published consumers get `dist`.
+- Peer dependencies: `react`/`react-dom` ^19, `@puckeditor/core` ~0.23 (core), `next` ^16 (next). `isolated-vm` is a regular dependency of the core (Node ≥ 24).
+- `pnpm lint:pkg` runs publint and are-the-types-wrong on every package.
+- Versioning uses changesets with all `@puck-remote/*` packages in one fixed group: `pnpm changeset`, `pnpm version-packages`, `pnpm release`.
+- CI (`.github/workflows/ci.yml`): Linux x64, Linux arm64 and macOS arm64 × Node 24 and 26; build, typecheck, tests, package lint, theme release smoke test and `next build`. `release.yml` is manual and needs an `NPM_TOKEN` secret.
 
 ## Test map
 

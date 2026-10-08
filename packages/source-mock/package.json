@@ -1,10 +1,41 @@
 {
   "name": "@puck-remote/source-mock",
   "version": "0.1.0",
-  "private": true,
+  "description": "Example in-memory DataSource for puck-remote (posts, authors, site global).",
+  "license": "MIT",
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc -p ." },
-  "dependencies": { "@puck-remote/sdk": "workspace:*" },
-  "devDependencies": { "@types/node": "26.6.4", "@types/react": "19.3.0", "typescript": "7.0.2" }
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "@puck-remote/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "lint:pkg": "publint && attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
+  },
+  "dependencies": {
+    "@puck-remote/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.4",
+    "@types/react": "19.3.0",
+    "typescript": "7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

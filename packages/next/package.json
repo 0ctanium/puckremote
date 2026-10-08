@@ -1,17 +1,50 @@
 {
   "name": "@puck-remote/next",
   "version": "0.1.0",
-  "private": true,
-  "type": "module",
   "description": "Next.js App Router bindings for @puck-remote/core.",
-  "exports": {
-    ".": "./src/index.ts",
-    "./proxy": "./src/proxy.ts",
-    "./config": "./src/config.ts"
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=24"
   },
-  "scripts": { "typecheck": "tsc -p ." },
-  "dependencies": { "@puck-remote/core": "workspace:*" },
-  "peerDependencies": { "next": "16.4.0", "react": "19.3.0", "react-dom": "19.3.0" },
+  "exports": {
+    ".": {
+      "@puck-remote/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./proxy": {
+      "@puck-remote/source": "./src/proxy.ts",
+      "types": "./dist/proxy.d.ts",
+      "default": "./dist/proxy.js"
+    },
+    "./config": {
+      "@puck-remote/source": "./src/config.ts",
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "lint:pkg": "publint && attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
+  },
+  "dependencies": {
+    "@puck-remote/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "devDependencies": {
     "@types/node": "26.6.4",
     "@types/react": "19.3.0",
@@ -20,5 +53,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "typescript": "7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

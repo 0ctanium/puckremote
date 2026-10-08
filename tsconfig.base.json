@@ -11,7 +11,16 @@
     "isolatedModules": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "types": ["node"]
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node"
+    ],
+    "customConditions": [
+      "@puck-remote/source"
+    ]
   }
 }

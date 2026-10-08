@@ -1,22 +1,60 @@
 {
   "name": "@puck-remote/sdk",
   "version": "0.1.0",
-  "private": true,
+  "description": "puck-remote SDK: define sandboxed Puck blocks, typed host queries, adapter contracts.",
+  "license": "MIT",
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./runtime": "./src/runtime.ts",
-    "./shims": "./src/shims.ts",
-    "./constants": "./src/constants.ts",
-    "./types": "./src/types.ts",
-    "./host": "./src/host.ts"
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
   },
+  "exports": {
+    ".": {
+      "@puck-remote/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./runtime": {
+      "@puck-remote/source": "./src/runtime.ts",
+      "types": "./dist/runtime.d.ts",
+      "default": "./dist/runtime.js"
+    },
+    "./shims": {
+      "@puck-remote/source": "./src/shims.ts",
+      "types": "./dist/shims.d.ts",
+      "default": "./dist/shims.js"
+    },
+    "./constants": {
+      "@puck-remote/source": "./src/constants.ts",
+      "types": "./dist/constants.d.ts",
+      "default": "./dist/constants.js"
+    },
+    "./types": {
+      "@puck-remote/source": "./src/types.ts",
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
+    "./host": {
+      "@puck-remote/source": "./src/host.ts",
+      "types": "./dist/host.d.ts",
+      "default": "./dist/host.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.*"
+  ],
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "lint:pkg": "publint && attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
   },
   "peerDependencies": {
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "react": "19.3.0",
@@ -25,5 +63,8 @@
     "@types/react-dom": "19.3.0",
     "@types/node": "26.6.4",
     "typescript": "7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
