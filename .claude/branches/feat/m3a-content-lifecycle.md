@@ -93,11 +93,11 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
 | D-0168 | Copy preview link saves unsaved changes first, then links that revision | user | accepted |
 | D-0169 | Preview link is copied to the clipboard with status 'Preview link copied (expires <date time>)'; without clipboard access it is shown in a prompt | user | accepted |
 | D-0170 | preview config errors: 'preview.secret must be at least 32 bytes in production'; 'preview.ttlSeconds must be an integer between 60 and 2592000 (30 days)' (60 s minimum) | user | accepted |
-| D-0171 | Demo app: random preview secret per process in development; production requires PUCK_REMOTE_PREVIEW_SECRET | user | accepted |
+| D-0171 | Demo app: random preview secret per process in development; production requires PUCK_REMOTE_PREVIEW_SECRET | user | superseded by D-0184 |
 | D-0172 | @puck-remote/core/edge exports PREVIEW_PARAM ('puck_preview'); PreparedPage.preview flag; preview config accepts null (off) | user | accepted |
 | D-0173 | preview-link returns 404 when previews are off or the revision is missing (after auth); relative URL without origins; tokens over 2048 chars rejected | user | accepted |
 | D-0174 | Demo app: 'PUCK_REMOTE_PREVIEW_SECRET is required in production'; clipboard fallback prompt 'Preview link'; status 'Preview link failed (<status>)' | user | accepted |
-| D-0175 | Preview responses end up 'no-store' (Next replaces the proxy's 'private, no-store' on dynamic pages); accepted and documented | user | accepted |
+| D-0175 | Preview responses end up 'no-store' (Next replaces the proxy's 'private, no-store' on dynamic pages); accepted and documented | user | superseded by D-0185 |
 | D-0176 | Migration functions take untyped Record<string, unknown> props and return a plain object; the host keeps id, reattaches slots, drops __ keys; one __migrate call per outdated item in the page session, before data resolution | user | accepted |
 | D-0177 | Editor surfaces failed migrations via EditorProps.migrationErrors and the status 'Migration failed: <blocks>' | user | accepted |
 | D-0178 | build({ baseline: path }); messages 'block "x": fields changed without a version bump (still vN); bump "version" and add a migration', 'block "x": version went down (a → b)'; publish adds '(compared with the active artifact vN; use --force to publish anyway)'; publish({ force }) | user | accepted |
@@ -106,6 +106,8 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
 | D-0181 | Migration runtime texts: '[migrate] <block>#<id> was saved with version N, newer than the theme's M; rendering it as is'; isolate and host error strings as implemented | user | accepted |
 | D-0182 | Content migrated on editor load is the unsaved-changes baseline (status unchanged until an edit); the next save persists it | user | accepted |
 | D-0183 | Migration tests: fixture theme test/fixtures/migrations and suite test/migrations.test.ts; theme-switching artifact tests publish with force | user | accepted |
+| D-0184 | Demo app: production without PUCK_REMOTE_PREVIEW_SECRET leaves previews off (next build evaluates the config, so throwing broke builds); development keeps a random per-process secret | user | accepted |
+| D-0185 | Correction: preview responses keep 'private, no-store' in production; only next dev rewrites it to 'no-store' (D-0175 described dev behavior) | agent-unreviewed | needs-review |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -190,7 +192,7 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
   - `internal/quality/testing.mdx`.
 
 ## Investigation Notes
-- Next 16 replaces the proxy's `cache-control: private, no-store` with `no-store` on dynamic pages (D-0175).
+- Under `next dev`, Next 16 rewrites the proxy's `cache-control: private, no-store` to `no-store`. `next start` keeps it. D-0175 had described the dev behavior as general; D-0185 corrects it.
 - Puck 0.23 exposes `useGetPuck()` (current data, `dispatch({ type: 'setData' })`) and an `onChange` prop. Both are used by the workflow header.
 
 
@@ -200,16 +202,51 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
   - Cause: the `headerActions` override was an inline function, so Puck remounted it on every edit and reset its state.
   - Fix: a stable module-level override fed by React context (D-0167, agent-unreviewed).
 - **Mislabeled decision.** D-0166 was recorded as `user` by mistake, and D-0167 supersedes it.
+- **`next build` evaluates the app config.** The approved production throw on a missing preview secret (D-0171) broke `next build`. The owner chose to leave previews off instead (D-0184).
 - **Missing local launch config.** The docs-branch commit untracked `.claude/launch.json` (it is gitignored), so it was restored locally from history.
 
 ## Impact Assessment
-[Performance, user, maintenance, security]
+- **Breaking changes (pre-1.0):**
+  - `PageStore` contract v2 and the `pages-fs` layout;
+  - API routes: `POST pages` is replaced by `pages/*`;
+  - `sdkMajor` 2, so artifacts must be rebuilt.
+- **Security:**
+  - publish, delete and preview are new actions, and every page action is authorized per slug;
+  - handlers fail closed when they forget to authorize;
+  - preview links are bearer tokens (see the threat model).
+- **Performance:** a migration costs one isolate call per outdated item, inside the page's existing session. Nothing changes for up-to-date pages.
 
 ## Quality Assurance
-[Tests, results, review notes]
+- **Tests:**
+  - core: 132 passed, 1 skipped (bubblewrap on macOS);
+  - CLI: 10 passed.
+  - The worker watchdog test failed once while the dev server was compiling in parallel, then passed 3 of 3 alone (timing flakiness under load; unchanged).
+- **Checks:** typecheck, `lint:pkg`, `docs:build` and `next build` are clean.
+- **Live in dev:**
+  - save draft while the site keeps the published version, then publish;
+  - a conflict from a second client, with the banner, then Overwrite;
+  - History with Load more (25 revisions), and Restore with the confirm prompt;
+  - Copy preview link: saves first, then the link renders the draft (no-store, noindex); tampered, other-slug and editor-origin links give 404;
+  - the migrated quote renders on the site, and the editor holds `__v: 2`.
+- **Production (`next start`):**
+  - publish without auth gives 401;
+  - history with a bearer token works;
+  - the preview link works (`private, no-store`, noindex), and a tampered one gives 404;
+  - a short secret gives 500 with the config error;
+  - without a secret, previews are off (404).
 
 ## Outcome & Lessons
-[Final results and lessons learned]
+M3a delivered:
+- the publishing workflow (drafts, publish, history, restore, conflicts) in the PageStore contract, the API and the editor;
+- signed preview links;
+- content migrations with build and publish checks.
+
+Lessons:
+- Many small choices surfaced during implementation: messages, edge cases, UI details. They were batched into questions instead of being picked silently.
+- Two records needed correcting:
+  - D-0166 had the wrong provenance; D-0167 supersedes it.
+  - D-0175 described `next dev` behavior as general; D-0185 corrects it.
+- Production builds evaluate the app config, so config-time throws must not depend on runtime-only secrets.
 
 ## Tags
 pages editor migrations preview roadmap

@@ -22,7 +22,7 @@ Render workers get an **empty environment**: nothing from the host process reach
 | `PUCK_REMOTE_SITE_ORIGINS` | `http://localhost:<PORT>,http://site.localhost:<PORT>` | Comma-separated site origins |
 | `PUCK_REMOTE_EDITOR_ORIGINS` | `http://editor.localhost:<PORT>` | Comma-separated editor origins |
 | `PUCK_REMOTE_ADMIN_TOKEN` | — | `sharedSecretAuth` secret in production (bearer or `puck_remote_token` cookie) |
-| `PUCK_REMOTE_PREVIEW_SECRET` | random per process (development) | Signs preview links; **required in production** (at least 32 bytes) |
+| `PUCK_REMOTE_PREVIEW_SECRET` | random per process (development) | Signs preview links (at least 32 bytes in production). Unset in production: preview links are off |
 | `PUCK_REMOTE_MOCK_API_ORIGIN` | `http://localhost:4010` | Mock API origin |
 | `PUCK_REMOTE_ALLOW_DEV_ORIGINS` | — | Lets a production build reach the mock API over http (local testing only) |
 | `EVENTS_API_KEY` | a dev key | Secret bound to the mock API origin |

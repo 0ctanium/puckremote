@@ -38,6 +38,9 @@ may be actively hostile.
   enforced per request ([surfaces](/docs/concepts/surfaces-and-origins)).
 - **Forge slots.** Slot markers need a per-render nonce user content cannot know
   ([slots](/docs/concepts/slots)).
+- **Rewrite page structure through migrations.** Migrations run in the isolate like `render` and
+  only see field values; the host keeps each item's `id`, its slot content and every `__` key
+  ([migrations](/docs/sdk/migrations)).
 
 ## Layers
 
@@ -53,6 +56,8 @@ Each layer assumes the previous one can fail.
 | Separate site and editor origins | Theme scripts using admin sessions | required in production |
 | CSRF (custom header + `Origin` allowlist) | Cross-site requests to the editor API | on |
 | CSP and security headers | Script injection, framing, sniffing, unlisted third-party scripts | editor enforced, site report-only by default |
+| Drafts only on the editor origin; public site reads published revisions | Unpublished content leaking to visitors | on |
+| Signed, expiring preview links (HMAC-SHA256 over slug, revision, expiry) | Drafts shown outside the editor beyond what was shared | when `preview` is configured |
 
 ## Known limits
 
@@ -60,5 +65,9 @@ Each layer assumes the previous one can fail.
   model does not constrain. Use the bubblewrap wrapper or (later) a remote renderer.
 - Blocks within one request share a context and can influence each other.
 - Theme client scripts don't run in the editor canvas (by design).
+- A preview link is a bearer token: whoever has it sees that draft revision, with draft data,
+  until it expires. Theme client scripts on the preview page can read it from the URL (it only
+  grants that same view). `referrer-policy: same-origin` keeps it out of third-party `Referer`
+  headers. Revocation means rotating `preview.secret`.
 
 See [known gaps](/docs/internal/quality/known-gaps) for the full list.

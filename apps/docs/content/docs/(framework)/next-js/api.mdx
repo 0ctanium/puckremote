@@ -66,7 +66,7 @@ For each request the proxy:
 2. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
    Next;
 3. on public pages with a `puck_preview` parameter, sets `cache-control: private, no-store` and
-   `x-robots-tag: noindex` (Next serves these dynamic pages as `no-store`); the token itself is
+   `x-robots-tag: noindex` (`next dev` rewrites it to `no-store`); the token itself is
    checked by the core when the page renders;
 4. on other public pages, sets `x-page-cacheable: true`, or `false` with `cache-control: no-store`
    and `x-uncacheable-blocks` when a block reads URL query parameters.

@@ -24,7 +24,10 @@ description: The checklist for a production deployment.
    `security.csp.site: 'enforce'` ([D-0082](/docs/internal/decisions#D-0082)).
 7. **Shared stores for several instances.** Use a shared `ArtifactStore` (S3-style), `PageStore`
    (database) and `CacheStore` (Redis-style). The defaults are per machine/process.
-8. **Outbound HTTP.** List external API origins in `http.allowedOrigins`; never set
+8. **Preview links.** If you enable `preview`, set a random secret of at least 32 bytes
+   (production refuses shorter ones) and keep it out of the repository. Rotating it invalidates
+   every link.
+9. **Outbound HTTP.** List external API origins in `http.allowedOrigins`; never set
    `http.insecureDevOrigins` in production. Bind each secret to its origins.
 
 See the [trust model](/docs/concepts/trust-model) and [security headers](/docs/security-headers).
