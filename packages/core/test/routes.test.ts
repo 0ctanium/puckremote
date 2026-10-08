@@ -40,10 +40,9 @@ describe('createCore', () => {
     expect(createCore({ id: `routes-${process.pid}` } as never)).toBe(core)
   })
 
-  it('handleTheme serves bundle.js and assets under the configured prefix only', async () => {
-    const b = await core.handleTheme(req('/_remote/theme/v1/bundle.js'))
-    expect(b.status).toBe(200)
-    expect(b.headers.get('content-type')).toContain('javascript')
+  it('handleTheme serves assets under the configured prefix only, and never the theme bundle', async () => {
+    // The bundle is theme CODE: it only ever runs server-side (isolate / worker), never in browsers.
+    expect((await core.handleTheme(req('/_remote/theme/v1/bundle.js'))).status).toBe(404)
     const css = await core.handleTheme(req('/_remote/theme/v1/assets/theme.css'))
     expect(css.status).toBe(200)
     expect(css.headers.get('content-type')).toContain('text/css')
@@ -57,7 +56,7 @@ describe('createCore', () => {
     ]) {
       expect((await core.handleTheme(req(p))).status, p).toBe(404)
     }
-    expect((await core.handleTheme(req('/_remote/theme/v1/bundle.js', { method: 'POST' }))).status).toBe(405)
+    expect((await core.handleTheme(req('/_remote/theme/v1/assets/theme.css', { method: 'POST' }))).status).toBe(405)
   })
 
   it('handleApi dispatches pages / blocks/resolve / artifact/reload with method checks', async () => {

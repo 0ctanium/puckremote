@@ -10,10 +10,42 @@ import { handleResolve } from './server/editor-rpc.ts'
 import { createHost, type Host } from './server/host.ts'
 import type { RenderSession } from './server/runtime/types.ts'
 import type { Manifest } from './server/manifest-schema.ts'
-import { collectInstances, type PageData } from './server/page-tree.ts'
+import { collectInstances, renderProps, type PageData } from './server/page-tree.ts'
 import { normalizeSlug, readPage, stripResolved, writePage } from './server/pages.ts'
 import { preparePage, restoreMissing, rewriteMissing, type PageContext, type PreparedPage } from './server/public-render.ts'
 import { fileResponse, readArtifactFile } from './server/static-files.ts'
+import { assetBase, newNonce, renderInIsolate } from './server/render.ts'
+import { z } from 'zod'
+
+const renderBatchSchema = z.strictObject({
+  slug: z.string().max(200),
+  items: z
+    .array(
+      z.strictObject({
+        key: z.string().max(100),
+        kind: z.enum(['block', 'root']),
+        name: z.string().max(100),
+        props: z.record(z.string(), z.unknown()),
+        data: z.record(z.string(), z.unknown()),
+      }),
+    )
+    .max(100),
+})
+
+const MAX_BODY_BYTES = 2 * 1024 * 1024
+
+/** Parse a JSON body with a hard size cap (oversize or invalid → null). */
+async function readJson(request: Request): Promise<unknown> {
+  const declared = Number(request.headers.get('content-length') ?? 0)
+  if (declared > MAX_BODY_BYTES) return null
+  const text = await request.text().catch(() => '')
+  if (Buffer.byteLength(text) > MAX_BODY_BYTES) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
 
 export interface EditorProps {
   manifest: Manifest
@@ -34,7 +66,7 @@ export interface PuckRemoteCore {
   loadEditor(slug: string, request: Request): Promise<EditorProps>
   /** `<routes.api>/pages` (GET ?slug=, POST), `/blocks/resolve` (POST), `/artifact/reload` (POST). */
   handleApi(request: Request): Promise<Response>
-  /** `<routes.theme>/v<N>/bundle.js` and `<routes.theme>/v<N>/assets/**` (GET). */
+  /** `<routes.theme>/v<N>/assets/**` (GET). The theme bundle itself is never served. */
   handleTheme(request: Request): Promise<Response>
 }
 
@@ -76,7 +108,7 @@ function build(config: HostConfig): PuckRemoteCore {
         'page:write',
         async (request) => {
           // Editor save: resolved data (__data) is stripped; __missing blocks are restored.
-          const body = await request.json().catch(() => null)
+          const body = (await readJson(request)) as any
           const slug = normalizeSlug(body?.slug)
           if (!slug || !body?.data) return json({ error: 'invalid body' }, 400)
           try {
@@ -93,7 +125,7 @@ function build(config: HostConfig): PuckRemoteCore {
       POST: [
         'page:read-draft',
         async (request, h) => {
-          const body = await request.json().catch(() => null)
+          const body = (await readJson(request)) as any
           const { manifest, runtime } = h.store.get()
           let session: Promise<RenderSession> | null = null
           try {
@@ -110,6 +142,44 @@ function build(config: HostConfig): PuckRemoteCore {
           } finally {
             if (session) (await (session as Promise<RenderSession>).catch(() => null))?.release()
           }
+        },
+      ],
+    },
+    'blocks/render': {
+      // Editor canvas rendering, done server-side so theme code never runs in the editor's origin.
+      // `data` comes from the editor (its resolveData results): the caller is an authorized editor,
+      // the isolate treats all input as untrusted, and the HTML only goes back to that caller.
+      POST: [
+        'page:read-draft',
+        async (request, h) => {
+          const parsed = renderBatchSchema.safeParse(await readJson(request))
+          if (!parsed.success) return json({ error: 'invalid body' }, 400)
+          const { slug, items } = parsed.data
+          const { manifest, runtime, version } = h.store.get()
+          const session = await runtime.session()
+          const results: Record<string, unknown> = {}
+          try {
+            for (const item of items) {
+              const meta = item.kind === 'root' ? manifest.root : Object.hasOwn(manifest.blocks, item.name) ? manifest.blocks[item.name] : null
+              if (!meta) {
+                results[item.key] = { ok: false, error: 'unknown block' }
+                continue
+              }
+              const nonce = newNonce()
+              const r = await renderInIsolate(session, item.kind, item.name, renderProps(item.props, meta), item.data, {
+                isEditing: true,
+                locale: config.site.locale,
+                nonce,
+                page: { slug },
+                site: { name: config.site.name },
+                assetBase: assetBase(config.routes.theme, version),
+              })
+              results[item.key] = r.ok ? { ok: true, html: r.html, nonce, effects: r.effects } : { ok: false, error: r.kind }
+            }
+          } finally {
+            session.release()
+          }
+          return json({ results })
         },
       ],
     },
@@ -149,12 +219,11 @@ function build(config: HostConfig): PuckRemoteCore {
   async function handleTheme(request: Request): Promise<Response> {
     if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405, headers: { allow: 'GET, HEAD' } })
     const sub = subpath(request, config.routes.theme)
-    const m = sub === null ? null : /^(v[1-9]\d{0,6})\/(bundle\.js|assets\/.+)$/.exec(sub)
+    const m = sub === null ? null : /^(v[1-9]\d{0,6})\/(assets\/.+)$/.exec(sub)
     if (!m) return fileResponse(null)
     const [, version, rel] = m
-    // bundle.js is served to the EDITOR (browser) only; the server never evaluates it outside the isolate.
     const f = await readArtifactFile(config.artifacts, version, rel)
-    return fileResponse(f && rel === 'bundle.js' ? { ...f, type: 'text/javascript; charset=utf-8' } : f)
+    return fileResponse(f)
   }
 
   return {

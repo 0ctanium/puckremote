@@ -3,8 +3,8 @@ import { Puck, type Data } from '@puckeditor/core'
 import '@puckeditor/core/puck.css'
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { EditorProps } from '../core.ts'
-import { apiUrl, themeAssetBase, themeBundleUrl } from '../shared/urls.ts'
-import { loadBundle, newNonce, type BundleApi } from './bundle-frame.ts'
+import { apiUrl, themeAssetBase } from '../shared/urls.ts'
+import { createRemoteRenderer } from './remote-render.ts'
 import { buildEditorConfig, type EditorEffect } from './config.tsx'
 
 // Stylesheets requested by blocks via ctx.assets.style(), injected into Puck's canvas iframe.
@@ -60,23 +60,17 @@ function apiPost(apiRoute: string, path: string, body?: unknown) {
 
 export function EditorClient({ manifest, version, slug, site, routes, initialData }: EditorProps) {
   const assetBase = themeAssetBase(routes.theme, version)
-  const [bundle, setBundle] = useState<BundleApi | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string>('')
-
-  useEffect(() => {
-    loadBundle(version, themeBundleUrl(routes.theme, version)).then(setBundle, (e) => setError(String(e)))
-  }, [version, routes.theme])
+  // Blocks are rendered by the server (one batched call per tick); theme JS never runs here.
+  const renderer = useMemo(() => createRemoteRenderer({ apiRoute: routes.api, slug }), [routes.api, slug, version])
 
   const config = useMemo(
     () =>
       buildEditorConfig(manifest, {
         version,
-        assetBase,
         slug,
         site,
-        render: bundle?.render ?? null,
-        newNonce,
+        renderer,
         onEffects: (e) => addEffects(e, assetBase),
         resolve: async (blockType, props) => {
           const res = await apiPost(routes.api, 'blocks/resolve', { blockType, props, slug })
@@ -84,11 +78,8 @@ export function EditorClient({ manifest, version, slug, site, routes, initialDat
           return (await res.json()).data
         },
       }),
-    [manifest, version, assetBase, slug, site, routes.api, bundle],
+    [manifest, version, assetBase, slug, site, routes.api, renderer],
   )
-
-  if (error) return <p style={{ padding: 24, color: '#b91c1c' }}>Could not load theme bundle v{version}: {error}</p>
-  if (!bundle) return <p style={{ padding: 24, fontFamily: 'system-ui' }}>Loading theme v{version}…</p>
 
   const save = async (data: Data) => {
     setStatus('Saving…')

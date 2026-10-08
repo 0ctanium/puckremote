@@ -62,7 +62,8 @@ const PER_ROOT: Record<keyof typeof ROOTS, Rule[]> = {
   ],
 }
 
-// Where the bundle may legitimately flow: compiled in the isolate, or served to the editor as bytes.
+// Where the bundle may legitimately flow: compiled in an isolate, in-process or in a sandboxed
+// worker. It is never served to browsers (the editor renders blocks through the server).
 const BUNDLE_SINKS: Record<string, RegExp> = {
   'packages/core/src/server/runtime/in-process.ts': /compileScriptSync\(this\.bundle/,
   // Worker pool: the bundle goes over IPC to a sandboxed worker, which compiles it in an isolate.
@@ -70,10 +71,6 @@ const BUNDLE_SINKS: Record<string, RegExp> = {
   'packages/core/src/server/runtime/render-worker.ts': /new IsolateRunner\(m\.bundle, m\.limits/,
   'packages/core/src/server/host.ts': /renderer\(\{ version, bundle, limits/,
   'packages/core/src/core.ts': /readArtifactFile\(config\.artifacts, version, rel\)/, // served as bytes
-  'packages/core/src/shared/urls.ts': /\/bundle\.js`/, // URL builder
-  // Browser-side only (editor realm, documented same-origin gap): never runs on the server.
-  'packages/core/src/editor/bundle-frame.ts': /srcdoc = `<!doctype html><script src=/,
-  'packages/core/src/editor/EditorClient.tsx': /^'use client'[\s\S]*loadBundle\(version, themeBundleUrl/,
 }
 const BUNDLE_READERS = new Set([
   'packages/core/src/server/artifact-loader.ts', // reads + hash-verifies bytes, never evaluates
@@ -107,7 +104,7 @@ describe('acceptance 7: no developer code outside the isolate', () => {
     expect(violations).toEqual([])
   })
 
-  it('bundle.js only flows to the isolate compiler or is served as static bytes', async () => {
+  it('bundle.js only flows to the isolate compiler (in-process or worker); never to browsers', async () => {
     const all = (await Promise.all(Object.values(ROOTS).flat().map(sources))).flat()
     for (const f of all) {
       const rel = path.relative(REPO, f)

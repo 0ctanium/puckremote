@@ -135,3 +135,24 @@ describe('artifact store change detection', () => {
     h3.store.close()
   })
 })
+
+describe('editor render RPC', () => {
+  const item = { key: 'a', kind: 'block', name: 'card', props: { title: 'Hi' }, data: {} }
+  it('requires page:read-draft and the CSRF header', async () => {
+    expect((await core.handleApi(post('/api/blocks/render', { body: { slug: 'home', items: [item] } }))).status).toBe(401)
+    expect((await core.handleApi(post('/api/blocks/render', { token: 'viewer', csrf: false, body: { slug: 'home', items: [item] } }))).status).toBe(403)
+    const res = await core.handleApi(post('/api/blocks/render', { token: 'viewer', body: { slug: 'home', items: [item, { ...item, key: 'b', name: 'nope' }] } }))
+    expect(res.status).toBe(200)
+    const { results } = await res.json()
+    expect(results.a).toMatchObject({ ok: true })
+    expect(results.a.html).toContain('Hi')
+    expect(results.a.nonce).toMatch(/^[0-9a-f]{32}$/)
+    expect(results.b).toEqual({ ok: false, error: 'unknown block' })
+  })
+  it('rejects oversized batches and malformed items', async () => {
+    const many = Array.from({ length: 101 }, (_, i) => ({ ...item, key: String(i) }))
+    expect((await core.handleApi(post('/api/blocks/render', { token: 'viewer', body: { slug: 'home', items: many } }))).status).toBe(400)
+    expect((await core.handleApi(post('/api/blocks/render', { token: 'viewer', body: { slug: 'home', items: [{ ...item, kind: 'evil' }] } }))).status).toBe(400)
+    expect((await core.handleApi(post('/api/blocks/render', { token: 'viewer', body: { slug: 'home', items: [{ ...item, extra: 1 }] } }))).status).toBe(400)
+  })
+})

@@ -1,7 +1,7 @@
 /**
- * Editor Puck config, built from manifest JSON only. Component render calls the artifact
- * bundle synchronously (in a hidden iframe realm) with data from resolveData, then swaps slots
- * with the same code as the public renderer.
+ * Editor Puck config, built from manifest JSON only. Blocks are rendered BY THE SERVER (same
+ * isolate pipeline as the public site) via a batched render RPC: theme code never executes in the
+ * editor's origin. Slots are swapped client-side with the same code as the public renderer.
  */
 import type { ComponentConfig, Config, Fields as PuckFields } from '@puckeditor/core'
 import type { CSSProperties, ReactNode } from 'react'
@@ -9,28 +9,21 @@ import type { BlockMeta, Manifest } from '../server/manifest-schema.ts'
 import { MISSING_TYPE, RESERVED_DATA_PROP, renderProps } from '../server/page-tree.ts'
 import { htmlToReact } from '../shared/slot-swap.tsx'
 import { mapFields } from './fields.ts'
+import { useRemoteRender, type EditorEffect, type RemoteRenderer } from './remote-render.ts'
 import { isVisible } from './visible-if.ts'
 
-export interface EditorEffect {
-  kind: string
-  url?: string
-}
+export type { EditorEffect }
 
 export interface EditorDeps {
   version: number
-  /** Asset URL prefix for ctx.assetUrl, e.g. /theme/v3/assets/ */
-  assetBase: string
   slug: string
   site: { name: string; locale: string }
-  /** Synchronous render via the bundle. Returns the raw JSON string from __render. */
-  render: ((kind: 'block' | 'root', name: string, propsJson: string, dataJson: string, ctxJson: string) => string) | null
+  /** Server-side block rendering (batched, cached). */
+  renderer: RemoteRenderer
   /** Data RPC. Only block type + props go over the wire. */
   resolve: (blockType: string, props: Record<string, unknown>) => Promise<Record<string, unknown>>
-  newNonce: () => string
   onEffects?: (effects: EditorEffect[]) => void
   debounceMs?: number
-  /** Defaults to true. The parity test renders with false to compare against public output. */
-  isEditing?: boolean
 }
 
 type AnyProps = Record<string, any>
@@ -52,34 +45,25 @@ function pendingData(meta: BlockMeta): Record<string, unknown> {
   return Object.fromEntries(Object.keys(meta.data).map((k) => [k, { ok: false, error: 'loading' }]))
 }
 
-export function renderEditorBlock(kind: 'block' | 'root', name: string, meta: BlockMeta, props: AnyProps, deps: EditorDeps, extraSlots: Record<string, unknown> = {}): ReactNode {
-  if (!deps.render) return <div style={box('#64748b')}>Loading theme bundle…</div>
-  const nonce = deps.newNonce()
+/** One block (or the root) in the canvas: server-rendered HTML + client-side slot swap. */
+export function RemoteBlock(p: { kind: 'block' | 'root'; name: string; meta: BlockMeta; props: AnyProps; deps: EditorDeps; extraSlots?: Record<string, unknown> }) {
+  const { kind, name, meta, props, deps, extraSlots = {} } = p
   const data = (props[RESERVED_DATA_PROP] as Record<string, unknown> | undefined) ?? pendingData(meta)
-  const ctx = {
-    isEditing: deps.isEditing ?? true,
-    locale: deps.site.locale,
-    nonce,
-    page: { slug: deps.slug },
-    site: { name: deps.site.name },
-    assetBase: deps.assetBase,
-  }
-  let out: { html: string; effects: EditorEffect[] }
-  try {
-    out = JSON.parse(deps.render(kind, name, JSON.stringify(renderProps(props, meta)), JSON.stringify(data), JSON.stringify(ctx)))
-  } catch (e) {
+  const result = useRemoteRender(deps.renderer, { kind, name, props: renderProps(props, meta), data }, deps.debounceMs ?? 150)
+  if (!result) return <div style={box('#64748b')}>Rendering “{meta.label}”…</div>
+  if (!result.ok) {
     return (
       <div style={box('#b91c1c')}>
         <strong>Block “{name}” failed to render.</strong>
-        <div>{e instanceof Error ? e.message : String(e)}</div>
+        <div>{result.error}</div>
       </div>
     )
   }
-  deps.onEffects?.(out.effects)
+  deps.onEffects?.(result.effects)
   const slots: Record<string, unknown> = { ...extraSlots }
   for (const s of meta.slots) slots[s] = props[s]
-  const body = htmlToReact(out.html, { nonce, slots: slots as never, allowed: [...meta.slots, ...Object.keys(extraSlots)] })
-  if (!meta.usesRequestParams) return body
+  const body = htmlToReact(result.html, { nonce: result.nonce, slots: slots as never, allowed: [...meta.slots, ...Object.keys(extraSlots)] })
+  if (!meta.usesRequestParams) return <>{body}</>
   return (
     <>
       <Notice>⚠ This block makes the page uncacheable (it reads URL query parameters).</Notice>
@@ -129,7 +113,7 @@ export function buildEditorConfig(manifest: Manifest, deps: EditorDeps): Config 
       defaultProps: meta.defaultProps,
       resolveFields: makeResolveFields(fields, meta),
       resolveData: Object.keys(meta.data).length ? makeResolveData(name, meta, deps) : undefined,
-      render: (props: AnyProps) => <>{renderEditorBlock('block', name, meta, props, deps)}</>,
+      render: (props: AnyProps) => <RemoteBlock kind="block" name={name} meta={meta} props={props} deps={deps} />,
     }
   }
   components[MISSING_TYPE] = {
@@ -160,7 +144,7 @@ export function buildEditorConfig(manifest: Manifest, deps: EditorDeps): Config 
           // Root data has the same { props } shape at runtime; Puck types it separately.
           resolveFields: makeResolveFields(rootFields, root) as never,
           resolveData: (Object.keys(root.data).length ? makeResolveData('root', root, deps) : undefined) as never,
-          render: (props: AnyProps) => <>{renderEditorBlock('root', 'root', root, props, deps, { children: props.children })}</>,
+          render: (props: AnyProps) => <RemoteBlock kind="root" name="root" meta={root} props={props} deps={deps} extraSlots={{ children: props.children }} />,
         }
       : undefined,
   }

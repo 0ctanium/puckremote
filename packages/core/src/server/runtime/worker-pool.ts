@@ -137,9 +137,9 @@ class Worker {
     this.tap = opts.tap
     if (opts.wrap) {
       const { command, args } = opts.wrap(process.execPath, [...launch.execArgv, launch.workerPath])
-      this.child = spawn(command, args, { env: launch.env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
+      this.child = spawn(command, args, { env: launch.env as NodeJS.ProcessEnv, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
     } else {
-      this.child = fork(launch.workerPath, [], { execArgv: launch.execArgv, env: launch.env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
+      this.child = fork(launch.workerPath, [], { execArgv: launch.execArgv, env: launch.env as NodeJS.ProcessEnv, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
     }
     const forward = (chunk: Buffer) => {
       for (const line of String(chunk).split('\n')) if (line.trim()) log.error(`[render-worker ${this.child.pid}] ${line}`)
