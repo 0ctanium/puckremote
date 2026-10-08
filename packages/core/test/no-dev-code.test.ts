@@ -66,7 +66,7 @@ const PER_ROOT: Record<keyof typeof ROOTS, Rule[]> = {
 const BUNDLE_SINKS: Record<string, RegExp> = {
   'packages/core/src/server/isolate-runner.ts': /compileScriptSync\(this\.bundle/,
   'packages/core/src/server/host.ts': /new IsolateRunner\(bundle/,
-  'packages/core/src/core.ts': /readArtifactFile\(config\.artifactsDir, version, rel\)/, // served as bytes
+  'packages/core/src/core.ts': /readArtifactFile\(config\.artifacts, version, rel\)/, // served as bytes
   'packages/core/src/shared/urls.ts': /\/bundle\.js`/, // URL builder
   // Browser-side only (editor realm, documented same-origin gap): never runs on the server.
   'packages/core/src/editor/bundle-frame.ts': /srcdoc = `<!doctype html><script src=/,

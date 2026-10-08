@@ -1,13 +1,10 @@
 import { createHash } from 'node:crypto'
-import { existsSync, watch, type FSWatcher } from 'node:fs'
-import { readFile, realpath } from 'node:fs/promises'
-import path from 'node:path'
+import type { ArtifactStore } from '@puck-remote/sdk/host'
 import { z } from 'zod'
 import { analyzeSpecs, manifestSchema, type Manifest } from './manifest-schema.ts'
 
 export interface LoadedArtifact<R> {
   version: number
-  dir: string
   manifest: Manifest
   /** The exact bytes that were hash-verified. Only ever compiled inside the isolate or served. */
   bundle: string
@@ -19,31 +16,31 @@ export interface Disposable {
   dispose(): void
 }
 
-export interface ArtifactStoreOptions<R> {
-  artifactsDir: string
+export interface ArtifactLoaderOptions<R> {
+  /** Where versions and the active pointer live (fs, S3, …). */
+  artifacts: ArtifactStore
   createRuntime: (a: { version: number; manifest: Manifest; bundle: string }) => R | Promise<R>
   /** Delay before disposing the previous runtime, so in-flight requests can finish. */
   disposeGraceMs?: number
   log?: Pick<Console, 'info' | 'error'>
 }
 
-const currentSchema = z.strictObject({ version: z.number().int().positive() })
-
-const sha256 = (b: Buffer) => createHash('sha256').update(b).digest('hex')
+const sha256 = (b: Uint8Array) => createHash('sha256').update(b).digest('hex')
+const decoder = new TextDecoder('utf-8', { fatal: true })
 
 export class ArtifactError extends Error {}
 
 /**
- * Loads a published artifact: pointer → manifest (zod) → every file hash → runtime (isolate).
- * Any failure leaves the previous good artifact serving.
+ * Loads a published artifact from an ArtifactStore: pointer → manifest (zod) → every file hash →
+ * runtime (isolate). Any failure leaves the previous good artifact serving.
  */
-export class ArtifactStore<R extends Disposable> {
+export class ArtifactLoader<R extends Disposable> {
   private current: LoadedArtifact<R> | null = null
-  private watcher: FSWatcher | null = null
+  private stopWatching: (() => void) | null = null
   private pending: Promise<unknown> = Promise.resolve()
   private readonly log: Pick<Console, 'info' | 'error'>
 
-  constructor(private readonly opts: ArtifactStoreOptions<R>) {
+  constructor(private readonly opts: ArtifactLoaderOptions<R>) {
     this.log = opts.log ?? console
   }
 
@@ -57,17 +54,22 @@ export class ArtifactStore<R extends Disposable> {
   }
 
   async readPointer(): Promise<number> {
-    const raw = await readFile(path.join(this.opts.artifactsDir, 'current.json'), 'utf8')
-    return currentSchema.parse(JSON.parse(raw)).version
+    const v = await this.opts.artifacts.readPointer()
+    if (!Number.isInteger(v) || (v as number) < 1) throw new ArtifactError('no valid active artifact version')
+    return v as number
   }
 
   /** Validate a version completely without activating it. */
   async loadVersion(version: number): Promise<Omit<LoadedArtifact<R>, 'runtime'>> {
-    const root = await realpath(this.opts.artifactsDir)
-    const dir = path.join(root, `v${version}`)
-    if (!existsSync(dir)) throw new ArtifactError(`v${version} does not exist`)
-    const manifestRaw = await readFile(path.join(dir, 'manifest.json'), 'utf8')
-    const parsed = manifestSchema.safeParse(JSON.parse(manifestRaw))
+    const manifestRaw = await this.opts.artifacts.readFile(version, 'manifest.json')
+    if (!manifestRaw) throw new ArtifactError(`v${version} does not exist`)
+    let json: unknown
+    try {
+      json = JSON.parse(decoder.decode(manifestRaw))
+    } catch {
+      throw new ArtifactError(`v${version}: manifest.json is not valid JSON`)
+    }
+    const parsed = manifestSchema.safeParse(json)
     if (!parsed.success) throw new ArtifactError(`v${version}: invalid manifest: ${z.prettifyError(parsed.error)}`)
     const manifest = parsed.data
 
@@ -80,17 +82,15 @@ export class ArtifactStore<R extends Disposable> {
     }
 
     let bundle: string | null = null
+    // Paths were validated by the manifest schema; the store adds its own containment checks.
     for (const [rel, expected] of Object.entries(manifest.files)) {
-      const abs = path.join(dir, rel)
-      if (!abs.startsWith(dir + path.sep)) throw new ArtifactError(`v${version}: unsafe path ${rel}`)
-      const real = await realpath(abs).catch(() => null)
-      if (!real || !real.startsWith(dir + path.sep)) throw new ArtifactError(`v${version}: missing or escaping file ${rel}`)
-      const buf = await readFile(real)
+      const buf = await this.opts.artifacts.readFile(version, rel)
+      if (!buf) throw new ArtifactError(`v${version}: missing file ${rel}`)
       if (sha256(buf) !== expected) throw new ArtifactError(`v${version}: hash mismatch for ${rel}`)
-      if (rel === 'bundle.js') bundle = buf.toString('utf8')
+      if (rel === 'bundle.js') bundle = decoder.decode(buf)
     }
     if (bundle === null) throw new ArtifactError(`v${version}: bundle.js missing`)
-    return { version, dir, manifest, bundle, loadedAt: Date.now() }
+    return { version, manifest, bundle, loadedAt: Date.now() }
   }
 
   /**
@@ -128,20 +128,22 @@ export class ArtifactStore<R extends Disposable> {
     return p
   }
 
-  watch(debounceMs = 100): void {
-    if (this.watcher) return
-    let t: NodeJS.Timeout | null = null
-    this.watcher = watch(this.opts.artifactsDir, (_ev, file) => {
-      if (file !== 'current.json') return
-      if (t) clearTimeout(t)
-      t = setTimeout(() => void this.reload(), debounceMs)
-    })
-    this.watcher.unref()
+  /** Follow pointer changes: the store's change feed if it has one, otherwise polling. */
+  watch(pollMs = 2000): void {
+    if (this.stopWatching) return
+    const { artifacts } = this.opts
+    if (artifacts.watch) {
+      this.stopWatching = artifacts.watch(() => void this.reload())
+      return
+    }
+    const timer = setInterval(() => void this.reload(), pollMs)
+    timer.unref()
+    this.stopWatching = () => clearInterval(timer)
   }
 
   close(): void {
-    this.watcher?.close()
-    this.watcher = null
+    this.stopWatching?.()
+    this.stopWatching = null
     this.current?.runtime.dispose()
     this.current = null
   }

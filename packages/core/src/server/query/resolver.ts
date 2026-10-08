@@ -7,7 +7,7 @@ import type { HostConfig } from '../config.ts'
 import type { RenderSession } from '../isolate-runner.ts'
 import type { Manifest, QuerySpec } from '../manifest-schema.ts'
 import type { Instance } from '../page-tree.ts'
-import { QueryCache } from './cache.ts'
+import type { CacheStore } from '@puck-remote/sdk/host'
 import type { HttpSource } from './http-source.ts'
 import { hashSpec, QueryError, substitute, type ParamEnv } from './params.ts'
 import type { Mode } from '@puck-remote/sdk/host'
@@ -21,7 +21,7 @@ export interface ResolveDeps {
   /** The operator's data source, wrapped in host-side policy enforcement. */
   source: HostSource
   http: HttpSource
-  cache: QueryCache
+  cache: CacheStore
   /** Lazily provides an isolate context for adapter translators (shared with the render pass). */
   session: () => Promise<RenderSession>
   log?: Pick<Console, 'info' | 'warn' | 'error'>
@@ -99,15 +99,16 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
   await Promise.all(
     runnable.map(async (p) => {
       try {
-        const cached = deps.cache.get(p.hash)
+        // A shared CacheStore failing must not take pages down: treat errors as misses.
+        const cached = await deps.cache.get(cacheKey(p.hash)).catch(() => undefined)
         let data: unknown
-        if (cached.hit) {
+        if (cached !== undefined) {
           cacheHits++
-          data = cached.value
+          data = cached
         } else {
           executed++
           data = await Promise.race([execute(p.spec, input.mode, input.env.page.locale, deps, deadline), overDeadline])
-          cacheSet(p, data, input.mode, deps)
+          await cacheSet(p, data, input.mode, deps).catch(() => {})
         }
         const bytes = Buffer.byteLength(JSON.stringify(data) ?? '')
         outcomes.set(p.hash, { result: { ok: true, data }, bytes })
@@ -142,13 +143,15 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
   }
 }
 
-function cacheSet(p: Planned, data: unknown, mode: Mode, deps: ResolveDeps) {
+const cacheKey = (hash: string) => `puck-remote:q:${hash}`
+
+async function cacheSet(p: Planned, data: unknown, mode: Mode, deps: ResolveDeps) {
   const spec = p.spec
   if (spec.source === 'host') {
     if (mode === 'draft') return // never cache draft reads
-    deps.cache.set(p.hash, data, { tags: deps.source.tagsFor(spec) })
+    await deps.cache.set(cacheKey(p.hash), data, { tags: deps.source.tagsFor(spec) })
   } else {
-    deps.cache.set(p.hash, data, { ttlMs: deps.config.http.cacheTtlMs })
+    await deps.cache.set(cacheKey(p.hash), data, { ttlMs: deps.config.http.cacheTtlMs })
   }
 }
 

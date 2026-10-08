@@ -48,6 +48,16 @@ function CanvasStyles({ document: doc, children }: { document?: Document; childr
 
 export type { EditorProps }
 
+/** Mutating calls carry the CSRF header (see server/auth.ts) and same-origin credentials. */
+function apiPost(apiRoute: string, path: string, body?: unknown) {
+  return fetch(apiUrl(apiRoute, path), {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json', 'x-puck-remote': '1' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
 export function EditorClient({ manifest, version, slug, site, routes, initialData }: EditorProps) {
   const assetBase = themeAssetBase(routes.theme, version)
   const [bundle, setBundle] = useState<BundleApi | null>(null)
@@ -69,11 +79,7 @@ export function EditorClient({ manifest, version, slug, site, routes, initialDat
         newNonce,
         onEffects: (e) => addEffects(e, assetBase),
         resolve: async (blockType, props) => {
-          const res = await fetch(apiUrl(routes.api, 'blocks/resolve'), {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ blockType, props, slug }),
-          })
+          const res = await apiPost(routes.api, 'blocks/resolve', { blockType, props, slug })
           if (!res.ok) throw new Error(`resolve failed: ${res.status}`)
           return (await res.json()).data
         },
@@ -86,11 +92,7 @@ export function EditorClient({ manifest, version, slug, site, routes, initialDat
 
   const save = async (data: Data) => {
     setStatus('Saving…')
-    const res = await fetch(apiUrl(routes.api, 'pages'), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ slug, data }),
-    })
+    const res = await apiPost(routes.api, 'pages', { slug, data })
     setStatus(res.ok ? `Saved ${new Date().toLocaleTimeString()}` : `Save failed (${res.status})`)
   }
 
@@ -110,7 +112,7 @@ export function EditorClient({ manifest, version, slug, site, routes, initialDat
             <button
               type="button"
               onClick={async () => {
-                const r = await fetch(apiUrl(routes.api, 'artifact/reload'), { method: 'POST' })
+                const r = await apiPost(routes.api, 'artifact/reload')
                 const j = await r.json()
                 setStatus(j.ok ? `artifact v${j.version}` : `reload failed: ${j.error}`)
                 if (j.ok && j.version !== version) location.reload()

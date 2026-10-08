@@ -2,7 +2,7 @@ import { build } from '@puck-remote/cli'
 import { readFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { resolveConfig, type HostConfig } from '../src/server/config.ts'
+import { devAllowAll, resolveConfig, type HostConfig } from '../src/server/config.ts'
 import { IsolateRunner } from '../src/server/isolate-runner.ts'
 import type { CtxInput } from '../src/server/render.ts'
 
@@ -31,10 +31,11 @@ export const buildExample = () => buildTheme(path.join(REPO_ROOT, 'examples', 't
 
 export function testConfig(overrides: Partial<HostConfig> = {}): HostConfig {
   const base = resolveConfig({
-    artifactsDir: path.join(REPO_ROOT, 'artifacts'),
+    artifacts: fsArtifactStore({ dir: path.join(REPO_ROOT, 'artifacts') }),
     source: mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') }),
     pages: fsPageStore({ dir: path.join(REPO_ROOT, 'data', 'pages') }),
     site: { name: 'POC Site', locale: 'en' },
+    auth: devAllowAll(),
   })
   return { ...base, isolate: { ...base.isolate, callTimeoutMs: 150, watchdogMs: 1500 }, ...overrides }
 }
@@ -61,7 +62,8 @@ export function ctx(overrides: Partial<CtxInput> = {}): CtxInput {
 // Data-layer harness
 // ---------------------------------------------------------------------------
 import { startMockApi } from 'mock-api'
-import { QueryCache } from '../src/server/query/cache.ts'
+import { fsArtifactStore } from '@puck-remote/artifacts-fs'
+import { memoryCache } from '../src/server/query/cache.ts'
 import { HttpSource, type Resolver } from '../src/server/query/http-source.ts'
 import { mockCms } from '@puck-remote/source-mock'
 import { fsPageStore } from '@puck-remote/pages-fs'
@@ -126,8 +128,8 @@ export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; 
   const http = new HttpSource({ config: config.http, secrets: config.secrets, resolver: opts.resolver })
   // A fresh source per harness so content edits in one test don't leak into another.
   const cms = mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') })
-  const cache = new QueryCache()
-  cms.subscribe((tags) => tags.forEach((t) => cache.invalidate(t)))
+  const cache = memoryCache()
+  cms.subscribe((tags) => void cache.invalidateTags(tags))
   const deps = {
     manifest: m,
     config,
@@ -171,12 +173,13 @@ export async function testHost(opts: { theme: 'example' | 'evil'; pages: Record<
   await mkdir(pagesDir, { recursive: true })
   for (const [slug, data] of Object.entries(opts.pages)) await writeFile(path.join(pagesDir, `${slug}.json`), JSON.stringify(data))
   const built = opts.theme === 'evil' ? await buildEvil() : await buildExample()
-  await publish({ distDir: built.outDir, artifactsDir, quiet: true })
+  const artifacts = fsArtifactStore({ dir: artifactsDir })
+  await publish({ distDir: built.outDir, artifacts, quiet: true })
   const mock = opts.mockOrigin ?? 'http://localhost:4010'
   const base = dataConfig(mock)
   const config: HostConfig = {
     ...base,
-    artifactsDir,
+    artifacts,
     source: mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') }),
     pages: fsPageStore({ dir: pagesDir }),
     ...opts.config,

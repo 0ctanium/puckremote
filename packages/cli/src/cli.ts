@@ -29,7 +29,7 @@ async function main() {
       await build({ cwd, outDir: values.out })
       break
     case 'publish':
-      await publish({ distDir: path.resolve(cwd, values.out!), artifactsDir: artifactsDir() })
+      await publish({ distDir: path.resolve(cwd, values.out!), artifacts: artifactsDir() })
       break
     case 'activate': {
       const v = Number(arg)

@@ -1,4 +1,5 @@
-import type { AnyDataSource, PageStore } from '@puck-remote/sdk/host'
+import type { AnyDataSource, ArtifactStore, AuthAdapter, CacheStore, PageStore } from '@puck-remote/sdk/host'
+import { memoryCache } from './query/cache.ts'
 
 export interface SecretDef {
   value: string
@@ -9,11 +10,21 @@ export interface SecretDef {
 /** Fully resolved configuration used by the core. */
 export interface HostConfig {
   id: string
-  artifactsDir: string
   routes: Routes
   /** Pluggable, trusted host plugins chosen by the app. */
+  artifacts: ArtifactStore
+  /** How often to poll the artifact pointer when the store has no change feed. */
+  artifactPollMs: number
   source: AnyDataSource
   pages: PageStore
+  cache: CacheStore
+  /** Required in production (see resolveConfig). */
+  auth: AuthAdapter | null
+  /**
+   * Origins allowed to send mutating API requests (CSRF). Default: the request's own origin
+   * only. Add the editor origin here when the API is called cross-origin.
+   */
+  allowedOrigins: string[]
   site: { name: string; locale: string }
   isolate: {
     memoryLimitMb: number
@@ -57,14 +68,24 @@ export interface Routes {
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? Partial<T[K]> : T[K] }
 
 /** What an app provides. Everything except paths and plugins has a default. */
-export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, 'artifactsDir' | 'source' | 'pages' | 'secrets'>> {
+type Plugins = 'artifacts' | 'source' | 'pages' | 'cache' | 'auth' | 'secrets' | 'allowedOrigins'
+
+/** What an app provides. Everything except the storage plugins has a default. */
+export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, Plugins>> {
   /** Distinguishes runtimes if one process hosts several sites. Default 'default'. */
   id?: string
-  artifactsDir: string
+  artifacts: ArtifactStore
   source: AnyDataSource
   pages: PageStore
+  /** Default: in-process memory (single instance). Plug a shared store (Redis…) for clusters. */
+  cache?: CacheStore
+  /** Who may open the editor, read drafts, save pages, switch artifacts. Mandatory in production. */
+  auth?: AuthAdapter
+  allowedOrigins?: string[]
   secrets?: Record<string, SecretDef>
 }
+
+export class ConfigError extends Error {}
 
 /** Typed identity: use in the app's puck-remote.config.ts. Safe to import from proxy/edge code. */
 export function defineConfig<C extends PuckRemoteConfig>(config: C): C {
@@ -73,12 +94,25 @@ export function defineConfig<C extends PuckRemoteConfig>(config: C): C {
 
 export const DEFAULT_ROUTES: Routes = { api: '/api', theme: '/theme', editor: '/editor' }
 
+function requireAuthInProduction(auth: AuthAdapter | undefined): AuthAdapter | null {
+  if (auth) return auth
+  if (process.env.NODE_ENV === 'production') {
+    throw new ConfigError('puck-remote: `auth` is required in production. The editor and its API would otherwise be open to anyone.')
+  }
+  console.warn('[puck-remote] no `auth` configured: editor and API are OPEN (development only)')
+  return null
+}
+
 export function resolveConfig(input: PuckRemoteConfig): HostConfig {
   return {
     id: input.id ?? 'default',
-    artifactsDir: input.artifactsDir,
+    artifacts: input.artifacts,
+    artifactPollMs: input.artifactPollMs ?? 2000,
     source: input.source,
     pages: input.pages,
+    cache: input.cache ?? memoryCache(),
+    auth: requireAuthInProduction(input.auth),
+    allowedOrigins: input.allowedOrigins ?? [],
     routes: { ...DEFAULT_ROUTES, ...input.routes },
     site: { name: 'Site', locale: 'en', ...input.site },
     isolate: {
@@ -102,3 +136,7 @@ export function resolveConfig(input: PuckRemoteConfig): HostConfig {
     secrets: input.secrets ?? {},
   }
 }
+
+// Light helpers apps use while writing their config (no isolate imports).
+export { devAllowAll, sharedSecretAuth } from './auth.ts'
+export { memoryCache } from './query/cache.ts'

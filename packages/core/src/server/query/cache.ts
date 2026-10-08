@@ -1,43 +1,46 @@
+import type { CacheStore } from '@puck-remote/sdk/host'
+
 interface Entry {
   value: unknown
   expires: number
   tags: string[]
 }
 
-/** In-memory cache: TTL entries (http/adapters) and tag-invalidated entries (host data source). */
-export class QueryCache {
-  private entries = new Map<string, Entry>()
+export type MemoryCache = CacheStore & { readonly size: number; clear(): void }
 
-  get(key: string): { hit: true; value: unknown } | { hit: false } {
-    const e = this.entries.get(key)
-    if (!e) return { hit: false }
-    if (e.expires < Date.now()) {
-      this.entries.delete(key)
-      return { hit: false }
-    }
-    return { hit: true, value: e.value }
-  }
-
-  set(key: string, value: unknown, opts: { ttlMs?: number; tags?: string[] }): void {
-    this.entries.set(key, { value, expires: opts.ttlMs ? Date.now() + opts.ttlMs : Number.POSITIVE_INFINITY, tags: opts.tags ?? [] })
-  }
-
-  invalidate(tag: string): number {
-    let n = 0
-    for (const [k, e] of this.entries) {
-      if (e.tags.includes(tag)) {
-        this.entries.delete(k)
-        n++
+/**
+ * Default CacheStore: in-process memory. Each runtime is a process-wide singleton (see
+ * createCore), so this is effectively a globalThis cache. Not shared across instances: use a
+ * shared store (Redis…) when running several servers.
+ */
+export function memoryCache(opts: { maxEntries?: number } = {}): MemoryCache {
+  const max = opts.maxEntries ?? 10_000
+  const entries = new Map<string, Entry>()
+  return {
+    async get(key) {
+      const e = entries.get(key)
+      if (!e) return undefined
+      if (e.expires < Date.now()) {
+        entries.delete(key)
+        return undefined
       }
-    }
-    return n
-  }
-
-  clear(): void {
-    this.entries.clear()
-  }
-
-  get size(): number {
-    return this.entries.size
+      return e.value
+    },
+    async set(key, value, { ttlMs, tags = [] }) {
+      if (value === undefined) return
+      entries.delete(key)
+      entries.set(key, { value, expires: ttlMs ? Date.now() + ttlMs : Number.POSITIVE_INFINITY, tags })
+      // Oldest-first eviction (Map preserves insertion order).
+      while (entries.size > max) entries.delete(entries.keys().next().value!)
+    },
+    async invalidateTags(tags) {
+      for (const [k, e] of entries) if (e.tags.some((t) => tags.includes(t))) entries.delete(k)
+    },
+    get size() {
+      return entries.size
+    },
+    clear() {
+      entries.clear()
+    },
   }
 }

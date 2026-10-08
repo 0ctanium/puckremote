@@ -4,6 +4,8 @@
  */
 import type { Data } from '@puckeditor/core'
 import { resolveConfig, type HostConfig, type PuckRemoteConfig, type Routes } from './server/config.ts'
+import type { Action } from '@puck-remote/sdk/host'
+import { AccessDeniedError, authorizeRequest, checkCsrf } from './server/auth.ts'
 import { handleResolve } from './server/editor-rpc.ts'
 import { createHost, type Host } from './server/host.ts'
 import type { RenderSession } from './server/isolate-runner.ts'
@@ -28,7 +30,8 @@ export interface PuckRemoteCore {
   /** Resolves once the first artifact load was attempted (loads lazily on first use). */
   host(): Promise<Host>
   preparePage(slug: string, query?: Record<string, string>, context?: PageContext): Promise<PreparedPage | null>
-  loadEditor(slug: string): Promise<EditorProps>
+  /** Throws AccessDeniedError (401/403) unless `request` may open the editor. */
+  loadEditor(slug: string, request: Request): Promise<EditorProps>
   /** `<routes.api>/pages` (GET ?slug=, POST), `/blocks/resolve` (POST), `/artifact/reload` (POST). */
   handleApi(request: Request): Promise<Response>
   /** `<routes.theme>/v<N>/bundle.js` and `<routes.theme>/v<N>/assets/**` (GET). */
@@ -52,22 +55,26 @@ function build(config: HostConfig): PuckRemoteCore {
       const h = createHost(config)
       const r = await h.store.reload()
       if (!r.ok) console.error('[puck-remote] no artifact could be loaded at startup:', r.error)
-      h.store.watch()
+      h.store.watch(config.artifactPollMs)
       return h
     })())
 
-  async function handleApi(request: Request): Promise<Response> {
-    const sub = subpath(request, config.routes.api)
-    const h = await host()
-    switch (sub) {
-      case 'pages': {
-        if (request.method === 'GET') {
+  type Handler = (request: Request, h: Host) => Promise<Response>
+  /** route → method → [required action, handler]. Everything else is 404/405. */
+  const routes: Record<string, Record<string, [Action, Handler]>> = {
+    pages: {
+      GET: [
+        'page:read-draft',
+        async (request) => {
           const slug = normalizeSlug(new URL(request.url).searchParams.get('slug') ?? 'home')
           if (!slug) return json({ error: 'invalid slug' }, 400)
           const page = await readPage(config.pages, slug)
           return page ? json(page) : json({ error: 'not found' }, 404)
-        }
-        if (request.method === 'POST') {
+        },
+      ],
+      POST: [
+        'page:write',
+        async (request) => {
           // Editor save: resolved data (__data) is stripped; __missing blocks are restored.
           const body = await request.json().catch(() => null)
           const slug = normalizeSlug(body?.slug)
@@ -78,38 +85,64 @@ function build(config: HostConfig): PuckRemoteCore {
           } catch (e) {
             return json({ error: e instanceof Error ? e.message : 'invalid page' }, 400)
           }
-        }
-        return json({ error: 'method not allowed' }, 405, { allow: 'GET, POST' })
-      }
-      case 'blocks/resolve': {
-        // Editor data RPC: body is { blockType, props, slug }. The spec always comes from the manifest.
-        if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, { allow: 'POST' })
-        const body = await request.json().catch(() => null)
-        const { manifest, runtime } = h.store.get()
-        let session: Promise<RenderSession> | null = null
-        try {
-          const res = await handleResolve(body, {
-            manifest,
-            config,
-            source: h.source,
-            http: h.http,
-            cache: h.cache,
-            site: config.site,
-            session: () => (session ??= runtime.session()),
-          })
-          return json(res.json, res.status, { 'cache-control': 'no-store' })
-        } finally {
-          if (session) (await (session as Promise<RenderSession>).catch(() => null))?.release()
-        }
-      }
-      case 'artifact/reload': {
-        // Manual reload (the file watcher also reloads on current.json changes).
-        if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, { allow: 'POST' })
-        const r = await h.store.reload()
-        return json(r, r.ok ? 200 : 500)
-      }
-      default:
-        return json({ error: 'not found' }, 404)
+        },
+      ],
+    },
+    'blocks/resolve': {
+      // Editor data RPC (draft mode): body is { blockType, props, slug }; the spec comes from the manifest.
+      POST: [
+        'page:read-draft',
+        async (request, h) => {
+          const body = await request.json().catch(() => null)
+          const { manifest, runtime } = h.store.get()
+          let session: Promise<RenderSession> | null = null
+          try {
+            const res = await handleResolve(body, {
+              manifest,
+              config,
+              source: h.source,
+              http: h.http,
+              cache: h.cache,
+              site: config.site,
+              session: () => (session ??= runtime.session()),
+            })
+            return json(res.json, res.status)
+          } finally {
+            if (session) (await (session as Promise<RenderSession>).catch(() => null))?.release()
+          }
+        },
+      ],
+    },
+    'artifact/reload': {
+      // Manual reload (the store's change feed or polling also picks up pointer changes).
+      POST: [
+        'artifact:activate',
+        async (_request, h) => {
+          const r = await h.store.reload()
+          return json(r, r.ok ? 200 : 500)
+        },
+      ],
+    },
+  }
+
+  async function handleApi(request: Request): Promise<Response> {
+    const sub = subpath(request, config.routes.api)
+    const route = sub !== null && Object.hasOwn(routes, sub) ? routes[sub] : null
+    if (!route) return json({ error: 'not found' }, 404)
+    const entry = Object.hasOwn(route, request.method) ? route[request.method] : null
+    if (!entry) return json({ error: 'method not allowed' }, 405, { allow: Object.keys(route).join(', ') })
+    const [action, handler] = entry
+    try {
+      const csrf = checkCsrf(request, config.allowedOrigins)
+      if (csrf) throw csrf
+      await authorizeRequest(config.auth, request, action)
+      const res = await handler(request, await host())
+      // Editor API responses are per-user and may contain drafts: never cache them.
+      res.headers.set('cache-control', 'private, no-store')
+      return res
+    } catch (e) {
+      if (e instanceof AccessDeniedError) return json({ error: e.message }, e.status, { 'cache-control': 'private, no-store' })
+      throw e
     }
   }
 
@@ -120,7 +153,7 @@ function build(config: HostConfig): PuckRemoteCore {
     if (!m) return fileResponse(null)
     const [, version, rel] = m
     // bundle.js is served to the EDITOR (browser) only; the server never evaluates it outside the isolate.
-    const f = await readArtifactFile(config.artifactsDir, version, rel)
+    const f = await readArtifactFile(config.artifacts, version, rel)
     return fileResponse(f && rel === 'bundle.js' ? { ...f, type: 'text/javascript; charset=utf-8' } : f)
   }
 
@@ -130,7 +163,8 @@ function build(config: HostConfig): PuckRemoteCore {
     async preparePage(slug, query = {}, context = {}) {
       return preparePage(await host(), slug, query, context)
     },
-    async loadEditor(slug) {
+    async loadEditor(slug, request) {
+      await authorizeRequest(config.auth, request, 'editor:open', { slug })
       const h = await host()
       const { manifest, version } = h.store.get()
       const page = (await readPage(config.pages, slug)) ?? { root: { props: { ...(manifest.root?.defaultProps ?? {}) } }, content: [] }

@@ -9,20 +9,25 @@ import { mkdtemp } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { createCore, type PuckRemoteCore } from '../src/index.ts'
+import { fsArtifactStore } from '@puck-remote/artifacts-fs'
+import { createCore, devAllowAll, type PuckRemoteCore } from '../src/index.ts'
 import { buildExample, REPO_ROOT } from './helpers.ts'
 
 let core: PuckRemoteCore
 let dir: string
 const req = (p: string, init?: RequestInit) => new Request(`http://host.test${p}`, init)
+/** A mutating request as the editor sends it (CSRF header, same origin). */
+const post = (p: string, body?: unknown) =>
+  req(p, { method: 'POST', headers: { 'content-type': 'application/json', 'x-puck-remote': '1', origin: 'http://host.test' }, body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body) })
 
 beforeAll(async () => {
   vi.spyOn(console, 'info').mockImplementation(() => {})
   dir = await mkdtemp(path.join(os.tmpdir(), 'puck-remote-routes-'))
-  await publish({ distDir: (await buildExample()).outDir, artifactsDir: path.join(dir, 'artifacts'), quiet: true })
+  await publish({ distDir: (await buildExample()).outDir, artifacts: path.join(dir, 'artifacts'), quiet: true })
   core = createCore({
     id: `routes-${process.pid}`,
-    artifactsDir: path.join(dir, 'artifacts'),
+    artifacts: fsArtifactStore({ dir: path.join(dir, 'artifacts') }),
+    auth: devAllowAll(),
     source: mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') }),
     pages: fsPageStore({ dir: path.join(dir, 'pages') }),
     routes: { api: '/_remote/api', theme: '/_remote/theme' },
@@ -57,21 +62,21 @@ describe('createCore', () => {
 
   it('handleApi dispatches pages / blocks/resolve / artifact/reload with method checks', async () => {
     const page = { root: { props: { title: 'R' } }, content: [{ type: 'card', props: { id: 'c1', title: 'Routed', __data: { leak: true } } }] }
-    const saved = await core.handleApi(req('/_remote/api/pages', { method: 'POST', body: JSON.stringify({ slug: 'routed', data: page }) }))
+    const saved = await core.handleApi(post('/_remote/api/pages', { slug: 'routed', data: page }))
     expect(saved.status).toBe(200)
     const got = await (await core.handleApi(req('/_remote/api/pages?slug=routed'))).json()
     expect(JSON.stringify(got)).not.toContain('__data')
 
-    const r = await core.handleApi(req('/_remote/api/blocks/resolve', { method: 'POST', body: JSON.stringify({ blockType: 'latest-posts', props: { count: 1 } }) }))
+    const r = await core.handleApi(post('/_remote/api/blocks/resolve', { blockType: 'latest-posts', props: { count: 1 } }))
     expect(r.status).toBe(200)
     expect((await r.json()).data.posts.ok).toBe(true)
 
-    expect((await core.handleApi(req('/_remote/api/artifact/reload', { method: 'POST' }))).status).toBe(200)
+    expect((await core.handleApi(post('/_remote/api/artifact/reload'))).status).toBe(200)
     expect((await core.handleApi(req('/_remote/api/blocks/resolve'))).status).toBe(405)
     expect((await core.handleApi(req('/_remote/api/artifact/reload'))).status).toBe(405)
     expect((await core.handleApi(req('/_remote/api/pages', { method: 'DELETE' }))).status).toBe(405)
     expect((await core.handleApi(req('/_remote/api/nope'))).status).toBe(404)
-    expect((await core.handleApi(req('/_remote/api/pages', { method: 'POST', body: 'not json' }))).status).toBe(400)
+    expect((await core.handleApi(post('/_remote/api/pages', 'not json'))).status).toBe(400)
   })
 
   it('preparePage and loadEditor use the configured routes', async () => {
@@ -79,7 +84,7 @@ describe('createCore', () => {
     expect(page.head.styles).toEqual(['/_remote/theme/v1/assets/theme.css']) // custom prefix flows into ctx.assetUrl
     expect(page.rendered.c1.html).toContain('Routed')
     expect(await core.preparePage('missing')).toBeNull()
-    const editor = await core.loadEditor('routed')
+    const editor = await core.loadEditor('routed', req('/editor/routed'))
     expect(editor.routes).toEqual({ api: '/_remote/api', theme: '/_remote/theme', editor: '/editor' })
     expect(editor.version).toBe(1)
   })

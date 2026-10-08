@@ -5,7 +5,8 @@
 import path from 'node:path'
 import { fsPageStore } from '@puck-remote/pages-fs'
 import { mockCms } from '@puck-remote/source-mock'
-import { resolveConfig } from '../src/server/config.ts'
+import { fsArtifactStore } from '@puck-remote/artifacts-fs'
+import { devAllowAll, resolveConfig } from '../src/server/config.ts'
 import { createHost } from '../src/server/host.ts'
 import { IsolateRunner } from '../src/server/isolate-runner.ts'
 import { preparePage } from '../src/server/public-render.ts'
@@ -18,7 +19,8 @@ const root = path.resolve(import.meta.dirname, '../../..')
 const MOCK = 'http://localhost:4010'
 const host = createHost(
   resolveConfig({
-    artifactsDir: path.join(root, 'artifacts'),
+    artifacts: fsArtifactStore({ dir: path.join(root, 'artifacts') }),
+    auth: devAllowAll(),
     source: mockCms({ dataFile: path.join(root, 'data', 'cms.json') }),
     pages: fsPageStore({ dir: path.join(root, 'data', 'pages') }),
     http: { allowedOrigins: [MOCK], insecureDevOrigins: [MOCK] },

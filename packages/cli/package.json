@@ -16,7 +16,8 @@
   "dependencies": {
     "@puck-remote/sdk": "workspace:*",
     "esbuild": "0.28.2",
-    "tsx": "4.23.15"
+    "tsx": "4.23.15",
+    "@puck-remote/artifacts-fs": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "26.6.4",

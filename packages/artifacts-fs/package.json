@@ -1,0 +1,10 @@
+{
+  "name": "@puck-remote/artifacts-fs",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ArtifactStore on the local filesystem (single-server deployments).",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p ." },
+  "dependencies": { "@puck-remote/sdk": "workspace:*" },
+  "devDependencies": { "@types/node": "26.6.4", "@types/react": "19.3.0", "typescript": "7.0.2" }
+}

@@ -1,43 +1,45 @@
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { fsArtifactStore } from '@puck-remote/artifacts-fs'
+import type { ArtifactStore } from '@puck-remote/sdk/host'
+
+/** An ArtifactStore, or a directory path (shorthand for fsArtifactStore). */
+export type ArtifactTarget = ArtifactStore | string
+
+const toStore = (t: ArtifactTarget): ArtifactStore => (typeof t === 'string' ? fsArtifactStore({ dir: t }) : t)
 
 export interface PublishOptions {
   distDir: string
-  artifactsDir: string
+  artifacts: ArtifactTarget
   quiet?: boolean
 }
 
-async function highestVersion(artifactsDir: string): Promise<number> {
-  if (!existsSync(artifactsDir)) return 0
-  const versions = (await readdir(artifactsDir))
-    .map((d) => /^v(\d+)$/.exec(d)?.[1])
-    .filter((v): v is string => !!v)
-    .map(Number)
-  return versions.length ? Math.max(...versions) : 0
-}
-
-/** Atomically point current.json at `version` (write temp file, then rename). Rollback uses this too. */
-export async function activate(artifactsDir: string, version: number): Promise<void> {
-  if (!existsSync(path.join(artifactsDir, `v${version}`, 'manifest.json'))) {
-    throw new Error(`artifact v${version} does not exist in ${artifactsDir}`)
+async function listFiles(dir: string, base = dir): Promise<string[]> {
+  const out: string[] = []
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name)
+    if (e.isDirectory()) out.push(...(await listFiles(p, base)))
+    else if (e.isFile()) out.push(path.relative(base, p).split(path.sep).join('/'))
   }
-  const tmp = path.join(artifactsDir, `.current.json.${process.pid}.${Date.now()}.tmp`)
-  await writeFile(tmp, JSON.stringify({ version }) + '\n')
-  await rename(tmp, path.join(artifactsDir, 'current.json'))
+  return out
 }
 
+/** Point the store at `version`. Rollback is just activating an older version. */
+export async function activate(artifacts: ArtifactTarget, version: number): Promise<void> {
+  await toStore(artifacts).writePointer(version)
+}
+
+/** Upload dist/ as the next version (never reusing a number, even after a rollback) and activate it. */
 export async function publish(opts: PublishOptions): Promise<{ version: number }> {
   if (!existsSync(path.join(opts.distDir, 'manifest.json'))) throw new Error(`no manifest.json in ${opts.distDir}; run "puck-remote build" first`)
-  await mkdir(opts.artifactsDir, { recursive: true })
-  const version = (await highestVersion(opts.artifactsDir)) + 1
-  const target = path.join(opts.artifactsDir, `v${version}`)
-  // Copy into a temp dir and rename so a half-copied version is never visible.
-  const tmp = path.join(opts.artifactsDir, `.v${version}.${process.pid}.tmp`)
-  await rm(tmp, { recursive: true, force: true })
-  await cp(opts.distDir, tmp, { recursive: true })
-  await rename(tmp, target)
-  await activate(opts.artifactsDir, version)
-  if (!opts.quiet) console.log(`[puck-remote publish] published v${version} → ${target}`)
+  const store = toStore(opts.artifacts)
+  const versions = await store.listVersions()
+  const version = (versions.length ? Math.max(...versions) : 0) + 1
+  const files: Record<string, Uint8Array> = {}
+  for (const rel of await listFiles(opts.distDir)) files[rel] = new Uint8Array(await readFile(path.join(opts.distDir, rel)))
+  await store.writeVersion(version, files)
+  await store.writePointer(version)
+  if (!opts.quiet) console.log(`[puck-remote publish] published v${version}`)
   return { version }
 }

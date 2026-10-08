@@ -10,7 +10,7 @@ import type { PuckRemoteConfig } from '@puck-remote/core/config'
 import { normalizeSlug, pageCacheability } from '@puck-remote/core/cacheability'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export function createProxy(config: Pick<PuckRemoteConfig, 'artifactsDir' | 'pages'>) {
+export function createProxy(config: Pick<PuckRemoteConfig, 'artifacts' | 'pages'>) {
   return async function proxy(req: NextRequest) {
     const res = NextResponse.next()
     const slug = normalizeSlug(req.nextUrl.pathname)

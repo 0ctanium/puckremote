@@ -9,10 +9,11 @@
  *   // app/api/[[...path]]/route.ts    → export const { GET, POST } = remote.api
  *   // app/theme/[[...path]]/route.ts  → export const { GET } = remote.theme
  */
-import { createCore, normalizeSlug, type EditorProps, type PageContext, type PuckRemoteConfig, type PuckRemoteCore, type PreparedPage } from '@puck-remote/core'
+import { AccessDeniedError, createCore, normalizeSlug, type EditorProps, type PageContext, type PuckRemoteConfig, type PuckRemoteCore, type PreparedPage } from '@puck-remote/core'
 import { pageMetadata } from '@puck-remote/core/react'
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { headers } from 'next/headers'
+import { notFound, redirect } from 'next/navigation'
 import { cache } from 'react'
 
 export { PuckRemotePage, pageMetadata } from '@puck-remote/core/react'
@@ -48,7 +49,23 @@ function firstValues(sp: Record<string, string | string[] | undefined>): Record<
   return out
 }
 
-export function createPuckRemote(config: PuckRemoteConfig): PuckRemote {
+export interface NextBindingOptions {
+  /**
+   * Where to send unauthenticated editor visitors (`?next=<editor path>` is appended).
+   * Without it, denied editor requests render the 404 page (the editor's existence isn't revealed).
+   */
+  loginUrl?: string
+}
+
+/** Rebuild a standard Request from the incoming headers (server components have no Request). */
+async function currentRequest(pathname: string): Promise<Request> {
+  const h = await headers()
+  const proto = h.get('x-forwarded-proto') ?? 'http'
+  const host = h.get('x-forwarded-host') ?? h.get('host') ?? 'localhost'
+  return new Request(`${proto}://${host}${pathname}`, { headers: h })
+}
+
+export function createPuckRemote(config: PuckRemoteConfig, options: NextBindingOptions = {}): PuckRemote {
   const core = createCore(config)
   // Per-request memo: generateMetadata and the page share one isolate pass.
   const prepare = cache(async (slug: string, qs: string, locale: string | undefined) => {
@@ -68,7 +85,15 @@ export function createPuckRemote(config: PuckRemoteConfig): PuckRemote {
       return pageMetadata(await loadPage(props))
     },
     async loadEditor({ params }) {
-      return core.loadEditor(await slugOf(params))
+      const slug = await slugOf(params)
+      const path = `${core.config.routes.editor}/${slug === 'home' ? '' : slug}`
+      try {
+        return await core.loadEditor(slug, await currentRequest(path))
+      } catch (e) {
+        if (!(e instanceof AccessDeniedError)) throw e
+        if (e.status === 401 && options.loginUrl) redirect(`${options.loginUrl}?next=${encodeURIComponent(path)}`)
+        notFound()
+      }
     },
     api: { GET: (req) => core.handleApi(req), POST: (req) => core.handleApi(req) },
     theme: { GET: (req) => core.handleTheme(req), HEAD: (req) => core.handleTheme(req) },

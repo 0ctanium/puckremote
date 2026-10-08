@@ -16,7 +16,8 @@
     "@puck-remote/source-mock": "workspace:*",
     "next": "16.4.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "@puck-remote/artifacts-fs": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "26.6.4",

@@ -115,6 +115,78 @@ export interface PageStore {
 }
 
 // ---------------------------------------------------------------------------
+// Artifact storage
+// ---------------------------------------------------------------------------
+
+/**
+ * Stores published theme artifacts: immutable versions (manifest.json, bundle.js, assets/**)
+ * plus a pointer to the active version. The host verifies hashes and validates manifests
+ * itself, so a store only moves bytes. Paths are POSIX, relative, and pre-validated by the host.
+ */
+export interface ArtifactStore {
+  /** Active version, or null if nothing was ever published. */
+  readPointer(): Promise<number | null>
+  /** Atomically switch the active version (publish and rollback). */
+  writePointer(version: number): Promise<void>
+  listVersions(): Promise<number[]>
+  /** File bytes of a version, or null if missing. */
+  readFile(version: number, path: string): Promise<Uint8Array | null>
+  /** Write a complete version. Must not become visible until fully written. */
+  writeVersion(version: number, files: Record<string, Uint8Array>): Promise<void>
+  /** Optional change feed for the pointer. Without it, the host polls readPointer(). */
+  watch?(onChange: () => void): () => void
+}
+
+// ---------------------------------------------------------------------------
+// Cache storage
+// ---------------------------------------------------------------------------
+
+/** Shared cache for query results (and later rendered output). Values are JSON-serializable. */
+export interface CacheStore {
+  get(key: string): Promise<unknown | undefined>
+  set(key: string, value: unknown, options: { ttlMs?: number; tags?: string[] }): Promise<void>
+  /** Drop every entry carrying any of these tags. */
+  invalidateTags(tags: string[]): Promise<void>
+}
+
+// ---------------------------------------------------------------------------
+// Authentication / authorization
+// ---------------------------------------------------------------------------
+
+/** Everything the host may ask permission for. */
+export type Action =
+  | 'editor:open'
+  | 'page:read-draft'
+  | 'page:write'
+  | 'page:publish'
+  | 'artifact:publish'
+  | 'artifact:activate'
+
+export const ACTIONS: readonly Action[] = ['editor:open', 'page:read-draft', 'page:write', 'page:publish', 'artifact:publish', 'artifact:activate']
+
+/** Whoever is making the request. Adapters may attach anything under `data`. */
+export interface Principal {
+  id: string
+  name?: string
+  data?: Record<string, unknown>
+}
+
+/**
+ * Framework- and backend-agnostic auth: only the standard Request is involved, so it works with
+ * Payload sessions, cookies, bearer tokens, Mongo users…
+ */
+export interface AuthAdapter {
+  /** Identify the caller, or null if anonymous. */
+  authenticate(request: Request): Promise<Principal | null>
+  /** Decide whether the principal may perform `action` (on `resource`, when relevant). */
+  authorize(principal: Principal, action: Action, resource?: { slug?: string }): boolean | Promise<boolean>
+}
+
+export function defineAuth<A extends AuthAdapter>(auth: A): A {
+  return auth
+}
+
+// ---------------------------------------------------------------------------
 // Type helpers used by theme-side query builders
 // ---------------------------------------------------------------------------
 
