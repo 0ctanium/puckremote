@@ -52,7 +52,7 @@ export default defineConfig({
   artifacts: fsArtifactStore({ dir: path.join(root, 'artifacts') }),
   source: myCms(),
   origins: {
-    admin: ['https://admin.example.com'], // your pages that embed the editor
+    host: ['https://admin.example.com'], // your admin pages that embed the editor
     editor: 'https://editor.example.net', // where the editor is served (another site)
   },
   site: { name: 'My site', locale: 'en' },
@@ -79,13 +79,12 @@ my-app
         ├── admin
         │   └── [[...path]]
         │       ├── page.tsx
-        │       └── AdminEditor.tsx
-        ├── api
-        │   └── editor-rpc
-        │       └── route.ts
+        │       ├── ClientEditor.tsx
+        │       └── actions.ts
         ├── editor
         │   └── [[...path]]
-        │       └── route.ts
+        │       ├── page.tsx
+        │       └── EditorPage.tsx
         └── theme
             └── [[...path]]
                 └── route.ts
@@ -120,60 +119,72 @@ export default async function Page(props: PageProps) {
 
 ```tsx tab="app/admin/[[...path]]/page.tsx"
 import { remote } from '@/puck-remote';
-import { AdminEditor } from './AdminEditor';
+import { ClientEditor } from './ClientEditor';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Admin(props: { params: Promise<{ path?: string[] }> }) {
-  // Check your own admin session here first.
-  return <AdminEditor payload={await remote.loadEditor(props)} />;
+  // Check your own admin session here first. loadEditor 404s outside origins.host.
+  return <ClientEditor payload={await remote.loadEditor(props)} />;
 }
 ```
 
-```tsx tab="app/admin/[[...path]]/AdminEditor.tsx"
+```tsx tab="app/admin/[[...path]]/ClientEditor.tsx"
 'use client';
 import { PuckEditorFrame } from '@puck-remote/editor/frame';
 import type { EditorPayload } from '@puck-remote/next';
+import { resolveData } from './actions';
 
-const call = async (method: string, params: unknown) =>
-  (await (await fetch('/api/editor-rpc', { method: 'POST', body: JSON.stringify({ method, params }) })).json()).value;
-
-export function AdminEditor({ payload }: { payload: EditorPayload }) {
+export function ClientEditor({ payload }: { payload: EditorPayload }) {
   return (
     <PuckEditorFrame
       editorUrl="https://editor.example.net/"
       editorOrigin="https://editor.example.net"
       payload={payload}
-      rpc={{ resolveData: (p) => call('resolveData', { ...(p as object), slug: payload.slug }) }}
+      rpc={{ resolveData: (p) => resolveData({ ...(p as object), slug: payload.slug }) }}
       onChange={(data) => {/* keep it for your Publish button */}}
     />
   );
 }
 ```
 
-```ts tab="app/api/editor-rpc/route.ts"
+```ts tab="app/admin/[[...path]]/actions.ts"
+'use server';
 import { remote } from '@/puck-remote';
 
-export const { POST } = remote.createEditorRpcRoute({
-  async resolveData(params, request) {
-    // Check your own admin session on `request` here.
-    const { slug, block, props } = params as { slug: string; block: string; props: Record<string, unknown> };
-    return remote.core.resolveBlockData(slug, block, props);
-  },
-});
+export async function resolveData(params: { slug: string; block: string; props: Record<string, unknown> }) {
+  // Check your own admin session here.
+  return remote.core.resolveBlockData(params.slug, params.block, params.props);
+}
 ```
 
-```ts tab="app/editor/[[...path]]/route.ts"
+```tsx tab="app/editor/[[...path]]/page.tsx"
 import { remote } from '@/puck-remote';
+import { EditorPage } from './EditorPage';
+
+export const dynamic = 'force-dynamic';
 
 // Served only on origins.editor (the proxy rewrites that origin here).
-export const { GET, HEAD } = remote.editor;
+export default async function Editor() {
+  const { allowedParents } = await remote.loadEditorPage();
+  return <div style={{ height: '100vh' }}><EditorPage allowedParents={allowedParents} /></div>;
+}
+```
+
+```tsx tab="app/editor/[[...path]]/EditorPage.tsx"
+'use client';
+import '@puckeditor/core/no-external.css';
+import { PuckRemoteEditor } from '@puck-remote/editor/react';
+
+export function EditorPage({ allowedParents }: { allowedParents: string[] }) {
+  return <PuckRemoteEditor allowedParents={allowedParents} />;
+}
 ```
 
 ```ts tab="app/theme/[[...path]]/route.ts"
 import { remote } from '@/puck-remote';
 
-export const { GET, HEAD } = remote.theme;
+export const { GET, HEAD } = remote.createThemeHandler();
 ```
 
 </Step>
@@ -185,7 +196,7 @@ export const { GET, HEAD } = remote.theme;
 import { withPuckRemote } from '@puck-remote/next/config';
 
 export default withPuckRemote({
-  allowedDevOrigins: ['*.localhost'], // admin pages run on admin.localhost in development
+  allowedDevOrigins: ['*.localhost', '127.0.0.1'], // dev hostnames: admin.localhost, and 127.0.0.1 for the editor
 });
 ```
 
@@ -210,9 +221,9 @@ npx puck-remote publish --artifacts ../my-app/artifacts
 
 ### Point the editor's hostname at the app
 
-The editor ships built in `@puck-remote/editor`; the `app/editor` route above serves it on
-`origins.editor`. Point that hostname (another site) at this deployment, or serve the editor
-elsewhere with the `puck-remote-editor` bin. See [Serving the editor](/docs/guides/editor-app).
+The `app/editor` page above renders the editor on `origins.editor`. Point that hostname (another
+site) at this deployment. To customize the editor, see
+[Customizing the editor](/docs/guides/editor-app).
 
 </Step>
 <Step>
@@ -224,7 +235,8 @@ NODE_OPTIONS=--no-node-snapshot npx next dev
 ```
 
 Open the site on `http://localhost:3000` and the admin page on `http://admin.localhost:3000/admin`
-(with `origins.admin` set to that origin in development). The editor must run on a different
+(with `origins.host` set to that origin and `origins.editor` to `http://127.0.0.1:3000` in
+development). The editor must run on a different
 origin from the admin pages (see [Origins](/docs/concepts/origins)).
 
 </Step>

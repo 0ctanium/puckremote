@@ -4,7 +4,6 @@
  * isolate. Both must show the same thing.
  */
 import { Render, resolveAllData } from '@puckeditor/core/rsc'
-import { copyFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { renderToString } from 'react-dom/server'
@@ -20,19 +19,23 @@ import { buildExample, startMockApi, testHost, type MockApi } from './helpers.ts
 
 let api: MockApi
 let theme: ThemeModule
-// Inside the package so the bundle's bare imports (react, @puck-remote/sdk) resolve to the same
-// modules as the test's, as the editor's import map does in the browser.
-const browserBundle = path.join(import.meta.dirname, `.browser-bundle-${process.pid}.mjs`)
 
 beforeAll(async () => {
   api = await startMockApi()
   vi.spyOn(console, 'info').mockImplementation(() => {})
   vi.spyOn(console, 'warn').mockImplementation(() => {})
-  await copyFile(path.join((await buildExample()).outDir, 'bundle.browser.js'), browserBundle)
-  theme = (await import(/* @vite-ignore */ pathToFileURL(browserBundle).href)).default
+  // What <PuckRemoteEditor> does in the browser: hand the theme this process's React and SDK.
+  ;(globalThis as Record<string, unknown>).__puckRemoteModules = {
+    react: await import('react'),
+    'react/jsx-runtime': await import('react/jsx-runtime'),
+    'react-dom': await import('react-dom'),
+    'react-dom/client': await import('react-dom/client'),
+    '@puck-remote/sdk': await import('@puck-remote/sdk'),
+  }
+  theme = (await import(/* @vite-ignore */ pathToFileURL(path.join((await buildExample()).outDir, 'bundle.browser.js')).href)).default
 })
 afterAll(async () => {
-  await rm(browserBundle, { force: true })
+  delete (globalThis as Record<string, unknown>).__puckRemoteModules
   await api.close()
 })
 

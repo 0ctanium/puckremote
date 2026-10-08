@@ -37,19 +37,19 @@ origin list is the fallback for browsers without `strict-dynamic`.
 
 ## Editor
 
-Sent by `createEditorHandler` (`@puck-remote/editor/server`), and so by the bin and the Next.js
-editor route:
+`securityHeaders('editor', { nonce, hostOrigins })`, set by the Next proxy on `origins.editor`
+(enforced by default, `security.csp.editor`, [D-0233](/docs/internal/decisions#D-0233)):
 
 ```
-default-src 'self'; script-src 'self' '<import map hash>' <admin origins>;
-style-src 'self' 'unsafe-inline' <admin origins>; img-src * data: blob:; font-src 'self' data: <admin origins>;
+default-src 'self'; script-src 'self' 'nonce-…' 'strict-dynamic' <host origins>;
+style-src 'self' 'unsafe-inline' <host origins>; img-src * data: blob:; font-src 'self' data: <host origins>;
 connect-src 'self'; frame-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'none';
-frame-ancestors <admin origins>
+frame-ancestors <host origins>
 ```
 
-plus `referrer-policy: no-referrer`, `cross-origin-opener-policy: same-origin`, `cache-control:
-no-store` on the page (hashed assets are `immutable`), and never `set-cookie`. The theme bundle
-and assets come from the admin origin's theme route. See [Serving the editor](/docs/guides/editor-app).
+plus `referrer-policy: no-referrer` and `cross-origin-opener-policy: same-origin`. The theme
+bundle and assets come from the host origin's theme route. Outside Next, send the same headers on
+your editor page. See [Customizing the editor](/docs/guides/editor-app).
 
 ## Development
 

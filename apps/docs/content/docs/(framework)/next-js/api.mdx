@@ -5,11 +5,11 @@ description: createPuckRemote, createProxy and withPuckRemote.
 
 | Import | Exports |
 |---|---|
-| `@puck-remote/next` | `createPuckRemote`, `PuckRemotePage`, `pageMetadata`, types (`EditorPayload`, `EditorRpcHandler`…) |
+| `@puck-remote/next` | `createPuckRemote`, `PuckRemotePage`, `pageMetadata`, types (`EditorPayload`, `PageProps`…) |
 | `@puck-remote/next/proxy` | `createProxy` |
 | `@puck-remote/next/config` | `withPuckRemote` |
 
-`<PuckEditorFrame>` comes from `@puck-remote/editor/frame` (see [The editor](/docs/concepts/editor)).
+`<PuckEditorFrame>` and `<PuckRemoteEditor>` come from `@puck-remote/editor` (see [The editor](/docs/concepts/editor)).
 
 ## `createPuckRemote(config)`
 
@@ -24,20 +24,19 @@ Returns a `PuckRemote`:
 <TypeTable
   type={{
     loadPage: {
-      description: "Resolves data and renders every block for the page in the sandbox. Calls notFound() for unknown pages and on admin origins (theme scripts never run next to the admin session). Memoized per request, so generateMetadata and the page share one render pass.",
+      description: "Resolves data and renders every block for the page in the sandbox. Calls notFound() for unknown pages and on origins.host (theme scripts never run next to the admin session). Memoized per request, so generateMetadata and the page share one render pass.",
       type: '(props: PageProps, context?: { locale?: string }) => Promise<PreparedPage>',
     },
     generateMetadata: { description: "Title, description and meta collected from blocks (ctx.head).", type: '(props: PageProps) => Promise<Metadata>' },
     loadEditor: {
-      description: "The payload for <PuckEditorFrame> (core.editorPayload). Calls notFound() outside admin origins. Check your own session before calling it.",
+      description: "The payload for <PuckEditorFrame> (core.editorPayload). Calls notFound() outside origins.host. Check your own session before calling it.",
       type: '(props: { params }) => Promise<EditorPayload>',
     },
-    createEditorRpcRoute: {
-      description: "A POST route dispatching { method, params } to your handlers. Refuses non-admin origins (404) and bodies over 1 MB (413). Handlers get (params, request) and must check your session.",
-      type: '(handlers: Record<string, EditorRpcHandler>) => { POST }',
+    loadEditorPage: {
+      description: "Props for <PuckRemoteEditor> on your editor page: { allowedParents: origins.host }. Calls notFound() outside origins.editor.",
+      type: '() => Promise<{ allowedParents: string[] }>',
     },
-    theme: { description: "Route handlers for theme files.", type: '{ GET, HEAD }' },
-    editor: { description: "Route handlers serving the built editor (createEditorHandler with origins.admin, mounted at routes.editor). 404 unless the request is on origins.editor.", type: '{ GET, HEAD }' },
+    createThemeHandler: { description: "Route handlers for theme files (assets and the browser bundle).", type: '() => { GET, HEAD }' },
     core: { description: "The underlying engine (createCore): readPage, writePage, resolveBlockData…", type: 'PuckRemoteCore' },
   }}
 />
@@ -63,17 +62,18 @@ Puck's RSC renderer, and theme scripts carrying the CSP nonce.
 
 For each request the proxy:
 
-1. on `origins.editor`, rewrites every path to `routes.editor` + path (served by `remote.editor`)
-   and stops there; on other origins, `routes.editor/**` answers 404;
+1. on `origins.editor`, rewrites every path to `routes.editor` + path (your editor page) with the
+   [editor's headers](/docs/security-headers#editor) and a fresh CSP nonce, and stops there; on
+   other origins, `routes.editor/**` answers 404;
 2. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
-   Next: the admin policy on admin origins (frames only the editor origin), the site policy
+   Next: the admin policy on `origins.host` (frames only the editor origin), the site policy
    elsewhere;
 3. on public pages, sets `x-page-cacheable: true`, or `false` with `cache-control: no-store` and
    `x-uncacheable-blocks` when a block reads URL query parameters.
 
 ## `withPuckRemote(nextConfig?)`
 
-Returns your Next config with `isolated-vm`, `@puck-remote/core` and `@puck-remote/editor` added to
+Returns your Next config with `isolated-vm` and `@puck-remote/core` added to
 `serverExternalPackages`.
 
 <TypeTable type={{ nextConfig: { description: "Your Next.js config.", type: 'NextConfig', default: '{}' } }} />

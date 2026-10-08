@@ -9,8 +9,41 @@ import { SDK_MAJOR } from '@puck-remote/sdk/constants'
 import { ISOLATE_SHIMS } from '@puck-remote/sdk/shims'
 import { BuildError, toJson, validateAdapter, validateDefinition, validatePage, type BlockMeta } from './validate.ts'
 
-/** Imports the browser bundle leaves to the editor's import map. */
+/** Modules the browser bundle takes from the editor (globalThis.__puckRemoteModules) instead of bundling. */
 export const BROWSER_EXTERNALS = ['react', 'react/jsx-runtime', 'react-dom', 'react-dom/client', '@puck-remote/sdk'] as const
+
+/** Where the editor registers the modules the theme's browser bundle shares with it. */
+export const BROWSER_MODULES_GLOBAL = '__puckRemoteModules'
+
+const IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+
+/**
+ * Replaces each BROWSER_EXTERNALS import with a module reading the editor's copy from
+ * globalThis, so the theme and the editor share one React and one SDK (one SlotContext).
+ * Named exports are enumerated from the theme repo's own copy at build time.
+ */
+function editorGlobals(cwd: string): Plugin {
+  const req = createRequire(path.join(cwd, 'package.json'))
+  const filter = new RegExp(`^(${BROWSER_EXTERNALS.map((s) => s.replace(/[/]/g, '\\/')).join('|')})$`)
+  return {
+    name: 'editor-globals',
+    setup(b) {
+      b.onResolve({ filter }, (args) => ({ path: args.path, namespace: 'editor-global' }))
+      b.onLoad({ filter: /.*/, namespace: 'editor-global' }, async (args) => {
+        const spec = args.path
+        const mod = spec.startsWith('react') ? req(spec) : await import(pathToFileURL(req.resolve(spec)).href)
+        const names = Object.keys(mod).filter((k) => k !== 'default' && IDENT.test(k)).sort()
+        const contents = [
+          `const m = globalThis.${BROWSER_MODULES_GLOBAL}?.[${JSON.stringify(spec)}];`,
+          `if (!m) throw new Error(${JSON.stringify(`${spec} is not provided by the editor`)});`,
+          'export default m.default ?? m;',
+          names.length ? `export const { ${names.join(', ')} } = m;` : '',
+        ].join('\n')
+        return { contents, loader: 'js' }
+      })
+    },
+  }
+}
 
 export interface Manifest {
   artifactVersion: string
@@ -179,18 +212,17 @@ install({ blocks, root: rootDef, adapters });`
   await writeFile(path.join(outDir, 'bundle.js'), bundle)
 
   // 3. Browser bundle for the editor: the same definitions as ESM; React and the SDK come from the
-  // editor (import map), so the theme and Puck share one React.
+  // editor (globals it registers), so the theme and Puck share one React.
   const browserEntry = `${registrySource(sources)}
 export default { blocks, root: rootDef };`
   const browserBuild = await esbuild({
     ...common,
-    plugins: [],
+    plugins: [editorGlobals(cwd)],
     stdin: { contents: browserEntry, resolveDir: cwd, loader: 'tsx', sourcefile: 'puck-remote-browser-entry.tsx' },
     format: 'esm',
     platform: 'browser',
     target: 'es2022',
     minify: true,
-    external: [...BROWSER_EXTERNALS],
   })
   await writeFile(path.join(outDir, 'bundle.browser.js'), browserBuild.outputFiles![0].text)
 

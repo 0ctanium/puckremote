@@ -21,9 +21,12 @@ description: How puck-remote build turns a theme repo into an artifact.
    `conditions: ['browser']`, `target: es2022`, `NODE_ENV=production`), with `ISOLATE_SHIMS` as a
    banner. It exposes only `__render`, `__toRequest`, `__fromResponse`.
 5. **Browser bundle**: the same definitions as an ESM module (`export default { blocks, root }`,
-   `platform: 'browser'`, minified), with `BROWSER_EXTERNALS` (`react`, `react/jsx-runtime`,
-   `react-dom`, `react-dom/client`, `@puck-remote/sdk`) left as bare imports for the editor's
-   import map ([D-0200](/docs/internal/decisions#D-0200)). Written as `bundle.browser.js`.
+   `platform: 'browser'`, minified). The `editor-globals` plugin replaces each of
+   `BROWSER_EXTERNALS` (`react`, `react/jsx-runtime`, `react-dom`, `react-dom/client`,
+   `@puck-remote/sdk`) with a module reading `globalThis.__puckRemoteModules[<specifier>]`, whose
+   named exports are enumerated from the theme repo's own copy at build time
+   ([D-0229](/docs/internal/decisions#D-0229)): no bare imports remain, and loading the bundle without the
+   editor's globals throws. Written as `bundle.browser.js`.
 6. **Assets**: `assets/` copied as-is.
 7. **Pages** (`validatePage`): each `pages/<slug>.json` must have a valid slug path, parse as JSON,
    have Puck's `{ root, content }` shape, and use only blocks of this theme, slots included

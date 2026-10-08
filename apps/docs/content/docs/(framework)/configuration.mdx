@@ -33,13 +33,13 @@ See [Core › Adapters](/docs/core/adapters) for each contract and the built-in 
 
 <TypeTable
   type={{
-    'origins.admin': {
-      description: "Origins of your pages that embed the editor (<PuckEditorFrame>) and hold the admin session. The theme bundle URLs given to the editor use the first one.",
+    'origins.host': {
+      description: "Origins of your admin pages that embed the editor (<PuckEditorFrame>) and hold the admin session. The theme bundle URLs given to the editor use the first one.",
       type: 'string[]',
     },
-    'origins.editor': { description: "Origin the editor is served on (by your app's editor route, your own server or the bin). Must not be an admin origin; use another site in production.", type: 'string' },
+    'origins.editor': { description: "Origin of your editor page (<PuckRemoteEditor>). Must not be a host origin; use another site in production.", type: 'string' },
     'routes.theme': { description: "Prefix of the theme route (assets and the editor's browser bundle); asset URLs given to blocks follow it.", type: 'string', default: "'/theme'" },
-    'routes.editor': { description: "Prefix of the app's editor route when the app serves the editor itself; the Next proxy rewrites origins.editor there and hides it elsewhere.", type: 'string', default: "'/editor'" },
+    'routes.editor': { description: "Prefix of the app's editor page; the Next proxy rewrites origins.editor there and hides it elsewhere.", type: 'string', default: "'/editor'" },
     id: { description: "Distinguishes runtimes when one process hosts several sites.", type: 'string', default: "'default'" },
   }}
 />
@@ -121,7 +121,8 @@ Names match `^[A-Z][A-Z0-9_]*$`.
 
 <TypeTable
   type={{
-    'security.csp.admin': { description: "Content Security Policy mode on admin origins.", type: "'enforce' | 'report-only' | false", default: "'enforce'" },
+    'security.csp.admin': { description: "Content Security Policy mode on host (admin) origins.", type: "'enforce' | 'report-only' | false", default: "'enforce'" },
+    'security.csp.editor': { description: "Content Security Policy mode on the editor origin.", type: "'enforce' | 'report-only' | false", default: "'enforce'" },
     'security.csp.site': { description: "CSP mode on the public site. Switch to 'enforce' once reports are clean.", type: "'enforce' | 'report-only' | false", default: "'report-only'" },
     'security.scriptOrigins': { description: "https origins theme scripts may load from, besides the theme's own assets.", type: 'string[]', default: '[]' },
     'security.styleOrigins': { description: "https origins theme stylesheets may load from.", type: 'string[]', default: '[]' },
@@ -137,8 +138,8 @@ See [Security headers](/docs/security-headers) for the resulting policies.
 
 The engine refuses a config where:
 
-- `origins.admin` is empty;
-- `origins.editor` is also an admin origin.
+- `origins.host` is empty;
+- `origins.editor` is also a host origin.
 
 There is no `auth` option: the core has no authority of its own. Your app authenticates its admin
 pages, RPC handlers and publishing actions with its own session.

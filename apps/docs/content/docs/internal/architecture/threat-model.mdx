@@ -15,7 +15,7 @@ may be actively hostile.
 | Theme code in the editor (`render` from `bundle.browser.js`) | **No** | The editor's origin, another site: no cookies, no secrets |
 | Theme metadata and pages | **No**, validated as data | Read from the artifact, hash-checked and re-validated by the host with zod |
 | Theme client scripts (`ctx.assets.script`) | **No** | The visitor's browser, on the public site only |
-| The editor (Puck + bridge, built into `@puck-remote/editor`) | Holds no authority | The editor origin; can only send typed messages to the admin page |
+| The editor page (`<PuckRemoteEditor>`, served by the app on the editor origin) | Holds no authority | The editor origin; can only send typed messages to the admin page |
 | Host plugins (`DataSource`, `ArtifactStore`), the app's admin pages, RPC handlers and publish plugin | Yes, chosen by the operator | Node and the admin origin |
 | The CLI on the developer's machine | Not by the host | The developer's machine; its output is re-checked |
 | Editors | Authenticated by the app | Their browser: the admin page on the admin origin, the editor in the iframe |
@@ -61,7 +61,6 @@ Each layer assumes the previous one can fail.
 | Credential-free editor on its own site, `frame-ancestors` admin only | Theme JS in the editor using sessions | on when `origins` is configured |
 | Typed protocol: origin **and** source checks, explicit target origins, allow-listed RPCs, size and rate limits | A framed or hostile editor driving the host | on |
 | Admin origins distinct from the editor; public pages refused on admin origins | Theme scripts using admin sessions | on (config check, bindings) |
-| Origin check on the RPC route | Cross-site requests to RPCs and publishing | on (`createEditorRpcRoute`) |
 | CSP and security headers | Script injection, framing, sniffing, unlisted third-party scripts | admin enforced, site report-only by default |
 | Draft data only through the editor's RPC; public renders use `public` mode | Unpublished content leaking to visitors | on |
 
@@ -74,8 +73,11 @@ Each layer assumes the previous one can fail.
 - Theme code in the editor sees the page being edited and the draft data RPCs return for it, and
   can send `change` messages with arbitrary (validated) page data. What gets published is still
   the admin's action, through the host UI.
-- Authorization is entirely the app's: a handler of `createEditorRpcRoute` or a publish action that
-  forgets its session check is open to anyone on the admin origin.
+- Authorization is entirely the app's: a server action or route behind the frame's `rpc` map, or a
+  publish action, that forgets its session check is open to anyone. The editor origin serves the
+  app's JS chunks, and theme code running there can call the app's server actions and routes,
+  without the admin session ([D-0234](/docs/internal/decisions#D-0234)). The example app has no auth at
+  all ([D-0240](/docs/internal/decisions#D-0240)).
 - The editor origin's isolation depends on it being another **site**; a subdomain of the app's
   registrable domain could receive `Domain=` cookies.
 

@@ -1,11 +1,12 @@
 ---
 title: The editor
-description: A credential-free Puck editor in an iframe on its own site, driven by the host page through typed postMessage messages.
+description: A credential-free Puck editor, a React component on its own site, driven by your admin page through typed postMessage messages.
 ---
 
-The editor is a **static app on its own site** (for example `https://editor.example.net`) that
+The editor is a **React page on its own site** (for example `https://editor.example.net`) that
 runs the full Puck editor: native canvas drag and drop, real theme components
-([D-0192](/docs/internal/decisions#D-0192)). It holds **no credentials**: it never authenticates, never
+([D-0192](/docs/internal/decisions#D-0192)). You render it with `<PuckRemoteEditor>` and can customize it
+like any Puck editor ([D-0228](/docs/internal/decisions#D-0228)). It holds **no credentials**: it never authenticates, never
 calls your backend and never sees a secret. All authority stays in your app.
 
 ```mermaid
@@ -18,7 +19,7 @@ sequenceDiagram
   E->>S: GET /theme/<id>/bundle.browser.js (CORS)
   E->>E: rebuild the Puck config, mount Puck
   E->>H: rpc resolveData (block, props)
-  H->>S: POST /api/editor-rpc (with the admin session)
+  H->>S: your transport, e.g. a server action (with the admin session)
   S-->>H: data (draft mode)
   H-->>E: rpc:result
   E->>H: change (page data, debounced)
@@ -31,16 +32,18 @@ sequenceDiagram
   payload from `core.editorPayload(slug)`, a map of allow-listed RPC handlers and an `onChange`
   callback ([D-0209](/docs/internal/decisions#D-0209)). Publishing is a button in **your** UI, outside the
   frame, so theme code running in the editor can never publish.
-- **The editor** (built into `@puck-remote/editor`, served by your app's editor route, your own
-  server or the `puck-remote-editor` bin) runs the bridge. It waits for `init`,
-  imports the theme's `bundle.browser.js`, rebuilds the Puck config from the manifest (fields,
+- **Your editor page** renders `<PuckRemoteEditor>` from `@puck-remote/editor/react`, on the
+  editor origin. It waits for `init`, imports the theme's `bundle.browser.js` (handing it your
+  app's React through globals), rebuilds the Puck config from the manifest (fields,
   defaults, categories) plus the bundle's render functions, and mounts Puck. Functions never cross
   `postMessage`; only JSON does.
 
 Both sides check where they run ([D-0207](/docs/internal/decisions#D-0207)): the frame refuses to load
-outside an admin origin, the bridge refuses an `init` unless it runs on the configured editor
+outside a host (admin) origin, `<PuckRemoteEditor>` refuses an `init` unless it runs on the configured editor
 origin and the message comes from an admin origin. Every message is validated against the typed
 protocol (version, shape, size, rate). See [Editor protocol](/docs/internal/architecture/editor-protocol).
+Your editor code can call your admin page too: `useEditor().rpc(method, params)` reaches the
+methods listed in the frame's `rpc` map.
 
 ## Data in the editor
 
@@ -59,4 +62,4 @@ credential-free site gives the same protection while letting blocks be real clie
 the canvas. The browser enforces the boundary: the editor's site has no cookies for your app, and
 `frame-ancestors` only lets your admin origins embed it.
 
-Set-up: [Serving the editor](/docs/guides/editor-app). Deep dive: [editor lifecycle](/docs/internal/architecture/editor-lifecycle).
+Set-up: [Customizing the editor](/docs/guides/editor-app). Deep dive: [editor lifecycle](/docs/internal/architecture/editor-lifecycle).

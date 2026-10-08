@@ -5,13 +5,14 @@ description: The checklist for a production deployment.
 
 1. **Three origins.** The public site and your admin pages on two hostnames of your app (e.g.
    `www.example.com`, `admin.example.com`), and the editor on **another site** (e.g.
-   `editor.example.net`), served by the same app or by the `puck-remote-editor` bin. Set `origins: { admin, editor }`; the config is refused if the editor
-   origin is an admin origin ([D-0207](/docs/internal/decisions#D-0207)). See
-   [Serving the editor](/docs/guides/editor-app).
+   `editor.example.net`) pointing at the same app, which serves its editor page there. Set
+   `origins: { host, editor }`; the config is refused if the editor origin is a host origin
+   ([D-0238](/docs/internal/decisions#D-0238)). See [Customizing the editor](/docs/guides/editor-app).
 2. **Host-only admin cookies.** Never `Domain=.example.com`: theme scripts run on the public site.
    The editor needs no cookies at all.
-3. **Authenticate everything that acts.** Your admin pages, every handler of
-   `createEditorRpcRoute` and your publish action check your own session: the core has no auth
+3. **Authenticate everything that acts.** Your admin pages, the server actions or routes behind
+   the frame's `rpc` map, and your publish action check your own session: the core has no auth.
+   Server actions are reachable from the editor origin too, where theme code runs
    ([D-0187](/docs/internal/decisions#D-0187)).
 4. **Forward the addressed host.** Behind your own reverse proxy, forward
    `X-Forwarded-Host`/`X-Forwarded-Proto` (or preserve `Host`).

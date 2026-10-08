@@ -4,23 +4,26 @@ description: From opening the admin page to publishing, step by step.
 ---
 
 1. **Admin page** (server, your app): checks your session, then `remote.loadEditor(props)`
-   (404 outside admin origins) → `core.editorPayload(slug)`: reads the page from the current
+   (404 outside `origins.host`) → `core.editorPayload(slug)`: reads the page from the current
    artifact (or an empty page with root defaults), `stripResolved` + `rewriteMissing`, and returns
-   the payload: artifact id, manifest, data, absolute `bundleUrl` / `assetBase` on the first admin
+   the payload: artifact id, manifest, data, absolute `bundleUrl` / `assetBase` on the first host
    origin, `origins`, `site` ([D-0208](/docs/internal/decisions#D-0208)).
-2. **`<PuckEditorFrame>`** (admin page, browser) runs `frameProblem`: it must run on an admin
+2. **`<PuckEditorFrame>`** (admin page, browser) runs `frameProblem`: it must run on a host
    origin, and `editorUrl`, `editorOrigin` and `payload.origins.editor` must agree. Only then does
    it render the iframe (`sandbox="allow-scripts allow-same-origin allow-forms allow-popups"`,
    `referrerPolicy="no-referrer"`) and listen for messages through `hostMessageHandler`.
-3. **Bridge** (editor page, served by `createEditorHandler` on the editor origin, which injects the
-   admin origins as a JSON data block read by `app-main.tsx`): `startEditorBridge` posts `ready` to each allowed parent origin (only
-   the real parent receives it), then waits for `init` from `window.parent` on an allowed origin.
-   `initProblem` checks it runs on `payload.origins.editor`, that the sender is an admin origin
-   and that the theme URLs are on an admin origin.
-4. **Theme**: the bridge imports `bundle.browser.js` (its bare imports resolve through the editor's
-   import map to the editor's own React and SDK) and calls `buildEditorConfig(manifest, theme,
-   deps)`:
-   - fields via `mapFields` (`host:*` fields are the editor's own Puck custom fields);
+3. **Editor page** (your app, on the editor origin; the proxy rewrites every path there and sends
+   the editor CSP): `remote.loadEditorPage()` (404 off `origins.editor`) gives `allowedParents`
+   (`origins.host`) to `<PuckRemoteEditor>`. Its effect calls `connectToHost`, which posts `ready`
+   to each allowed parent origin (only the real parent receives it), then waits for `init` from
+   `window.parent` on an allowed origin. `initProblem` checks it runs on `payload.origins.editor`,
+   that the sender is a host origin and that the theme URLs are on a host origin.
+4. **Theme**: the component registers your app's `react`, `react/jsx-runtime`, `react-dom`,
+   `react-dom/client` and `@puck-remote/sdk` on `globalThis.__puckRemoteModules`, imports
+   `bundle.browser.js` (which reads them from there, [D-0229](/docs/internal/decisions#D-0229)) and calls
+   `buildEditorConfig(manifest, theme, deps)`, then your `transformConfig`:
+   - fields via `mapFields` (`host:*` fields are the editor's own Puck custom fields, or yours
+     through the `fields` prop);
    - `resolveFields` from `visibleIf`, evaluated by `isVisible` (never evaluates strings);
    - `resolveData` → the `resolveData` RPC, result stored in `props.__data` with
      `readOnly.__data` ([D-0028](/docs/internal/decisions#D-0028));
@@ -28,11 +31,13 @@ description: From opening the admin page to publishing, step by step.
      with `SlotContext` providing Puck's slot components to the SDK's `<Slot>`.
 5. **Styles**: `ctx.assets.style` URLs under the artifact's `assetBase` are injected into Puck's
    canvas iframe by the `iframe` override. Scripts are not run in the editor; `head.*` is ignored.
-   Puck's own Publish button is replaced by nothing: publishing is host UI.
+   Puck's own Publish button is replaced by nothing (publishing is host UI); your `overrides` are
+   merged over these. `useEditor()` exposes `{ rpc, payload, options }` to your overrides, plugins
+   and fields.
 6. **Changes**: Puck's `onChange` is debounced (500 ms) and sent as `change` with the full data;
    the frame validates it and calls `onChange`.
-7. **Publish** (host UI, the example's plugin): the admin page sends `{ slug, data, base }` to its
-   own RPC route; the handler refuses when the pointer moved since `base`, then
+7. **Publish** (host UI, the example's plugin): the admin page calls its `publish` server action
+   with `{ slug, data, base }`; it refuses when the pointer moved since `base`, then
    `core.writePage` (`cleanPage`: zod, `restoreMissing`, `stripResolved`) and
    `artifacts.writePointer(id)`, then reloads the host's artifact.
 
@@ -47,13 +52,11 @@ description: From opening the admin page to publishing, step by step.
 <Source path="packages/core/src/core.ts" />
 <Source path="packages/core/src/server/editor-rpc.ts" />
 <Source path="packages/editor/src/frame.tsx" />
-<Source path="packages/editor/src/bridge.tsx" />
+<Source path="packages/editor/src/react.tsx" />
 <Source path="packages/editor/src/config.tsx" />
 <Source path="packages/editor/src/fields.ts" />
 <Source path="packages/editor/src/host-fields.tsx" />
 <Source path="packages/editor/src/visible-if.ts" />
-<Source path="packages/editor/src/app-main.tsx" />
-<Source path="packages/editor/src/server.ts" />
-<Source path="packages/editor/scripts/build-static.mjs" />
 <Source path="packages/next/src/proxy.ts" />
-<Source path="apps/host/src/app/api/editor-rpc/route.ts" />
+<Source path="apps/host/src/app/admin/[[...path]]/actions.ts" />
+<Source path="apps/host/src/app/editor/[[...path]]/EditorPage.tsx" />

@@ -1,6 +1,6 @@
 ---
 title: HTTP API
-description: The theme route served by the core, and the editor RPC route of the Next bindings.
+description: The theme route served by the core.
 ---
 
 The core answers one route, `routes.theme` (default `/theme`). Everything else (admin pages, RPCs,
@@ -18,22 +18,10 @@ With `origins` configured, served files carry `access-control-allow-origin: <edi
 `cross-origin-resource-policy: cross-origin`, so the editor can import the bundle and show assets
 in its canvas.
 
-## Editor RPC route (Next bindings)
+## Calls from your admin page
 
-`remote.createEditorRpcRoute(handlers)` builds a `POST` handler for the calls your admin page
-makes: the RPCs it relays from the editor and its own actions.
-
-| Request | Response |
-|---|---|
-| `POST { method, params }` | `200 { value }`: what the handler returned |
-| `Origin` missing or not an admin origin, or request not on an admin origin | `404` |
-| Body over 1 MB | `413` |
-| Invalid JSON | `400` |
-| `method` not in `handlers` | `404` |
-
-Handlers receive `(params, request)` and must check your admin session on `request`. Responses
-carry `cache-control: private, no-store`.
-
-The calls the editor may make are limited twice: by the `rpc` map you give `<PuckEditorFrame>`
-(the only methods the iframe can reach), and by this route's handlers. See
+There is no RPC route in puck-remote ([D-0239](/docs/internal/decisions#D-0239)). The editor only reaches
+the functions your admin page puts in `<PuckEditorFrame rpc={…}>`; how they reach your server is
+your choice (server actions, your own routes…). On the server, call `core.resolveBlockData` for
+block data and `core.writePage` to save, after checking your session. See
 [Editor protocol](/docs/internal/architecture/editor-protocol).

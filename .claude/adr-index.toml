@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 228
+next_decision = 243
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -95,7 +95,7 @@ created = "2026-10-08"
 title = "M3a: content lifecycle (drafts, publish, history, preview, migrations)"
 description = "M3a: content lifecycle (drafts, publish, history, preview, migrations)"
 tags = [ "pages", "editor", "migrations", "preview", "roadmap" ]
-decisions = [ "D-0116", "D-0117", "D-0118", "D-0119", "D-0120", "D-0121", "D-0122", "D-0123", "D-0124", "D-0125", "D-0126", "D-0127", "D-0128", "D-0129", "D-0130", "D-0131", "D-0132", "D-0133", "D-0134", "D-0135", "D-0136", "D-0137", "D-0138", "D-0139", "D-0140", "D-0141", "D-0142", "D-0143", "D-0144", "D-0145", "D-0146", "D-0147", "D-0148", "D-0149", "D-0150", "D-0151", "D-0152", "D-0153", "D-0154", "D-0155", "D-0156", "D-0157", "D-0158", "D-0159", "D-0160", "D-0161", "D-0162", "D-0163", "D-0164", "D-0165", "D-0166", "D-0167", "D-0168", "D-0169", "D-0170", "D-0171", "D-0172", "D-0173", "D-0174", "D-0175", "D-0176", "D-0177", "D-0178", "D-0179", "D-0180", "D-0181", "D-0182", "D-0183", "D-0184", "D-0185", "D-0186", "D-0187", "D-0188", "D-0189", "D-0190", "D-0191", "D-0192", "D-0193", "D-0194", "D-0195", "D-0196", "D-0197", "D-0198", "D-0199", "D-0200", "D-0201", "D-0202", "D-0203", "D-0204", "D-0205", "D-0206", "D-0207", "D-0208", "D-0209", "D-0210", "D-0211", "D-0212", "D-0213", "D-0214", "D-0215", "D-0216", "D-0217", "D-0218", "D-0219", "D-0220", "D-0221", "D-0222", "D-0223", "D-0224", "D-0225", "D-0226", "D-0227" ]
+decisions = [ "D-0116", "D-0117", "D-0118", "D-0119", "D-0120", "D-0121", "D-0122", "D-0123", "D-0124", "D-0125", "D-0126", "D-0127", "D-0128", "D-0129", "D-0130", "D-0131", "D-0132", "D-0133", "D-0134", "D-0135", "D-0136", "D-0137", "D-0138", "D-0139", "D-0140", "D-0141", "D-0142", "D-0143", "D-0144", "D-0145", "D-0146", "D-0147", "D-0148", "D-0149", "D-0150", "D-0151", "D-0152", "D-0153", "D-0154", "D-0155", "D-0156", "D-0157", "D-0158", "D-0159", "D-0160", "D-0161", "D-0162", "D-0163", "D-0164", "D-0165", "D-0166", "D-0167", "D-0168", "D-0169", "D-0170", "D-0171", "D-0172", "D-0173", "D-0174", "D-0175", "D-0176", "D-0177", "D-0178", "D-0179", "D-0180", "D-0181", "D-0182", "D-0183", "D-0184", "D-0185", "D-0186", "D-0187", "D-0188", "D-0189", "D-0190", "D-0191", "D-0192", "D-0193", "D-0194", "D-0195", "D-0196", "D-0197", "D-0198", "D-0199", "D-0200", "D-0201", "D-0202", "D-0203", "D-0204", "D-0205", "D-0206", "D-0207", "D-0208", "D-0209", "D-0210", "D-0211", "D-0212", "D-0213", "D-0214", "D-0215", "D-0216", "D-0217", "D-0218", "D-0219", "D-0220", "D-0221", "D-0222", "D-0223", "D-0224", "D-0225", "D-0226", "D-0227", "D-0228", "D-0229", "D-0230", "D-0231", "D-0232", "D-0233", "D-0234", "D-0235", "D-0236", "D-0237", "D-0238", "D-0239", "D-0240", "D-0241", "D-0242" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -1799,8 +1799,9 @@ title = "build also emits bundle.browser.js (ESM, react and @puck-remote/sdk ext
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "cli" ]
+superseded_by = "D-0229"
 
 [decisions.D-0201]
 title = "New @puck-remote/editor package (/protocol, /frame, /bridge) and apps/editor static SPA built with esbuild; dev editor http://127.0.0.1:3300, host http://localhost:3100"
@@ -1860,9 +1861,10 @@ title = "Core config origins { admin: string[], editor: string } (no site origin
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "security", "editor" ]
 supersedes = [ "D-0204" ]
+superseded_by = "D-0238"
 
 [decisions.D-0208]
 title = "core.editorPayload(slug, { artifact? }) returns { artifact, slug, manifest, data, bundleUrl, assetBase }; the host page passes it to <PuckEditorFrame> which sends it in init with the options"
@@ -1910,8 +1912,9 @@ title = "Next bindings: loadPage 404s on admin origins, loadEditor 404s outside 
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "agent-unreviewed"
-status = "needs-review"
+status = "superseded"
 tags = [ "editor", "security" ]
+superseded_by = "D-0239"
 
 [decisions.D-0214]
 title = "Editor app: esbuild build.mjs, import map to generated vendor shims re-exporting modules the app puts on globalThis.__puckRemoteModules; serve.mjs with CSP (import map by hash) and frame-ancestors from PUCK_REMOTE_ADMIN_ORIGINS; HOST/PORT env"
@@ -1927,8 +1930,9 @@ title = "Example app: admin page at /admin (admin.localhost:3100 in dev), RPC ro
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "agent-unreviewed"
-status = "needs-review"
+status = "superseded"
 tags = [ "editor" ]
+superseded_by = "D-0240"
 
 [decisions.D-0216]
 title = "Core API details: readPage returns { artifact, data }; PageError, UnknownBlockError, MAX_PAGE_BYTES exported; artifacts-fs exports artifactHash; theme route sends CORP cross-origin with CORS when origins are set; security.csp.editor renamed security.csp.admin"
@@ -1976,42 +1980,47 @@ title = "@puck-remote/editor ships the built static editor (dist/static: index.h
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "packaging" ]
 supersedes = [ "D-0201" ]
+superseded_by = "D-0228"
 
 [decisions.D-0222]
 title = "Admin origins are injected at runtime into index.html as a JSON data block (script type application/json, id puck-remote-editor-config) read by the bridge; CSP stays hash-only for the import map"
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "security" ]
+superseded_by = "D-0228"
 
 [decisions.D-0223]
 title = "@puck-remote/editor/server: createEditorHandler({ adminOrigins, basePath? }) reads dist/static with fs (once, in memory); Request->Response; GET/HEAD; /, /index.html, /app.js, /app.css, /vendor/*.js, else 404; editor CSP with frame-ancestors, no-referrer, nosniff, COOP; no cookies; hashed asset URLs immutable, index no-store; throws on empty adminOrigins"
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "packaging" ]
 supersedes = [ "D-0214" ]
+superseded_by = "D-0228"
 
 [decisions.D-0224]
 title = "Bin puck-remote-editor in @puck-remote/editor: --port (3300), --host (127.0.0.1), --admin-origins (comma list, env PUCK_REMOTE_ADMIN_ORIGINS fallback, required)"
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "cli" ]
+superseded_by = "D-0228"
 
 [decisions.D-0225]
 title = "Next.js: core routes.editor (default /editor) and remote.editor ({ GET, HEAD }) for app/editor/[[...path]]/route.ts; the proxy rewrites every path on origins.editor to <routes.editor><path> and answers 404 for <routes.editor>/** elsewhere; withPuckRemote externalizes @puck-remote/editor"
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "security" ]
+superseded_by = "D-0228"
 
 [decisions.D-0226]
 title = "Example host serves the editor itself; dev editor origin http://127.0.0.1:3100 (same app, another site than admin.localhost:3100); launch.json loses its editor entry"
@@ -2028,6 +2037,133 @@ date = "2026-10-08"
 provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "testing" ]
+
+[decisions.D-0228]
+title = "The editor is a React component rendered by the app's own page; the prebuilt static editor, createEditorHandler, the puck-remote-editor bin and remote.editor are removed"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "packaging" ]
+supersedes = [ "D-0221", "D-0222", "D-0223", "D-0224", "D-0225" ]
+
+[decisions.D-0229]
+title = "bundle.browser.js reads its BROWSER_EXTERNALS (react, react/jsx-runtime, react-dom, react-dom/client, @puck-remote/sdk) from globalThis.__puckRemoteModules (esbuild plugin, named exports enumerated at build time); no import map, vendor shims or CSP hash; SDK_MAJOR stays 3"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "cli" ]
+supersedes = [ "D-0200" ]
+
+[decisions.D-0230]
+title = "<PuckRemoteEditor> in @puck-remote/editor/react registers the host app's React/SDK globals, runs the handshake and renders Puck; props allowedParents, overrides (merged over ours), plugins, ui, viewports, iframe, fields (host:* UIs), transformConfig, fallback, onError; config, data, onChange, onPublish and permissions stay protocol-controlled"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0231]
+title = "useEditor() hook: { rpc(method, params), payload, options } inside the editor tree; rpc is the protocol client, allow-listed by the host frame's rpc map"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0232]
+title = "Next.js: remote.loadEditorPage() returns { allowedParents } and 404s off origins.editor; the app owns app/editor/[[...path]]/page.tsx; the proxy keeps the editor-origin rewrite and the elsewhere-404, and sets the editor security headers"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "security" ]
+superseded_by = "D-0239"
+
+[decisions.D-0233]
+title = "Editor CSP in core securityHeaders('editor'): nonce + strict-dynamic, admin origins in script/style/font-src, connect-src self (+ws: dev), frame-src self blob: data:, frame-ancestors admin origins, object-src none, base-uri self, form-action none, referrer no-referrer; security.csp.editor default enforce"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "security" ]
+
+[decisions.D-0234]
+title = "Docs and threat model note that the editor origin serves the app's public JS chunks and that server actions/routes reachable there run without the admin session; withPuckRemote no longer externalizes @puck-remote/editor"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "security" ]
+
+[decisions.D-0235]
+title = "Example app: app/editor/[[...path]]/page.tsx + EditorPage.tsx render <PuckRemoteEditor> with a header badge override using useEditor(); its route.ts is removed"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0240"
+
+[decisions.D-0236]
+title = "@puck-remote/editor exports /protocol, /frame, /react (PuckRemoteEditor, useEditor, buildEditorConfig, host field factories); /bridge replaced; React, react-dom, Puck and the SDK are peers; no static build, bin or esbuild"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "packaging" ]
+
+[decisions.D-0237]
+title = "Tests: CLI checks the browser bundle has no bare imports and reads the globals; editor parity loads the theme through the globals; protocol tests stay; server tests removed; headers test covers the editor CSP"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0238]
+title = "origins.admin is renamed origins.host ({ host: string[], editor: string }); the editor protocol's payload schema follows; same checks as before"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "security" ]
+supersedes = [ "D-0207" ]
+
+[decisions.D-0239]
+title = "Next bindings use factories: createThemeHandler() and loadEditorPage(); createEditorRpcRoute is removed (apps call core.resolveBlockData from their own transport); loadPage 404s on host origins and loadEditor outside them"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "packaging" ]
+supersedes = [ "D-0213", "D-0232" ]
+
+[decisions.D-0240]
+title = "Example app: server actions (resolveData, publish) and a ClientEditor; no auth in the example (docs say real apps add their session check); host origin admin.localhost:3100; the editor page renders <PuckRemoteEditor> with a header badge override"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+supersedes = [ "D-0215", "D-0235" ]
+
+[decisions.D-0241]
+title = "Generated .d.ts files accidentally committed in packages/editor/src are removed (no .gitignore change)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0242]
+title = "Core builds with tsconfig.build.json (src only), so its tests' cross-package imports never make the declaration build write .d.ts files into other packages' sources"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "packaging" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

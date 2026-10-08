@@ -9,18 +9,18 @@ The browser's security boundary is the **origin**. Three kinds of pages are invo
 |---|---|---|---|
 | Public site | `https://www.example.com` | Theme client scripts | Nothing sensitive |
 | Admin pages (your app) | `https://admin.example.com` | `<PuckEditorFrame>`, your publish UI | The admin session |
-| Editor (built into `@puck-remote/editor`) | `https://editor.example.net` | Puck and theme components | Nothing: no cookies, no secrets |
+| Editor page (your `<PuckRemoteEditor>`) | `https://editor.example.net` | Puck and theme components | Nothing: no cookies, no secrets |
 
-Configure the last two in the core ([D-0207](/docs/internal/decisions#D-0207)):
+Configure the last two in the core ([D-0238](/docs/internal/decisions#D-0238)):
 
 ```ts title="puck-remote.config.ts"
-origins: { admin: ['https://admin.example.com'], editor: 'https://editor.example.net' }
+origins: { host: ['https://admin.example.com'], editor: 'https://editor.example.net' }
 ```
 
 ## Checks
 
-- The config is refused if the editor origin is also an admin origin.
-- `<PuckEditorFrame>` only loads on an admin origin; the bridge only accepts `init` on the editor
+- The config is refused if the editor origin is also a host (admin) origin.
+- `<PuckEditorFrame>` only loads on an admin origin; `<PuckRemoteEditor>` only accepts `init` on the editor
   origin, from an admin origin; both check `event.origin` **and** `event.source`, and always post
   with an explicit target origin.
 - The editor answers with `frame-ancestors <admin origins>`; admin pages answer with

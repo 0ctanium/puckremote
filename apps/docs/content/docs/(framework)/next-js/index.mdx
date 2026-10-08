@@ -26,13 +26,12 @@ my-app
         ├── admin
         │   └── [[...path]]
         │       ├── page.tsx
-        │       └── AdminEditor.tsx
-        ├── api
-        │   └── editor-rpc
-        │       └── route.ts
+        │       ├── ClientEditor.tsx
+        │       └── actions.ts
         ├── editor
         │   └── [[...path]]
-        │       └── route.ts
+        │       ├── page.tsx
+        │       └── EditorPage.tsx
         └── theme
             └── [[...path]]
                 └── route.ts
@@ -42,13 +41,13 @@ my-app
 |---|---|
 | `puck-remote.config.ts` | The only file that knows your backend: adapters, origins, limits ([Configuration](/docs/configuration)) |
 | `src/puck-remote.ts` | The app instance: `createPuckRemote(config)` |
-| `src/proxy.ts` | Routes the editor origin to the editor route; security headers per origin (admin or site) with a CSP nonce, cache headers |
+| `src/proxy.ts` | Routes the editor origin to the editor page; security headers per origin (editor, admin or site) with a CSP nonce, cache headers |
 | `app/[[...path]]/page.tsx` | The public site (Puck RSC render) |
 | `app/admin/[[...path]]/page.tsx` | Your admin page: checks your session, embeds the editor with `<PuckEditorFrame>` |
-| `app/api/editor-rpc/route.ts` | Allow-listed RPCs (`resolveData`…) and your actions (publish), with your auth |
-| `app/editor/[[...path]]/route.ts` | The built editor (`remote.editor`), only reachable on `origins.editor` |
+| `app/admin/[[...path]]/actions.ts` | Server actions the frame's `rpc` map and your Publish button call (`core.resolveBlockData`, `core.writePage`), with your auth |
+| `app/editor/[[...path]]/page.tsx` | The editor page (`<PuckRemoteEditor>`), only reachable on `origins.editor`; customize it freely |
 | `app/theme/[[...path]]/route.ts` | Theme files (`/theme/<id>/assets/**`, `/theme/<id>/bundle.browser.js`) |
-| `next.config.ts` | Keeps isolated-vm, the core and the editor package external to the server bundle |
+| `next.config.ts` | Keeps isolated-vm and the core external to the server bundle |
 
 ## The app instance
 
@@ -87,31 +86,14 @@ export default async function Page(props: PageProps) {
 }
 ```
 
-The admin page and the RPC route are shown in [Installation](/docs/installation#add-the-app-files);
-the example app (`apps/host`) has a complete version with a Publish button.
-
-```ts tab="api/editor-rpc/route.ts"
-import { remote } from '@/puck-remote';
-
-export const { POST } = remote.createEditorRpcRoute({
-  resolveData: async (params, request) => {
-    // your session check on `request`
-    const { slug, block, props } = params as { slug: string; block: string; props: Record<string, unknown> };
-    return remote.core.resolveBlockData(slug, block, props);
-  },
-});
-```
-
-```ts tab="editor/[[...path]]/route.ts"
-import { remote } from '@/puck-remote';
-
-export const { GET, HEAD } = remote.editor;
-```
+The admin and editor pages are shown in [Installation](/docs/installation#add-the-app-files) and
+[Customizing the editor](/docs/guides/editor-app); the example app (`apps/host`) has complete
+versions with a Publish button and an editor customization.
 
 ```ts tab="theme/[[...path]]/route.ts"
 import { remote } from '@/puck-remote';
 
-export const { GET, HEAD } = remote.theme;
+export const { GET, HEAD } = remote.createThemeHandler();
 ```
 
 ## Next config
@@ -120,12 +102,11 @@ export const { GET, HEAD } = remote.theme;
 import { withPuckRemote } from '@puck-remote/next/config';
 
 export default withPuckRemote({
-  allowedDevOrigins: ['*.localhost'],
+  allowedDevOrigins: ['*.localhost', '127.0.0.1'], // admin.localhost, and the editor on 127.0.0.1
 });
 ```
 
-The core forks render workers from its own files and the editor server reads the built editor from
-its package, so neither may be bundled.
+The core forks render workers from its own files, so it must not be bundled.
 
 ## Hostnames in development
 

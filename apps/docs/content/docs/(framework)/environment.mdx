@@ -19,19 +19,15 @@ Render workers get an **empty environment**: nothing from the host process reach
 |---|---|---|
 | `PORT` | `3100` | Dev/start port and default origins |
 | `PUCK_REMOTE_ROOT` | `<cwd>/../..` | Repository root (artifacts, data) |
-| `PUCK_REMOTE_ADMIN_ORIGINS` | `http://admin.localhost:<PORT>` | Comma-separated admin origins (`origins.admin`) |
-| `PUCK_REMOTE_EDITOR_ORIGIN` | `http://127.0.0.1:<PORT>` | The editor's origin (`origins.editor`); this app serves the editor there |
+| `PUCK_REMOTE_ADMIN_ORIGINS` | `http://admin.localhost:<PORT>` | Comma-separated host (admin) origins (`origins.host`) |
+| `PUCK_REMOTE_EDITOR_ORIGIN` | `http://127.0.0.1:<PORT>` | The editor's origin (`origins.editor`); this app serves its editor page there |
 | `PUCK_REMOTE_EDITOR_URL` | `<editor origin>/` | URL the admin page loads in the frame |
-| `PUCK_REMOTE_ADMIN_TOKEN` | — | The example's admin secret in production (bearer or `puck_remote_token` cookie); without it, admin pages and RPCs are refused |
 | `PUCK_REMOTE_MOCK_API_ORIGIN` | `http://localhost:4010` | Mock API origin |
 | `PUCK_REMOTE_ALLOW_DEV_ORIGINS` | — | Lets a production build reach the mock API over http (local testing only) |
 | `EVENTS_API_KEY` | a dev key | Secret bound to the mock API origin |
 
-## Editor bin (`puck-remote-editor`)
-
-| Variable | Default | Effect |
-|---|---|---|
-| `PUCK_REMOTE_ADMIN_ORIGINS` | — | Admin origins when `--admin-origins` is not given |
+The example has **no auth**: its admin page and server actions are open. Add your own session
+check in a real app.
 
 ## Mock API
 

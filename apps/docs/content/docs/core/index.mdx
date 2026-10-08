@@ -88,9 +88,9 @@ first use.
     slug: { description: "The page.", type: 'string' },
     manifest: { description: "The artifact's manifest (JSON).", type: 'Manifest' },
     data: { description: "The page, or an empty page with the root defaults.", type: 'PageData' },
-    bundleUrl: { description: "Absolute URL of bundle.browser.js on the first admin origin.", type: 'string' },
+    bundleUrl: { description: "Absolute URL of bundle.browser.js on the first host origin.", type: 'string' },
     assetBase: { description: "Absolute URL prefix of the assets.", type: 'string' },
-    origins: { description: "Admin and editor origins, checked by both sides.", type: '{ admin: string[]; editor: string }' },
+    origins: { description: "Host (admin) and editor origins, checked by both sides.", type: '{ host: string[]; editor: string }' },
     site: { description: "Site name and locale (for the blocks' render context).", type: '{ name; locale }' },
   }}
 />

@@ -1,3 +1,3 @@
-import { remote } from '@/puck-remote.ts'
+import { remote } from "@/puck-remote.ts";
 
-export const { GET, HEAD } = remote.theme
+export const { GET, HEAD } = remote.createThemeHandler();

@@ -20,7 +20,7 @@ suppressed; debug with `process.stderr.write`. Sandbox suites run against **both
 | 13 | Data source policy: undeclared names, operators, sort, clamps, projection | `data.test.ts`, types in `examples/theme/type-tests.ts` |
 | 14 | Forged slot markers are not swapped | `rendering.test.tsx` |
 | 15 | hero → card → latest-posts nested, with data and head effects | `rendering.test.tsx` |
-| 16 | Parity: the editor config (theme browser bundle, Puck slots) renders the same HTML as the public isolate render | `editor.test.tsx` |
+| 16 | Parity: the editor config (theme browser bundle loaded through the editor globals, Puck slots) renders the same HTML as the public isolate render | `editor.test.tsx` |
 | 17 | Missing blocks; stale props; page-level infinite loop | `rendering.test.tsx` |
 | 18 | `resolveData` output is stripped by `writePage` | `editor.test.tsx` |
 | 19 | Tampered bundle, page, manifest or asset rejected; previous artifact keeps serving; non-public files never served | `artifacts.test.ts` |
@@ -31,9 +31,8 @@ suppressed; debug with `process.stderr.write`. Sandbox suites run against **both
 | M1 | Contract suite against `artifacts-fs` and a counter-id store; content-hash ids | `adapters.test.ts` |
 | M2 | Worker permissions (fs, network, child processes, threads, env), watchdog kill, crash, recycling, no secrets over IPC, bubblewrap (Linux) | `worker.test.ts` |
 | M2 | `requestOrigin` | `surface.test.ts` |
-| M2 | CSP for site and admin (frames only the editor), dev relaxations, nonces, effects allowlist | `headers.test.ts` |
-| — | Build: pages shipped and listed in the manifest, unknown blocks (slots included) and invalid page files rejected, browser bundle imports only the editor's externals; `pull` | `packages/cli/test/build.test.ts` |
-| — | Editor server: page with injected admin origins, CSP (import-map hash, frame-ancestors), no cookies, hashed immutable assets, 404/405, traversal, `basePath`, empty admin origins | `packages/editor/test/server.test.ts` |
+| M2 | CSP for site, admin (frames only the editor) and editor (framed by host origins only), dev relaxations, nonces, effects allowlist | `headers.test.ts` |
+| — | Build: pages shipped and listed in the manifest, unknown blocks (slots included) and invalid page files rejected, browser bundle has no bare imports, refuses to load without the editor globals and exports the blocks with them; `pull` | `packages/cli/test/build.test.ts` |
 | — | Editor protocol: message schemas and version, `measure`, rate limiter, frame origin checks, `ready`→`init`, origin **and** source checks, change validation, allow-listed RPCs with size and rate limits, uploads, bridge `init` checks | `packages/editor/test/protocol.test.ts` |
 
 Fixtures: `packages/core/test/fixtures/evil` is a hostile theme; `helpers.ts` builds artifacts and

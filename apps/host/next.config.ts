@@ -6,6 +6,6 @@ export default withPuckRemote({
   turbopack: { root: path.resolve(import.meta.dirname, '../..') },
   outputFileTracingRoot: path.resolve(import.meta.dirname, '../..'),
   reactStrictMode: true,
-  // The admin pages run on admin.localhost in development (separate origin from the site).
-  allowedDevOrigins: ['*.localhost'],
+  // Dev hostnames: admin pages on admin.localhost, the editor page on 127.0.0.1 (another site).
+  allowedDevOrigins: ['*.localhost', '127.0.0.1'],
 })

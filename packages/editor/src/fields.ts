@@ -3,7 +3,12 @@ import type { Field as PuckField, Fields as PuckFields } from '@puckeditor/core'
 import type { FieldSpec } from '@puck-remote/core'
 import { colorField, linkField, mediaField } from './host-fields.tsx'
 
-export function mapField(f: FieldSpec, name: string): PuckField {
+type HostFieldType = 'host:color' | 'host:media' | 'host:link'
+
+/** Replacements for the built-in UIs of host:* fields (e.g. a media picker calling your RPC). */
+export type HostFieldFactories = Partial<Record<HostFieldType, (spec: Extract<FieldSpec, { type: HostFieldType }>, name: string) => PuckField>>
+
+export function mapField(f: FieldSpec, name: string, host: HostFieldFactories = {}): PuckField {
   const label = f.label ?? name
   switch (f.type) {
     case 'text':
@@ -19,7 +24,7 @@ export function mapField(f: FieldSpec, name: string): PuckField {
       return {
         type: 'array',
         label,
-        arrayFields: mapFields(f.arrayFields),
+        arrayFields: mapFields(f.arrayFields, host),
         defaultItemProps: f.defaultItemProps,
         min: f.min,
         max: f.max,
@@ -28,18 +33,18 @@ export function mapField(f: FieldSpec, name: string): PuckField {
       }
     }
     case 'object':
-      return { type: 'object', label, objectFields: mapFields(f.objectFields) }
+      return { type: 'object', label, objectFields: mapFields(f.objectFields, host) }
     case 'slot':
       return { type: 'slot', label, allow: f.allow, disallow: f.disallow }
     case 'host:color':
-      return colorField(label) as PuckField
+      return host['host:color']?.(f, name) ?? (colorField(label) as PuckField)
     case 'host:media':
-      return mediaField(label) as PuckField
+      return host['host:media']?.(f, name) ?? (mediaField(label) as PuckField)
     case 'host:link':
-      return linkField(label) as PuckField
+      return host['host:link']?.(f, name) ?? (linkField(label) as PuckField)
   }
 }
 
-export function mapFields(fields: Record<string, FieldSpec>): PuckFields {
-  return Object.fromEntries(Object.entries(fields).map(([n, f]) => [n, mapField(f, n)]))
+export function mapFields(fields: Record<string, FieldSpec>, host: HostFieldFactories = {}): PuckFields {
+  return Object.fromEntries(Object.entries(fields).map(([n, f]) => [n, mapField(f, n, host)]))
 }

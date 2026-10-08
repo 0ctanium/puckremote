@@ -3,8 +3,9 @@
  */
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
-import { BROWSER_EXTERNALS, build, BuildError, publish, pull } from '../src/index.ts'
+import { BROWSER_EXTERNALS, BROWSER_MODULES_GLOBAL, build, BuildError, publish, pull } from '../src/index.ts'
 
 // Fixtures must live under this package so `@puck-remote/sdk` and `react` resolve.
 const ROOT = path.join(import.meta.dirname, '.fixtures')
@@ -120,14 +121,25 @@ describe('pages and the browser bundle', () => {
     await expectBuildError({ 'blocks/a.tsx': slotted, 'pages/home.json': '{"content": []}' }, /must be Puck data/)
   })
 
-  it('the browser bundle is ESM that leaves React and the SDK to the editor', async () => {
+  it('the browser bundle has no bare imports: React and the SDK come from the editor globals', async () => {
     const dir = await theme({ 'blocks/a.tsx': slotted })
     const { outDir } = await build({ cwd: dir, quiet: true })
-    const src = await readFile(path.join(outDir, 'bundle.browser.js'), 'utf8')
-    const imports = [...src.matchAll(/from\s*"([^"]+)"/g)].map((m) => m[1])
-    expect(imports.length).toBeGreaterThan(0)
-    for (const i of imports) expect(BROWSER_EXTERNALS as readonly string[]).toContain(i)
-    expect(src).toMatch(/export\s*\{[^}]*as default/)
+    const file = path.join(outDir, 'bundle.browser.js')
+    const src = await readFile(file, 'utf8')
+    expect([...src.matchAll(/(?:from|import)\s*"([^"]+)"/g)]).toEqual([])
+    for (const spec of ['react/jsx-runtime', '@puck-remote/sdk']) expect(src).toContain(`${BROWSER_MODULES_GLOBAL}?.[${JSON.stringify(spec)}]`)
+    // Without the editor's globals it refuses to load; with them it exports the blocks.
+    await expect(import(`${pathToFileURL(file).href}?missing`)).rejects.toThrow(/is not provided by the editor/)
+    const g = globalThis as Record<string, unknown>
+    g[BROWSER_MODULES_GLOBAL] = Object.fromEntries(
+      await Promise.all(BROWSER_EXTERNALS.map(async (spec) => [spec, await import(spec)])),
+    )
+    try {
+      const mod = await import(`${pathToFileURL(file).href}?ok`)
+      expect(Object.keys(mod.default.blocks)).toEqual(['a'])
+    } finally {
+      delete g[BROWSER_MODULES_GLOBAL]
+    }
   })
 })
 

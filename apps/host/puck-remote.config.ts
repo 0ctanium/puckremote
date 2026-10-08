@@ -13,17 +13,17 @@ const root = process.env.PUCK_REMOTE_ROOT ?? path.resolve(/*turbopackIgnore: tru
 const MOCK_API = process.env.PUCK_REMOTE_MOCK_API_ORIGIN ?? 'http://localhost:4010'
 const dev = process.env.NODE_ENV !== 'production' || !!process.env.PUCK_REMOTE_ALLOW_DEV_ORIGINS
 const PORT = process.env.PORT ?? '3100'
-// One app, three origins: admin pages (editor frame, publish) on their own hostname, the editor
-// (served by this app's proxy + editor route) on another site, and the public site on every
+// One app, three origins: admin pages (editor frame, publish) on the host origin, the editor page
+// (<PuckRemoteEditor>, reached through the proxy) on another site, and the public site on every
 // other hostname. Dev: http://admin.localhost:3100 (admin), http://127.0.0.1:3100 (editor),
 // http://localhost:3100 (site).
-const ADMIN_ORIGINS = (process.env.PUCK_REMOTE_ADMIN_ORIGINS ?? `http://admin.localhost:${PORT}`).split(',')
+const HOST_ORIGINS = (process.env.PUCK_REMOTE_ADMIN_ORIGINS ?? `http://admin.localhost:${PORT}`).split(',')
 const EDITOR_ORIGIN = process.env.PUCK_REMOTE_EDITOR_ORIGIN ?? `http://127.0.0.1:${PORT}`
 
 export default defineConfig({
   artifacts: fsArtifactStore({ dir: path.join(root, 'artifacts') }),
   source: mockCms({ dataFile: path.join(root, 'data', 'cms.json') }),
-  origins: { admin: ADMIN_ORIGINS, editor: EDITOR_ORIGIN },
+  origins: { host: HOST_ORIGINS, editor: EDITOR_ORIGIN },
   site: { name: 'POC Site', locale: 'en' },
   http: { allowedOrigins: [MOCK_API], insecureDevOrigins: dev ? [MOCK_API] : [] },
   secrets: { EVENTS_API_KEY: { value: process.env.EVENTS_API_KEY ?? 'dev-events-key-7f3a9c', origins: [MOCK_API] } },

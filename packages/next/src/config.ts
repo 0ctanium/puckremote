@@ -8,8 +8,8 @@ import type { NextConfig } from 'next'
 export function withPuckRemote(config: NextConfig = {}): NextConfig {
   return {
     ...config,
-    // The core forks its render workers from its own dist directory, and the editor server reads
-    // the built editor from its own files, so Next must load both from node_modules.
-    serverExternalPackages: [...new Set([...(config.serverExternalPackages ?? []), 'isolated-vm', '@puck-remote/core', '@puck-remote/editor'])],
+    // The core forks its render workers from its own dist directory, so Next must load it from
+    // node_modules rather than bundling it.
+    serverExternalPackages: [...new Set([...(config.serverExternalPackages ?? []), 'isolated-vm', '@puck-remote/core'])],
   }
 }

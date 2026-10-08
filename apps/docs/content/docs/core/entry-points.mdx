@@ -27,7 +27,7 @@ isolated-vm. The editor lives in its own package, `@puck-remote/editor`
 <TypeTable
   type={{
     requestOrigin: { description: "The origin the client addressed (X-Forwarded-Host/Proto, then Host).", type: '(request: Request) => string' },
-    securityHeaders: { description: "Response headers (CSP and others) for public pages ('site') or admin pages ('admin').", type: "(surface, { nonce, dev?, policy?, editorOrigin? }) => Record<string, string>" },
+    securityHeaders: { description: "Response headers (CSP and others) for public pages ('site'), admin pages ('admin', on origins.host) or the editor page ('editor').", type: "(surface, { nonce, dev?, policy?, editorOrigin?, hostOrigins? }) => Record<string, string>" },
     cspNonce: { description: "A fresh 128-bit nonce (Web Crypto).", type: '() => string' },
     pageCacheability: { description: "Whether a page of the current artifact can be cached, without starting the sandbox.", type: '({ artifacts }, slug) => Promise<{ cacheable; blocks } | null>' },
     normalizeSlug: { description: "Validates and normalizes a slug ('' → 'home').", type: '(parts: string | string[]) => string | null' },

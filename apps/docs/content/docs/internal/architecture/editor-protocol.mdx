@@ -19,11 +19,12 @@ and is validated with zod by the receiver (strict objects: unknown keys fail).
 ## Rules
 
 - **Origin and source**: the host accepts a message only if `event.origin` is the editor origin
-  **and** `event.source` is its own iframe's window; the bridge only if `event.source` is
+  **and** `event.source` is its own iframe's window; `<PuckRemoteEditor>` only if `event.source` is
   `window.parent` and `event.origin` is an allowed parent (the first `init` pins it).
-- **Explicit target origin** on every `postMessage`, never `*`. The bridge posts `ready` to each
+- **Explicit target origin** on every `postMessage`, never `*`. The editor posts `ready` to each
   allowed parent origin; the browser drops the ones that don't match.
-- **Allow-listed RPC**: the host only runs methods present in the frame's `rpc` map (own
+- **Allow-listed RPC**: the editor calls `useEditor().rpc(method, params)` (the built-in
+  `resolveData`, or your own); the host only runs methods present in the frame's `rpc` map (own
   properties); unknown methods get `unknown method <name>`. There is no generic fetch or proxy
   method, and the page slug comes from the admin page's state.
 - **Limits** (`LIMITS`, [D-0203](/docs/internal/decisions#D-0203)): RPC requests and results 1 MB of
@@ -36,10 +37,10 @@ and is validated with zod by the receiver (strict objects: unknown keys fail).
 ## Why `init` carries URLs, not code
 
 Functions cannot be structured-cloned, and the editor must not trust code from the parent anyway.
-`init` carries the manifest (JSON) and the URL of `bundle.browser.js`; the bridge checks the URL is
-on an admin origin and imports it, so the code it runs is the artifact's, served by the host's
+`init` carries the manifest (JSON) and the URL of `bundle.browser.js`; the editor checks the URL is
+on a host origin and imports it, so the code it runs is the artifact's, served by the host's
 theme route with hash verification.
 
 <Source path="packages/editor/src/protocol.ts" />
 <Source path="packages/editor/src/frame.tsx" />
-<Source path="packages/editor/src/bridge.tsx" />
+<Source path="packages/editor/src/react.tsx" />

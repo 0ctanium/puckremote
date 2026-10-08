@@ -39,7 +39,7 @@ Rules to respect in your binding:
 
 - `preparePage` returns `null` for unknown pages: answer 404.
 - Never serve public pages on an admin origin, nor admin pages elsewhere
-  (`requestOrigin(request)` against `config.origins.admin`).
+  (`requestOrigin(request)` against `config.origins.host`).
 - Accept RPC and publish calls only from admin origins, with your session.
 - Behind a proxy, forward `X-Forwarded-Host` and `X-Forwarded-Proto`.
 

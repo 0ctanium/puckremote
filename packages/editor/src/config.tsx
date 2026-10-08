@@ -8,7 +8,7 @@ import type { BlockMeta, Manifest } from '@puck-remote/core'
 import { SlotContext } from '@puck-remote/sdk'
 import type { BlockDefinition, RenderCtx, RootDefinition } from '@puck-remote/sdk'
 import { Component, type CSSProperties, type ReactNode } from 'react'
-import { mapFields } from './fields.ts'
+import { mapFields, type HostFieldFactories } from './fields.ts'
 import { isVisible } from './visible-if.ts'
 
 /** What the theme's bundle.browser.js exports by default. */
@@ -27,6 +27,8 @@ export interface EditorDeps {
   /** Data for one block (the host's resolveData RPC). */
   resolve: (block: string, props: Record<string, unknown>) => Promise<Record<string, unknown>>
   debounceMs?: number
+  /** Replacements for the built-in host:* field UIs. */
+  hostFields?: HostFieldFactories
 }
 
 type AnyProps = Record<string, any>
@@ -131,7 +133,7 @@ export function buildEditorConfig(manifest: Manifest, theme: ThemeModule, deps: 
   const components: Config['components'] = {}
   for (const [name, meta] of Object.entries(manifest.blocks)) {
     const def = Object.hasOwn(theme.blocks, name) ? theme.blocks[name] : null
-    const fields = mapFields(meta.fields)
+    const fields = mapFields(meta.fields, deps.hostFields)
     components[name] = {
       label: meta.label,
       fields,
@@ -159,7 +161,7 @@ export function buildEditorConfig(manifest: Manifest, theme: ThemeModule, deps: 
   categories.__host = { title: 'Host', components: [MISSING_TYPE], visible: false }
   const root = manifest.root
   const rootDef = theme.root
-  const rootFields = root ? mapFields(root.fields) : {}
+  const rootFields = root ? mapFields(root.fields, deps.hostFields) : {}
   return {
     components,
     categories,
