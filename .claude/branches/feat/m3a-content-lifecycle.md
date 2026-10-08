@@ -134,7 +134,7 @@ as real client components in it.
 | D-0198 | Core page API: readPage(slug, { artifact? }) and writePage(slug, data, { base }) -> { id }; writePage copies the base artifact, replaces pages/<slug>.json (validated, cleaned) and never moves the pointer; the demo app ships a 'save = write + go live' plugin | user-approved-plan | accepted |
 | D-0199 | Theme source pages in <theme>/pages/<slug>.json copied into the artifact by build (unknown block = build error); new 'puck-remote pull' downloads the current artifact's pages; publish uploads code + pages as in the repo; demo pages move to examples/theme/pages | user-approved-plan | accepted |
 | D-0200 | build also emits bundle.browser.js (ESM, react and @puck-remote/sdk external, provided by the editor via an import map); bundle.js unchanged; served from /theme/<id>/ with CORS for the editor origin | user-approved-plan | accepted |
-| D-0201 | New @puck-remote/editor package (/protocol, /frame, /bridge) and apps/editor static SPA built with esbuild; dev editor http://127.0.0.1:3300, host http://localhost:3100 | user-approved-plan | accepted |
+| D-0201 | New @puck-remote/editor package (/protocol, /frame, /bridge) and apps/editor static SPA built with esbuild; dev editor http://127.0.0.1:3300, host http://localhost:3100 | user-approved-plan | superseded by D-0221 |
 | D-0202 | Core exports resolveBlockData(slug, block, props) (draft mode) for the resolveData RPC handler; apps write other handlers and wrap all with their own auth; Next createEditorRpcRoute(handlers) only dispatches and limits size | user-approved-plan | accepted |
 | D-0203 | Limits: RPC payload 1 MB (uploads 10 MB), 20 RPC/s per frame, change debounce 500 ms, page JSON 2 MB | user-approved-plan | accepted |
 | D-0204 | Keep a reduced origins { site, admin } check (admin pages with the editor frame and publish refuse site origins) and the public-page CSP; the old editor surface is dropped | user-approved-plan | superseded by D-0207 |
@@ -147,13 +147,20 @@ as real client components in it.
 | D-0211 | PuckEditorFrame renders the iframe only after its origin checks, with sandbox='allow-scripts allow-same-origin allow-forms allow-popups' and referrerPolicy no-referrer | agent-unreviewed | needs-review |
 | D-0212 | SDK exports SlotContext; <Slot> renders the editor-provided Puck slot when the context is set, the nonce marker otherwise | agent-unreviewed | needs-review |
 | D-0213 | Next bindings: loadPage 404s on admin origins, loadEditor 404s outside them; createEditorRpcRoute is a PuckRemote method checking Origin and request origin against origins.admin (404), 1 MB body (413), unknown method 404; loginUrl option removed | agent-unreviewed | needs-review |
-| D-0214 | Editor app: esbuild build.mjs, import map to generated vendor shims re-exporting modules the app puts on globalThis.__puckRemoteModules; serve.mjs with CSP (import map by hash) and frame-ancestors from PUCK_REMOTE_ADMIN_ORIGINS; HOST/PORT env | agent-unreviewed | needs-review |
+| D-0214 | Editor app: esbuild build.mjs, import map to generated vendor shims re-exporting modules the app puts on globalThis.__puckRemoteModules; serve.mjs with CSP (import map by hash) and frame-ancestors from PUCK_REMOTE_ADMIN_ORIGINS; HOST/PORT env | agent-unreviewed | superseded by D-0223 |
 | D-0215 | Example app: admin page at /admin (admin.localhost:3100 in dev), RPC route /api/editor-rpc with resolveData and publish (save = write + go live, refuses a stale base); app-level isAdmin with PUCK_REMOTE_ADMIN_TOKEN; env PUCK_REMOTE_ADMIN_ORIGINS, PUCK_REMOTE_EDITOR_ORIGIN, PUCK_REMOTE_EDITOR_URL | agent-unreviewed | needs-review |
 | D-0216 | Core API details: readPage returns { artifact, data }; PageError, UnknownBlockError, MAX_PAGE_BYTES exported; artifacts-fs exports artifactHash; theme route sends CORP cross-origin with CORS when origins are set; security.csp.editor renamed security.csp.admin | agent-unreviewed | needs-review |
 | D-0217 | pull overwrites pulled page files and leaves other local files; page validation allows zones; the demo home page drops its old-banner item (unknown blocks now fail the build) | agent-unreviewed | needs-review |
 | D-0218 | Docs structure: concepts/surfaces-and-origins becomes concepts/origins; guides/publishing becomes 'Pages and publishing'; new guides/editor-app and internal/architecture/editor-protocol; page-store, cache, auth, migrations and auth-and-csrf pages removed | agent-unreviewed | needs-review |
 | D-0219 | Error and status wording as implemented (PageError, frame/bridge problems, RPC errors, build page errors, demo status messages) | agent-unreviewed | needs-review |
 | D-0220 | Simplification is done on top of M3a (same branch and ADR) in two commits: the redirection, then the editor as a package; each carries its docs and ADR (the docs/ADR hook requires both per commit) | user-approved-plan | accepted |
+| D-0221 | @puck-remote/editor ships the built static editor (dist/static: index.html, app.js, app.css, vendor shims; React, react-dom and Puck bundled at package build); /frame and /bridge keep them as peers; apps/editor is removed | user-approved-plan | accepted |
+| D-0222 | Admin origins are injected at runtime into index.html as a JSON data block (script type application/json, id puck-remote-editor-config) read by the bridge; CSP stays hash-only for the import map | user-approved-plan | accepted |
+| D-0223 | @puck-remote/editor/server: createEditorHandler({ adminOrigins, basePath? }) reads dist/static with fs (once, in memory); Request->Response; GET/HEAD; /, /index.html, /app.js, /app.css, /vendor/*.js, else 404; editor CSP with frame-ancestors, no-referrer, nosniff, COOP; no cookies; hashed asset URLs immutable, index no-store; throws on empty adminOrigins | user-approved-plan | accepted |
+| D-0224 | Bin puck-remote-editor in @puck-remote/editor: --port (3300), --host (127.0.0.1), --admin-origins (comma list, env PUCK_REMOTE_ADMIN_ORIGINS fallback, required) | user-approved-plan | accepted |
+| D-0225 | Next.js: core routes.editor (default /editor) and remote.editor ({ GET, HEAD }) for app/editor/[[...path]]/route.ts; the proxy rewrites every path on origins.editor to <routes.editor><path> and answers 404 for <routes.editor>/** elsewhere; withPuckRemote externalizes @puck-remote/editor | user-approved-plan | accepted |
+| D-0226 | Example host serves the editor itself; dev editor origin http://127.0.0.1:3100 (same app, another site than admin.localhost:3100); launch.json loses its editor entry | user-approved-plan | accepted |
+| D-0227 | Editor server tests: page and config injection, CSP hash and frame-ancestors, no set-cookie, 404/405, traversal, empty admin origins; the Next proxy is verified in the browser | user-approved-plan | accepted |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -334,6 +341,24 @@ Framework: index, installation, quick-start, concepts (artifacts, editor, origin
   public pages 404 on the admin origin and `/admin` 404s on the site; the editor app sends
   `frame-ancestors http://admin.localhost:3100`; the theme route answers CORS for the editor only
   and never serves `bundle.js` or pages.
+
+### Editor as a package (third plan, D-0220–D-0227)
+The owner wanted the editor installable, not an example app: `@puck-remote/editor` now ships the
+built editor (`dist/static`) and serves it three ways: `createEditorHandler` (`/server`) in any
+process, the `puck-remote-editor` bin, and the Next.js app itself (`remote.editor` route +
+proxy rewrite of `origins.editor`), so one deployment answers the site, admin and editor origins.
+Options: embedding the files in the server module (works in the bundled proxy and edge runtimes)
+or reading them with `fs` from a route handler; the owner chose the route handler with `fs` and
+the proxy only routing by origin. Admin origins moved from build time to a runtime JSON block.
+`apps/editor` was removed; the example's dev editor origin is `http://127.0.0.1:3100`.
+
+QA: editor 16 tests (server + protocol); bin serves the page with CSP and injected origins;
+in the browser, with only the host app running, `admin.localhost:3100/admin` embeds
+`127.0.0.1:3100/` (full Puck, theme components, draft data) and publishing works; on the editor
+origin `/admin`, `/api/editor-rpc` and `/theme/**` return the editor's 404; `/editor` returns 404
+on the site and admin origins. During this work the local `artifacts/` lost `current.json`, the old
+`v1`–`v7` folders and `.gitkeep` for an unidentified reason; the theme was re-published and
+`.gitkeep` restored.
 
 ## Outcome & Lessons
 M3a delivered:

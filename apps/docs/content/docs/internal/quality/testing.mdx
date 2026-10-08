@@ -33,6 +33,7 @@ suppressed; debug with `process.stderr.write`. Sandbox suites run against **both
 | M2 | `requestOrigin` | `surface.test.ts` |
 | M2 | CSP for site and admin (frames only the editor), dev relaxations, nonces, effects allowlist | `headers.test.ts` |
 | — | Build: pages shipped and listed in the manifest, unknown blocks (slots included) and invalid page files rejected, browser bundle imports only the editor's externals; `pull` | `packages/cli/test/build.test.ts` |
+| — | Editor server: page with injected admin origins, CSP (import-map hash, frame-ancestors), no cookies, hashed immutable assets, 404/405, traversal, `basePath`, empty admin origins | `packages/editor/test/server.test.ts` |
 | — | Editor protocol: message schemas and version, `measure`, rate limiter, frame origin checks, `ready`→`init`, origin **and** source checks, change validation, allow-listed RPCs with size and rate limits, uploads, bridge `init` checks | `packages/editor/test/protocol.test.ts` |
 
 Fixtures: `packages/core/test/fixtures/evil` is a hostile theme; `helpers.ts` builds artifacts and

@@ -13,11 +13,12 @@ const root = process.env.PUCK_REMOTE_ROOT ?? path.resolve(/*turbopackIgnore: tru
 const MOCK_API = process.env.PUCK_REMOTE_MOCK_API_ORIGIN ?? 'http://localhost:4010'
 const dev = process.env.NODE_ENV !== 'production' || !!process.env.PUCK_REMOTE_ALLOW_DEV_ORIGINS
 const PORT = process.env.PORT ?? '3100'
-// Admin pages (editor frame, publish) live on their own hostname; the static editor app on
-// another site. Dev: http://admin.localhost:3100 (admin) and http://127.0.0.1:3300 (editor);
-// every other hostname of this app serves the public site (e.g. http://localhost:3100).
+// One app, three origins: admin pages (editor frame, publish) on their own hostname, the editor
+// (served by this app's proxy + editor route) on another site, and the public site on every
+// other hostname. Dev: http://admin.localhost:3100 (admin), http://127.0.0.1:3100 (editor),
+// http://localhost:3100 (site).
 const ADMIN_ORIGINS = (process.env.PUCK_REMOTE_ADMIN_ORIGINS ?? `http://admin.localhost:${PORT}`).split(',')
-const EDITOR_ORIGIN = process.env.PUCK_REMOTE_EDITOR_ORIGIN ?? 'http://127.0.0.1:3300'
+const EDITOR_ORIGIN = process.env.PUCK_REMOTE_EDITOR_ORIGIN ?? `http://127.0.0.1:${PORT}`
 
 export default defineConfig({
   artifacts: fsArtifactStore({ dir: path.join(root, 'artifacts') }),

@@ -66,6 +66,8 @@ export interface EditorOrigins {
 export interface Routes {
   /** Prefix of the catch-all theme route (assets and the editor's browser bundle). */
   theme: string
+  /** Prefix of the app's editor route, when the app serves the editor itself (only on origins.editor). */
+  editor: string
 }
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? Partial<T[K]> : T[K] }
@@ -95,7 +97,7 @@ export function defineConfig<C extends PuckRemoteConfig>(config: C): C {
   return config
 }
 
-export const DEFAULT_ROUTES: Routes = { theme: '/theme' }
+export const DEFAULT_ROUTES: Routes = { theme: '/theme', editor: '/editor' }
 
 function resolveSecurity(input: Pick<PuckRemoteConfig, 'security'>): SecurityPolicy {
   const s = input.security ?? {}

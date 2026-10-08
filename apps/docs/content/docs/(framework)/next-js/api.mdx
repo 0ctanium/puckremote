@@ -37,6 +37,7 @@ Returns a `PuckRemote`:
       type: '(handlers: Record<string, EditorRpcHandler>) => { POST }',
     },
     theme: { description: "Route handlers for theme files.", type: '{ GET, HEAD }' },
+    editor: { description: "Route handlers serving the built editor (createEditorHandler with origins.admin, mounted at routes.editor). 404 unless the request is on origins.editor.", type: '{ GET, HEAD }' },
     core: { description: "The underlying engine (createCore): readPage, writePage, resolveBlockData…", type: 'PuckRemoteCore' },
   }}
 />
@@ -53,7 +54,7 @@ Puck's RSC renderer, and theme scripts carrying the CSP nonce.
 <TypeTable
   type={{
     config: {
-      description: "The same config object. Only artifacts, origins and security are read.",
+      description: "The same config object. Only artifacts, origins, routes and security are read.",
       type: 'PuckRemoteConfig',
       required: true,
     },
@@ -62,15 +63,17 @@ Puck's RSC renderer, and theme scripts carrying the CSP nonce.
 
 For each request the proxy:
 
-1. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
+1. on `origins.editor`, rewrites every path to `routes.editor` + path (served by `remote.editor`)
+   and stops there; on other origins, `routes.editor/**` answers 404;
+2. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
    Next: the admin policy on admin origins (frames only the editor origin), the site policy
    elsewhere;
-2. on public pages, sets `x-page-cacheable: true`, or `false` with `cache-control: no-store` and
+3. on public pages, sets `x-page-cacheable: true`, or `false` with `cache-control: no-store` and
    `x-uncacheable-blocks` when a block reads URL query parameters.
 
 ## `withPuckRemote(nextConfig?)`
 
-Returns your Next config with `isolated-vm` and `@puck-remote/core` added to
+Returns your Next config with `isolated-vm`, `@puck-remote/core` and `@puck-remote/editor` added to
 `serverExternalPackages`.
 
 <TypeTable type={{ nextConfig: { description: "Your Next.js config.", type: 'NextConfig', default: '{}' } }} />

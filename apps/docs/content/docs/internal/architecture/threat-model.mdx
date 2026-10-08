@@ -12,10 +12,10 @@ may be actively hostile.
 | Actor | Trusted? | Runs where |
 |---|---|---|
 | Theme code on the server (`render`, adapter `toRequest`/`fromResponse`) | **No** | isolated-vm isolate, inside a permission-restricted worker process |
-| Theme code in the editor (`render` from `bundle.browser.js`) | **No** | The editor app's origin, another site: no cookies, no secrets |
+| Theme code in the editor (`render` from `bundle.browser.js`) | **No** | The editor's origin, another site: no cookies, no secrets |
 | Theme metadata and pages | **No**, validated as data | Read from the artifact, hash-checked and re-validated by the host with zod |
 | Theme client scripts (`ctx.assets.script`) | **No** | The visitor's browser, on the public site only |
-| The editor app (Puck + bridge) | Holds no authority | The editor origin; can only send typed messages to the admin page |
+| The editor (Puck + bridge, built into `@puck-remote/editor`) | Holds no authority | The editor origin; can only send typed messages to the admin page |
 | Host plugins (`DataSource`, `ArtifactStore`), the app's admin pages, RPC handlers and publish plugin | Yes, chosen by the operator | Node and the admin origin |
 | The CLI on the developer's machine | Not by the host | The developer's machine; its output is re-checked |
 | Editors | Authenticated by the app | Their browser: the admin page on the admin origin, the editor in the iframe |

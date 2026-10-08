@@ -240,43 +240,6 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
-  apps/editor:
-    dependencies:
-      '@puck-remote/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@puck-remote/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
-      '@puckeditor/core':
-        specifier: 0.23.0
-        version: 0.23.0(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
-      react:
-        specifier: 19.3.0
-        version: 19.3.0
-      react-dom:
-        specifier: 19.3.0
-        version: 19.3.0(react@19.3.0)
-    devDependencies:
-      '@puck-remote/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@types/node':
-        specifier: 26.6.4
-        version: 26.6.4
-      '@types/react':
-        specifier: 19.3.0
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: 19.3.0
-        version: 19.3.0(@types/react@19.3.0)
-      esbuild:
-        specifier: 0.28.2
-        version: 0.28.2
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
-
   apps/host:
     dependencies:
       '@puck-remote/artifacts-fs':
@@ -479,6 +442,9 @@ importers:
       '@types/react-dom':
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -497,6 +463,9 @@ importers:
       '@puck-remote/core':
         specifier: workspace:*
         version: link:../core
+      '@puck-remote/editor':
+        specifier: workspace:*
+        version: link:../editor
     devDependencies:
       '@types/node':
         specifier: 26.6.4

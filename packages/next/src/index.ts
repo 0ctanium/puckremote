@@ -8,9 +8,11 @@
  *   // app/admin/[[...path]]/page.tsx      → <PuckEditorFrame payload={await remote.loadEditor(props)} … />
  *   // app/admin/rpc/route.ts              → export const { POST } = remote.createEditorRpcRoute(handlers)
  *   // app/theme/[[...path]]/route.ts      → export const { GET, HEAD } = remote.theme
+ *   // app/editor/[[...path]]/route.ts     → export const { GET, HEAD } = remote.editor (served on origins.editor)
  */
 import { createCore, normalizeSlug, type EditorPayload, type PageContext, type PuckRemoteConfig, type PuckRemoteCore, type PreparedPage } from '@puck-remote/core'
 import { requestOrigin } from '@puck-remote/core/edge'
+import { createEditorHandler } from '@puck-remote/editor/server'
 import { pageMetadata } from '@puck-remote/core/react'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
@@ -46,6 +48,11 @@ export interface PuckRemote {
    */
   createEditorRpcRoute(handlers: Record<string, EditorRpcHandler>): { POST: (req: Request) => Promise<Response> }
   theme: { GET: (req: Request) => Promise<Response>; HEAD: (req: Request) => Promise<Response> }
+  /**
+   * The static editor, for `<routes.editor>/[[...path]]/route.ts`. createProxy rewrites every
+   * request on origins.editor to this route, and hides it everywhere else. Needs `origins`.
+   */
+  editor: { GET: (req: Request) => Promise<Response>; HEAD: (req: Request) => Promise<Response> }
 }
 
 async function slugOf(params: Params): Promise<string> {
@@ -123,5 +130,17 @@ export function createPuckRemote(config: PuckRemoteConfig): PuckRemote {
       }
     },
     theme: { GET: (req) => core.handleTheme(req), HEAD: (req) => core.handleTheme(req) },
+    editor: (() => {
+      const origins = core.config.origins
+      let handler: ((req: Request) => Promise<Response>) | null = null
+      const handle = async (req: Request) => {
+        if (!origins) return new Response('Not found', { status: 404 })
+        // Defense in depth: the proxy only routes the editor origin here.
+        if (requestOrigin(req) !== origins.editor) return new Response('Not found', { status: 404 })
+        handler ??= createEditorHandler({ adminOrigins: origins.admin, basePath: core.config.routes.editor })
+        return handler(req)
+      }
+      return { GET: handle, HEAD: handle }
+    })(),
   }
 }

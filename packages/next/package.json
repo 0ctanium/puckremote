@@ -38,7 +38,8 @@
     "lint:pkg": "publint && attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
   },
   "dependencies": {
-    "@puck-remote/core": "workspace:*"
+    "@puck-remote/core": "workspace:*",
+    "@puck-remote/editor": "workspace:*"
   },
   "peerDependencies": {
     "next": "^16.0.0",

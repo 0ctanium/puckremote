@@ -1,6 +1,6 @@
 ---
 title: Security headers
-description: Headers and CSP for public pages, admin pages, the editor app and theme files.
+description: Headers and CSP for public pages, admin pages, the editor and theme files.
 ---
 
 `securityHeaders(surface, …)` from `@puck-remote/core/edge` builds them; the Next proxy picks the
@@ -18,7 +18,7 @@ img-src 'self' https: data: blob:; font-src 'self' data:; connect-src 'self';
 frame-src <editor origin>; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 ```
 
-The only frame an admin page may load is the editor app ([D-0195](/docs/internal/decisions#D-0195)).
+The only frame an admin page may load is the editor ([D-0195](/docs/internal/decisions#D-0195)).
 Without `origins`, `frame-src` is `'none'`.
 
 ## Site
@@ -35,9 +35,10 @@ frame-ancestors <frameAncestors>
 Theme `<script>` tags carry the nonce; with `strict-dynamic`, scripts they load are trusted. The
 origin list is the fallback for browsers without `strict-dynamic`.
 
-## Editor app
+## Editor
 
-Served by your static host, not by the core. The example's `apps/editor/serve.mjs` sends:
+Sent by `createEditorHandler` (`@puck-remote/editor/server`), and so by the bin and the Next.js
+editor route:
 
 ```
 default-src 'self'; script-src 'self' '<import map hash>' <admin origins>;
@@ -46,9 +47,9 @@ connect-src 'self'; frame-src 'self' blob: data:; object-src 'none'; base-uri 's
 frame-ancestors <admin origins>
 ```
 
-plus `referrer-policy: no-referrer`, `cross-origin-opener-policy: same-origin` and `cache-control:
-no-store`. The theme bundle and assets come from the admin origin's theme route. See
-[The editor app](/docs/guides/editor-app).
+plus `referrer-policy: no-referrer`, `cross-origin-opener-policy: same-origin`, `cache-control:
+no-store` on the page (hashed assets are `immutable`), and never `set-cookie`. The theme bundle
+and assets come from the admin origin's theme route. See [Serving the editor](/docs/guides/editor-app).
 
 ## Development
 

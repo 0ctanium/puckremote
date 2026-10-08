@@ -12,7 +12,8 @@ description: From opening the admin page to publishing, step by step.
    origin, and `editorUrl`, `editorOrigin` and `payload.origins.editor` must agree. Only then does
    it render the iframe (`sandbox="allow-scripts allow-same-origin allow-forms allow-popups"`,
    `referrerPolicy="no-referrer"`) and listen for messages through `hostMessageHandler`.
-3. **Bridge** (editor app): `startEditorBridge` posts `ready` to each allowed parent origin (only
+3. **Bridge** (editor page, served by `createEditorHandler` on the editor origin, which injects the
+   admin origins as a JSON data block read by `app-main.tsx`): `startEditorBridge` posts `ready` to each allowed parent origin (only
    the real parent receives it), then waits for `init` from `window.parent` on an allowed origin.
    `initProblem` checks it runs on `payload.origins.editor`, that the sender is an admin origin
    and that the theme URLs are on an admin origin.
@@ -51,5 +52,8 @@ description: From opening the admin page to publishing, step by step.
 <Source path="packages/editor/src/fields.ts" />
 <Source path="packages/editor/src/host-fields.tsx" />
 <Source path="packages/editor/src/visible-if.ts" />
-<Source path="apps/editor/src/main.tsx" />
+<Source path="packages/editor/src/app-main.tsx" />
+<Source path="packages/editor/src/server.ts" />
+<Source path="packages/editor/scripts/build-static.mjs" />
+<Source path="packages/next/src/proxy.ts" />
 <Source path="apps/host/src/app/api/editor-rpc/route.ts" />

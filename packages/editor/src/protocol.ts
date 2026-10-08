@@ -153,3 +153,6 @@ export function rateLimiter(perSecond: number, now: () => number = () => Date.no
     return true
   }
 }
+
+/** Id of the JSON block in the editor page that carries its runtime config (admin origins). */
+export const CONFIG_ELEMENT_ID = 'puck-remote-editor-config'

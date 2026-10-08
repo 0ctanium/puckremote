@@ -55,14 +55,10 @@ It listens on `http://localhost:4010` and backs the theme's `events` adapter.
 </Step>
 <Step>
 
-### Start the host and the editor app
+### Start the host
 
 ```bash
 pnpm --filter host dev
-```
-
-```bash
-pnpm --filter editor dev
 ```
 
 | What | URL |
@@ -70,11 +66,12 @@ pnpm --filter editor dev
 | Public site | `http://localhost:3100/` (or `http://site.localhost:3100/`) |
 | Search page (uncacheable) | `http://localhost:3100/search?q=nonce` |
 | Admin page (editor frame + Publish) | `http://admin.localhost:3100/admin` |
-| Editor app (embedded only) | `http://127.0.0.1:3300/` |
+| Editor (embedded only, served by the same app) | `http://127.0.0.1:3100/` |
 
-`*.localhost` resolves to loopback, so the site and the admin pages are two origins on one app;
-the editor app is another site. On the admin hostname, public pages answer 404, and `/admin`
-answers 404 elsewhere.
+One app answers all three origins: `*.localhost` resolves to loopback, so the site and the admin
+pages are two origins, and `127.0.0.1` is another site for the editor. On the editor origin only
+the editor is reachable; on the admin hostname, public pages answer 404; `/admin` and `/editor`
+answer 404 elsewhere.
 
 </Step>
 <Step>
@@ -112,7 +109,6 @@ puck-repository-poc
 │   └── source-mock
 ├── apps
 │   ├── host
-│   ├── editor
 │   └── docs
 ├── examples
 │   └── theme
@@ -128,10 +124,9 @@ puck-repository-poc
 | `packages/cli` | `@puck-remote/cli`: build, publish, pull, activate |
 | `packages/core` | `@puck-remote/core`: the engine |
 | `packages/next` | `@puck-remote/next`: Next.js bindings |
-| `packages/editor` | `@puck-remote/editor`: editor protocol, `<PuckEditorFrame>`, iframe bridge |
+| `packages/editor` | `@puck-remote/editor`: the built editor and its server (handler, `puck-remote-editor` bin), protocol, `<PuckEditorFrame>`, bridge |
 | `packages/artifacts-fs`, `source-mock` | File-based and example adapters |
-| `apps/host` | Example Next.js app (public site + admin page) |
-| `apps/editor` | The static editor app |
+| `apps/host` | Example Next.js app (public site, admin page, editor) |
 | `apps/docs` | This documentation |
 | `examples/theme` | Example theme (the "developer repo"), with its pages |
 | `mock/api-server` | External API stand-in |

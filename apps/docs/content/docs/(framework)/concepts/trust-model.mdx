@@ -9,7 +9,7 @@ actively hostile. Everything else follows from that.
 | Actor | Trusted? | Where its code runs |
 |---|---|---|
 | Theme code on the server (`render`, adapter translators) | **No** | A V8 isolate inside a permission-restricted worker process |
-| Theme code in the editor | **No** | The editor app's site: no cookies, no secrets, only allow-listed RPCs |
+| Theme code in the editor | **No** | The editor's site: no cookies, no secrets, only allow-listed RPCs |
 | Theme metadata and pages | **No**, validated as data | Read from the artifact, re-validated by the host |
 | Theme client scripts | **No** | Visitors' browsers, on the public site |
 | Your plugins (data source, artifact store) and admin pages | Yes | Your server and admin origin |

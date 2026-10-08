@@ -1,5 +1,8 @@
 /**
  * Next.js proxy (middleware) factory. For every request:
+ *  - on the editor origin (`origins.editor`), every path is rewritten to the app's editor route
+ *    (`routes.editor`, served by `remote.editor`): nothing else of the app is reachable there;
+ *    on other origins, the editor route answers 404;
  *  - security headers: admin origins get the admin policy (no framing, only the editor origin
  *    may be framed); every other origin gets the public-site policy (CSP with a per-request nonce);
  *  - cache headers for public pages (pages using URL query params are never cacheable).
@@ -10,16 +13,27 @@
  *   export const config = { matcher: ['/((?!_next/|favicon\\.ico).*)'] }
  */
 import { cspNonce, normalizeOrigin, normalizeSlug, pageCacheability, requestOrigin, securityHeaders, DEFAULT_SECURITY, type SecurityPolicy } from '@puck-remote/core/edge'
-import type { PuckRemoteConfig } from '@puck-remote/core/config'
+import { DEFAULT_ROUTES, type PuckRemoteConfig } from '@puck-remote/core/config'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export function createProxy(config: Pick<PuckRemoteConfig, 'artifacts' | 'origins' | 'security'>) {
+export function createProxy(config: Pick<PuckRemoteConfig, 'artifacts' | 'origins' | 'security' | 'routes'>) {
   const admin = (config.origins?.admin ?? []).map(normalizeOrigin)
   const editorOrigin = config.origins ? normalizeOrigin(config.origins.editor) : undefined
   const s = config.security ?? {}
   const policy = { ...DEFAULT_SECURITY, ...s, csp: { ...DEFAULT_SECURITY.csp, ...s.csp } } as SecurityPolicy
+  const editorRoute = (config.routes?.editor ?? DEFAULT_ROUTES.editor).replace(/\/+$/, '')
   return async function proxy(req: NextRequest) {
-    const surface = admin.includes(requestOrigin(req)) ? 'admin' : 'site'
+    const origin = requestOrigin(req)
+    const { pathname } = req.nextUrl
+    if (editorOrigin && origin === editorOrigin) {
+      const url = req.nextUrl.clone()
+      url.pathname = pathname === '/' ? editorRoute : `${editorRoute}${pathname}`
+      return NextResponse.rewrite(url)
+    }
+    if (pathname === editorRoute || pathname.startsWith(editorRoute + '/')) {
+      return new NextResponse('Not found', { status: 404, headers: { 'cache-control': 'no-store' } })
+    }
+    const surface = admin.includes(origin) ? 'admin' : 'site'
     const nonce = cspNonce()
     const headers = securityHeaders(surface, { nonce, dev: process.env.NODE_ENV !== 'production', policy, editorOrigin })
     const csp = headers['content-security-policy'] ?? headers['content-security-policy-report-only']

@@ -4,12 +4,12 @@ description: The checklist for a production deployment.
 ---
 
 1. **Three origins.** The public site and your admin pages on two hostnames of your app (e.g.
-   `www.example.com`, `admin.example.com`), and the static editor app on **another site** (e.g.
-   `editor.example.net`). Set `origins: { admin, editor }`; the config is refused if the editor
+   `www.example.com`, `admin.example.com`), and the editor on **another site** (e.g.
+   `editor.example.net`), served by the same app or by the `puck-remote-editor` bin. Set `origins: { admin, editor }`; the config is refused if the editor
    origin is an admin origin ([D-0207](/docs/internal/decisions#D-0207)). See
-   [The editor app](/docs/guides/editor-app).
+   [Serving the editor](/docs/guides/editor-app).
 2. **Host-only admin cookies.** Never `Domain=.example.com`: theme scripts run on the public site.
-   The editor app needs no cookies at all.
+   The editor needs no cookies at all.
 3. **Authenticate everything that acts.** Your admin pages, every handler of
    `createEditorRpcRoute` and your publish action check your own session: the core has no auth
    ([D-0187](/docs/internal/decisions#D-0187)).
@@ -24,8 +24,8 @@ description: The checklist for a production deployment.
 6. **CSP.** Admin pages get an enforced CSP that frames only the editor. The site starts
    **report-only**: list third-party origins your themes need in `security.scriptOrigins` /
    `styleOrigins`, watch reports, then set `security.csp.site: 'enforce'`
-   ([D-0082](/docs/internal/decisions#D-0082)). Serve the editor app with its
-   [headers](/docs/security-headers#editor-app).
+   ([D-0082](/docs/internal/decisions#D-0082)). The editor sends its own
+   [headers](/docs/security-headers#editor).
 7. **A shared artifact store for several instances.** Pages live in artifacts, so use a shared
    `ArtifactStore` (S3-style); `artifacts-fs` is per machine.
 8. **Outbound HTTP.** List external API origins in `http.allowedOrigins`; never set

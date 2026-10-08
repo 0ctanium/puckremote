@@ -1,50 +1,73 @@
 ---
-title: The editor app
-description: Build and host the static, credential-free editor on its own site.
+title: Serving the editor
+description: The editor ships built in @puck-remote/editor; serve it from your Next.js app, your own server, or the bin.
 ---
 
-The editor is a static app (`apps/editor` in the repository): Puck, the puck-remote bridge and an
-import map. It needs no server code, only the right headers.
+`@puck-remote/editor` contains the **built editor**: a static page with Puck, the puck-remote
+bridge and an import map ([D-0221](/docs/internal/decisions#D-0221)). Nothing to build; you only serve it,
+on its own origin (`origins.editor`), with headers that let only your admin origins embed it.
 
-## What it contains
-
-```files
-dist
-├── index.html
-├── app.js
-├── app.css
-└── vendor
-    ├── react.js
-    ├── react-jsx-runtime.js
-    ├── react-dom.js
-    ├── react-dom-client.js
-    └── puck-remote-sdk.js
+```npm
+npm install @puck-remote/editor
 ```
 
-`app.js` mounts the bridge (`startEditorBridge` from `@puck-remote/editor/bridge`). The theme's
-`bundle.browser.js` imports `react`, `react/jsx-runtime`, `react-dom`, `react-dom/client` and
-`@puck-remote/sdk` by name; the import map in `index.html` points them at the `vendor/` files,
-which re-export the editor's own copies, so the theme and Puck share one React
-([D-0200](/docs/internal/decisions#D-0200)).
+The page receives the admin origins at runtime, as a JSON data block the server injects
+([D-0222](/docs/internal/decisions#D-0222)), so one build works for every deployment.
 
-## Build and serve
+## From your Next.js app (one app, all origins)
+
+Point the editor's hostname at the same deployment and add one route:
+
+```ts title="app/editor/[[...path]]/route.ts"
+import { remote } from '@/puck-remote';
+
+export const { GET, HEAD } = remote.editor;
+```
+
+`createProxy` rewrites **every** request on `origins.editor` to this route (`/app.js` becomes
+`/editor/app.js`), so none of your app's pages, API or theme routes are reachable on the editor
+origin; on every other origin, `/editor/**` answers 404 ([D-0225](/docs/internal/decisions#D-0225)). The
+prefix is `routes.editor` (default `/editor`). `withPuckRemote` keeps `@puck-remote/editor`
+external to the server bundle, because the handler reads the built editor from its package files.
+
+## From your own server
+
+```ts title="server.ts"
+import { createEditorHandler } from '@puck-remote/editor/server';
+
+const handle = createEditorHandler({ adminOrigins: ['https://admin.example.com'] });
+// (request: Request) => Promise<Response>, for any server that speaks fetch Requests
+```
+
+<TypeTable
+  type={{
+    adminOrigins: { description: "Origins allowed to embed the editor: frame-ancestors, and the bridge's allowed parents. At least one.", type: 'string[]', required: true },
+    basePath: { description: "Prefix the handler is mounted under; stripped from request paths.", type: 'string', default: "''" },
+  }}
+/>
+
+It answers `GET`/`HEAD` for `/`, `/index.html`, `/app.js`, `/app.css` and `/vendor/*.js`; anything
+else is 404, other methods 405 ([D-0223](/docs/internal/decisions#D-0223)). Node only: it reads
+`dist/static` from the package once and keeps it in memory.
+
+## With the bin
 
 ```bash
-PUCK_REMOTE_ADMIN_ORIGINS=https://admin.example.com pnpm --filter editor build
+npx puck-remote-editor --admin-origins https://admin.example.com --port 3300 --host 0.0.0.0
 ```
 
-`PUCK_REMOTE_ADMIN_ORIGINS` lists the admin origins allowed to embed the editor; the bridge only
-talks to them. Host `dist/` on **another site** than your app (for example
-`https://editor.example.net`), with these headers on every response:
+<TypeTable
+  type={{
+    '--admin-origins': { description: "Comma-separated admin origins. Required (or PUCK_REMOTE_ADMIN_ORIGINS).", type: 'string', required: true },
+    '--port': { description: "Port.", type: 'number', default: '3300' },
+    '--host': { description: "Interface to listen on.", type: 'string', default: '127.0.0.1' },
+  }}
+/>
 
-| Header | Value |
-|---|---|
-| `content-security-policy` | `frame-ancestors <admin origins>`, `script-src 'self' '<import map hash>' <admin origins>`, and the rest listed in [Security headers](/docs/security-headers#editor-app) |
-| `referrer-policy` | `no-referrer` |
-| `x-content-type-options` | `nosniff` |
+## Headers
 
-The build writes the import map's hash to `dist/csp.json`. `apps/editor/serve.mjs` is a minimal
-server that sends all of this; use it as a reference for your CDN's header rules.
+Every response carries the editor's [security headers](/docs/security-headers#editor) and never sets
+a cookie. Hashed asset URLs are cached as immutable; the page itself is `no-store`.
 
 ## Configure your app
 
@@ -53,4 +76,5 @@ origins: { admin: ['https://admin.example.com'], editor: 'https://editor.example
 ```
 
 and point `<PuckEditorFrame editorUrl="https://editor.example.net/" editorOrigin="https://editor.example.net" … />`
-at it. The editor must never set or receive cookies: it needs none.
+at it. Use **another site** for the editor in production (a second domain, even when it points at
+the same deployment), so it can never receive your app's cookies.

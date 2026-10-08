@@ -1,7 +1,7 @@
 {
   "name": "@puck-remote/editor",
   "version": "0.1.0",
-  "description": "puck-remote editor: the postMessage protocol, the host's <PuckEditorFrame> and the iframe bridge running Puck.",
+  "description": "puck-remote editor: the built editor and its server (handler + bin), the postMessage protocol, the host's <PuckEditorFrame> and the iframe bridge.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -24,6 +24,11 @@
       "types": "./dist/bridge.d.ts",
       "default": "./dist/bridge.js"
     },
+    "./server": {
+      "@puck-remote/source": "./src/server.ts",
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -34,7 +39,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p .",
-    "build": "tsdown",
+    "build": "tsdown && node scripts/build-static.mjs",
     "dev": "tsdown --watch",
     "lint:pkg": "publint && attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
   },
@@ -63,9 +68,13 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "typescript": "7.0.2",
-    "vitest": "5.0.3"
+    "vitest": "5.0.3",
+    "esbuild": "0.28.2"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "bin": {
+    "puck-remote-editor": "./dist/bin.js"
   }
 }

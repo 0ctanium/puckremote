@@ -5,6 +5,10 @@ export default library(
     protocol: 'src/protocol.ts',
     frame: 'src/frame.tsx',
     bridge: 'src/bridge.tsx',
+    server: 'src/server.ts',
+    bin: 'src/bin.ts',
   },
-  { platform: 'browser', banner: ({ fileName }) => (fileName === 'frame.js' ? "'use client';" : undefined) },
+  {
+    banner: ({ fileName }) => (fileName === 'frame.js' ? "'use client';" : fileName === 'bin.js' ? '#!/usr/bin/env node' : undefined),
+  },
 )

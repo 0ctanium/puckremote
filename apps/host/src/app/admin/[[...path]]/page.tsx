@@ -6,7 +6,7 @@ import { AdminEditor } from './AdminEditor.tsx'
 
 export const dynamic = 'force-dynamic'
 
-const EDITOR_URL = process.env.PUCK_REMOTE_EDITOR_URL ?? 'http://127.0.0.1:3300/'
+const EDITOR_URL = process.env.PUCK_REMOTE_EDITOR_URL ?? `${remote.core.config.origins?.editor}/`
 
 export default async function AdminPage(props: { params: Promise<{ path?: string[] }> }) {
   if (!isAdmin(new Request('http://x/', { headers: await headers() }))) notFound()

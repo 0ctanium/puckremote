@@ -31,7 +31,8 @@ sequenceDiagram
   payload from `core.editorPayload(slug)`, a map of allow-listed RPC handlers and an `onChange`
   callback ([D-0209](/docs/internal/decisions#D-0209)). Publishing is a button in **your** UI, outside the
   frame, so theme code running in the editor can never publish.
-- **The editor app** runs the bridge from `@puck-remote/editor/bridge`. It waits for `init`,
+- **The editor** (built into `@puck-remote/editor`, served by your app's editor route, your own
+  server or the `puck-remote-editor` bin) runs the bridge. It waits for `init`,
   imports the theme's `bundle.browser.js`, rebuilds the Puck config from the manifest (fields,
   defaults, categories) plus the bundle's render functions, and mounts Puck. Functions never cross
   `postMessage`; only JSON does.
@@ -58,4 +59,4 @@ credential-free site gives the same protection while letting blocks be real clie
 the canvas. The browser enforces the boundary: the editor's site has no cookies for your app, and
 `frame-ancestors` only lets your admin origins embed it.
 
-Set-up: [The editor app](/docs/guides/editor-app). Deep dive: [editor lifecycle](/docs/internal/architecture/editor-lifecycle).
+Set-up: [Serving the editor](/docs/guides/editor-app). Deep dive: [editor lifecycle](/docs/internal/architecture/editor-lifecycle).
