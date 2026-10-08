@@ -7,6 +7,7 @@ import type { Host } from './host.ts'
 import type { RenderSession } from './runtime/types.ts'
 import type { Manifest } from './manifest-schema.ts'
 import { collectInstances, mapItems, MISSING_TYPE, renderProps, ROOT_ID, type Instance, type PageData } from './page-tree.ts'
+import { migratePage } from './migrate.ts'
 import { pageFromRevision, readPublished, stripResolved } from './pages.ts'
 import { PREVIEW_PARAM, verifyPreviewToken } from './preview.ts'
 import { resolvePageData, type ResolveStats } from './query/resolver.ts'
@@ -72,9 +73,6 @@ export async function preparePage(host: Host, slug: string, query: Record<string
   if (!page) return null
   // The token is for the host only; blocks reading $query never see it.
   const { [PREVIEW_PARAM]: _token, ...pageQuery } = query
-  const data = rewriteMissing(stripResolved(page), manifest)
-  const instances = collectInstances(data, manifest)
-  const uncacheableBlocks = [...new Set(instances.filter((i) => i.meta?.usesRequestParams).map((i) => i.name))]
 
   const tCtx = performance.now()
   let session: RenderSession | null = null
@@ -83,10 +81,14 @@ export async function preparePage(host: Host, slug: string, query: Record<string
   try {
     await getSession()
     const contextMs = performance.now() - tCtx
+    // Outdated items are migrated in this session (not persisted); failed ones render as failures.
+    const { data, failed } = await migratePage(rewriteMissing(stripResolved(page), manifest), manifest, getSession)
+    const instances = collectInstances(data, manifest)
+    const uncacheableBlocks = [...new Set(instances.filter((i) => i.meta?.usesRequestParams).map((i) => i.name))]
     const locale = context.locale ?? host.config.site.locale
     const env = { page: { slug, locale }, site: host.config.site, query: uncacheableBlocks.length ? pageQuery : {} }
     const { byInstance, stats } = await resolvePageData(
-      { instances, env, mode: preview ? 'draft' : 'public' },
+      { instances: instances.filter((i) => !failed.has(i.id)), env, mode: preview ? 'draft' : 'public' },
       { manifest, config: host.config, source: host.source, http: host.http, cache: host.cache, session: getSession },
     )
 
@@ -96,6 +98,13 @@ export async function preparePage(host: Host, slug: string, query: Record<string
     const tRender = performance.now()
     for (const inst of instances) {
       if (!inst.meta) continue
+      const migration = failed.get(inst.id)
+      if (migration) {
+        failures++
+        console.error(`[render] block ${inst.name}#${inst.id} failed (migration): ${migration.error}`)
+        rendered[inst.id] = { ok: false, html: '', nonce: newNonce(), error: 'migration' }
+        continue
+      }
       const r = await renderOne(inst, byInstance.get(inst.id) ?? {}, host, slug, version, locale, session!)
       if (!r.ok && ['memory', 'disposed'].includes(r.kind!)) {
         // The isolate died (OOM / watchdog). Later blocks get a fresh isolate + context.

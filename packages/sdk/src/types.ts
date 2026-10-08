@@ -198,6 +198,13 @@ export interface BlockDefinition<F extends Fields = Fields, D extends DataSpecs 
   defaultProps?: Partial<PropsOf<F>>
   data?: D
   render: (props: PropsOf<F>, data: DataOf<D>, ctx: RenderCtx) => ReactNode
+  /** Version of this block's fields (integer, default 1). Bump it when fields change, with a migration. */
+  version?: number
+  /**
+   * Upgrades saved props: key N turns version N-1 props into version N props. Every step from 2 up
+   * to `version` is required. Runs in the sandbox; `id` and slot content are kept by the host.
+   */
+  migrations?: Record<number, (props: Record<string, unknown>) => Record<string, unknown>>
 }
 
 export type RootDefinition<F extends Fields = Fields, D extends DataSpecs | undefined = DataSpecs | undefined> =

@@ -7,7 +7,7 @@ import type { HostConfig } from '../config.ts'
 
 export type IsolateLimits = HostConfig['isolate']
 
-export const ENTRY_POINTS = ['__render', '__toRequest', '__fromResponse'] as const
+export const ENTRY_POINTS = ['__render', '__toRequest', '__fromResponse', '__migrate'] as const
 export type Entry = (typeof ENTRY_POINTS)[number]
 
 export type IsolateErrorKind = 'timeout' | 'memory' | 'thrown' | 'oversize' | 'invalid-output' | 'disposed'

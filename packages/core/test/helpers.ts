@@ -28,6 +28,7 @@ export function buildTheme(dir: string) {
 
 export const buildEvil = () => buildTheme(path.join(FIXTURES, 'evil'))
 export const buildExample = () => buildTheme(path.join(REPO_ROOT, 'examples', 'theme'))
+export const buildMigrations = () => buildTheme(path.join(FIXTURES, 'migrations'))
 
 export function testConfig(overrides: Partial<HostConfig> = {}): HostConfig {
   const base = resolveConfig({
@@ -176,13 +177,13 @@ export async function seedPages(pages: PageStore, entries: Record<string, unknow
   }
 }
 
-export async function testHost(opts: { theme: 'example' | 'evil'; pages: Record<string, unknown>; mockOrigin?: string; config?: Partial<HostConfig> }) {
+export async function testHost(opts: { theme: 'example' | 'evil' | 'migrations'; pages: Record<string, unknown>; mockOrigin?: string; config?: Partial<HostConfig> }) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'puck-remote-host-'))
   const artifactsDir = path.join(dir, 'artifacts')
   const pagesDir = path.join(dir, 'pages')
   const pages = fsPageStore({ dir: pagesDir })
   await seedPages(pages, opts.pages)
-  const built = opts.theme === 'evil' ? await buildEvil() : await buildExample()
+  const built = opts.theme === 'evil' ? await buildEvil() : opts.theme === 'migrations' ? await buildMigrations() : await buildExample()
   const artifacts = fsArtifactStore({ dir: artifactsDir })
   await publish({ distDir: built.outDir, artifacts, quiet: true })
   const mock = opts.mockOrigin ?? 'http://localhost:4010'

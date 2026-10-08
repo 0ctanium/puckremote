@@ -168,13 +168,15 @@ export const blockMetaSchema = z.strictObject({
   propRefs: z.record(z.string(), z.array(z.string())),
   usesRequestParams: z.boolean(),
   slots: z.array(z.string()),
+  /** Version of the block's fields; saved items older than this are migrated (props.__v). */
+  version: z.number().int().min(1),
 })
 export type BlockMeta = z.infer<typeof blockMetaSchema>
 
 export const manifestSchema = z
   .strictObject({
     artifactVersion: z.string().max(100),
-    sdkMajor: z.literal(1, { message: 'artifact was built for an incompatible SDK major version; rebuild with the current @puck-remote/sdk' }),
+    sdkMajor: z.literal(2, { message: 'artifact was built for an incompatible SDK major version; rebuild with the current @puck-remote/sdk' }),
     createdAt: z.string(),
     files: z.record(
       z.string().refine((p) => !p.split('/').some((s) => s === '..' || s === '.' || s === '') && !p.startsWith('/'), 'unsafe path'),

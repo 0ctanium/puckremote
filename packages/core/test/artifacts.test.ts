@@ -34,7 +34,7 @@ describe('19. tamper detection', () => {
     expect((await store.reload()).ok).toBe(true)
     expect(store.get().version).toBe(1)
 
-    await publish({ distDir: (await buildEvil()).outDir, artifacts: artifactsDir, quiet: true })
+    await publish({ distDir: (await buildEvil()).outDir, artifacts: artifactsDir, quiet: true, force: true })
     await appendFile(path.join(artifactsDir, 'v2', 'bundle.js'), '\n;globalThis.__pwned = 1')
     const r = await store.reload()
     expect(r).toMatchObject({ ok: false })
@@ -81,7 +81,7 @@ describe('20. publish, swap, rollback', () => {
     await store.reload()
     const v1Runner = (store.get().runtime as any).runner as IsolateRunner
 
-    expect((await publish({ distDir: evil.outDir, artifacts: artifactsDir, quiet: true })).version).toBe(2)
+    expect((await publish({ distDir: evil.outDir, artifacts: artifactsDir, quiet: true, force: true })).version).toBe(2) // different theme: skip the field check
     expect(JSON.parse(await readFile(path.join(artifactsDir, 'current.json'), 'utf8'))).toEqual({ version: 2 })
     expect(await store.reload()).toMatchObject({ ok: true, version: 2, changed: true })
     expect(Object.keys(store.get().manifest.blocks)).toContain('probe')
@@ -94,7 +94,7 @@ describe('20. publish, swap, rollback', () => {
     expect(Object.keys(store.get().manifest.blocks)).toContain('latest-posts')
 
     // Next publish never reuses a number, even after a rollback.
-    expect((await publish({ distDir: ex.outDir, artifacts: artifactsDir, quiet: true })).version).toBe(3)
+    expect((await publish({ distDir: ex.outDir, artifacts: artifactsDir, quiet: true, force: true })).version).toBe(3)
     expect((await readdir(artifactsDir)).filter((f) => f.includes('tmp'))).toEqual([])
     store.close()
   })

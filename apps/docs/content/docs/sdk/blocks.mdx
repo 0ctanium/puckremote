@@ -37,10 +37,12 @@ export default defineBlock({
       type: '(props, data, ctx) => ReactNode',
       required: true,
     },
+    version: { description: "Version of the block's fields. See Content migrations.", type: 'integer >= 1', default: '1' },
+    migrations: { description: "Upgrades for props saved with older versions. See Content migrations.", type: 'Record<number, (props) => props>' },
   }}
 />
 
-Everything except `render` must be plain JSON: it is extracted at build time into the manifest.
+Everything except `render` and `migrations` must be plain JSON: it is extracted at build time into the manifest.
 `permissions`, `resolveData`, `resolveFields`, `resolvePermissions` and `inline` are rejected:
 the host owns those Puck features.
 

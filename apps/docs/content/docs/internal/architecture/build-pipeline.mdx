@@ -19,10 +19,14 @@ description: How puck-remote build turns a theme repo into an artifact.
 4. **Isolate bundle**: esbuild bundles a second entry that calls `install({ blocks, root,
    adapters })` from `@puck-remote/sdk/runtime`, as a minified **IIFE** (`platform: 'neutral'`,
    `conditions: ['browser']`, `target: es2022`, `NODE_ENV=production`), with `ISOLATE_SHIMS` as a
-   banner. It exposes only `__render`, `__toRequest`, `__fromResponse`.
+   banner. It exposes only `__render`, `__toRequest`, `__fromResponse`, `__migrate`.
 5. **Assets**: `assets/` copied as-is.
 6. **Manifest**: sha256 of every file, `artifactVersion` = package version + bundle hash prefix,
-   `sdkMajor: 1`.
+   `sdkMajor: 2` (bumped when `__migrate` was added, [D-0143](/docs/internal/decisions#D-0143)). Each
+   block's meta carries its `version`.
+7. **Baseline** (optional, `--baseline`, and always in `publish` against the active version):
+   `checkBaseline` compares each block's field shape (names, types, nested fields, select/radio
+   option values) and version with the previous manifest.
 
 The validation here exists for good error messages; the host's zod schema is the real gate.
 

@@ -36,6 +36,8 @@ suppressed; debug with `process.stderr.write`. Sandbox suites run against **both
 | M3a | Publishing workflow over HTTP: drafts vs published, 409 conflicts on save/publish/restore, history paging and limits, restore, unpublish, delete | `routes.test.ts` |
 | M3a | `page:publish` / `page:delete` enforced; the slug reaches `authorize` on every page and block route; 401 before validation | `auth.test.ts` |
 | M3a | `pageStoreContract` (drafts, conflicts, publish, history, concurrency) and `pages-fs` retention | `adapters.test.ts` |
+| M3a | Migrations on both runtimes: chain, host-owned keys, slots, per-block failure, newer `__v`; public render; editor load and save stamping; SDK major 1 rejected | `migrations.test.ts` |
+| M3a | Build: `version`/`migrations` validation, `--baseline` shape check; `publish` refuses unbumped changes unless forced | `packages/cli/test/build.test.ts` |
 | M3a | Preview links: draft + draft data via token; other slug, tampered, expired, foreign secret, feature off → 404; config validation | `routes.test.ts` |
 
 Fixtures: `packages/core/test/fixtures/evil` is a hostile theme; `helpers.ts` builds artifacts and

@@ -16,6 +16,7 @@ import { cleanPage, normalizeSlug, PageFormatError, pageFromRevision, readDraft,
 import { preparePage, restoreMissing, rewriteMissing, type PageContext, type PreparedPage } from './server/public-render.ts'
 import { fileResponse, readArtifactFile } from './server/static-files.ts'
 import { createPreviewToken, PREVIEW_PARAM } from './server/preview.ts'
+import { migratePage, stampVersions } from './server/migrate.ts'
 import { assetBase, newNonce, renderInIsolate } from './server/render.ts'
 import { z } from 'zod'
 
@@ -71,6 +72,8 @@ export interface EditorProps {
   page: PageMeta | null
   /** Preview links are configured (shows "Copy preview link"). */
   previewEnabled: boolean
+  /** Blocks whose saved content could not be migrated (they keep their old props). */
+  migrationErrors: string[]
   uncacheable: boolean
 }
 
@@ -148,6 +151,8 @@ function build(config: HostConfig): PuckRemoteCore {
           try {
             // Resolved data (__data) is stripped; __missing blocks are restored.
             data = cleanPage(restoreMissing(body.data.data as PageData))
+            // Items added in the editor have no __v yet: they were made with the current theme.
+            data = stampVersions(data, ctx.h.store.get().manifest)
           } catch (e) {
             return json({ error: e instanceof Error ? e.message : 'invalid page' }, 400)
           }
@@ -398,7 +403,12 @@ function build(config: HostConfig): PuckRemoteCore {
       const { manifest, version } = h.store.get()
       const draft = await readDraft(config.pages, slug)
       const page = draft?.data ?? { root: { props: { ...(manifest.root?.defaultProps ?? {}) } }, content: [] }
-      const data = rewriteMissing(stripResolved(page), manifest)
+      // Outdated items are migrated now, so the next save persists the result.
+      let session: Promise<RenderSession> | null = null
+      const migrated = await migratePage(rewriteMissing(stripResolved(page), manifest), manifest, () => (session ??= h.store.get().runtime.session())).finally(
+        async () => (await (session as Promise<RenderSession> | null)?.catch(() => null))?.release(),
+      )
+      const data = migrated.data
       return {
         manifest,
         version,
@@ -409,6 +419,7 @@ function build(config: HostConfig): PuckRemoteCore {
         initialData: data as unknown as Data,
         page: draft?.meta ?? null,
         previewEnabled: config.preview !== null,
+        migrationErrors: [...new Set([...migrated.failed.values()].map((f) => f.block))],
         uncacheable: collectInstances(data, manifest).some((i) => i.meta?.usesRequestParams),
       }
     },

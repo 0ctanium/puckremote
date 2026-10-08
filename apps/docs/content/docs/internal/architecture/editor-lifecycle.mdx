@@ -27,8 +27,10 @@ description: From opening the editor page to saving, step by step.
 6. **Save** → `POST /api/pages/save` with the CSRF header and the draft revision the editor
    loaded as `baseRevision`. The server restores `__missing` blocks to their original type and
    props, strips `__data`, validates and saves a new draft revision; a stale base is a `409`.
-   `loadEditor` opens the latest **draft** (`readDraft`), and passes its `PageMeta` as
-   `EditorProps.page`.
+   `loadEditor` opens the latest **draft** (`readDraft`), migrates outdated items (`migratePage`,
+   so the next save stores the result; failed blocks are listed in `EditorProps.migrationErrors`),
+   and passes its `PageMeta` as `EditorProps.page`. On save, `stampVersions` gives items without
+   `__v` (added in the editor) their block's current version; restore copies a revision as is.
 7. **Reload theme** → `POST /api/artifact/reload`; if the version changed, the page reloads.
 8. **Workflow header** (`workflow.tsx`): Save draft, Publish, Copy preview link (when
    `EditorProps.previewEnabled`), History/Restore and the conflict banner call the `pages/*` routes. "Unsaved changes" compares the editor data with the last saved

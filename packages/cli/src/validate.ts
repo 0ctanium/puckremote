@@ -220,6 +220,7 @@ export interface BlockMeta {
   propRefs: Record<string, string[]>
   usesRequestParams: boolean
   slots: string[]
+  version: number
 }
 
 export function validateDefinition(def: unknown, kind: 'block' | 'root', name: string, adapters: Set<string>): BlockMeta {
@@ -229,11 +230,22 @@ export function validateDefinition(def: unknown, kind: 'block' | 'root', name: s
   for (const k of FORBIDDEN_DEFINITION_KEYS) {
     if (k in d) fail(`${path}.${k}`, `"${k}" is not supported${k === 'resolveFields' ? '; use declarative visibleIf on fields' : k === 'resolveData' ? '; declare queries in `data`' : ''}`)
   }
-  const allowed = kind === 'root' ? ['fields', 'defaultProps', 'data', 'render'] : ['label', 'category', 'fields', 'defaultProps', 'data', 'render']
+  const allowed = kind === 'root' ? ['fields', 'defaultProps', 'data', 'render', 'version', 'migrations'] : ['label', 'category', 'fields', 'defaultProps', 'data', 'render', 'version', 'migrations']
   for (const k of Object.keys(d)) if (!allowed.includes(k)) fail(`${path}.${k}`, 'unknown key')
   if (typeof d.render !== 'function') fail(`${path}.render`, 'render must be a function')
   if (d.label !== undefined && typeof d.label !== 'string') fail(`${path}.label`, 'must be a string')
   if (d.category !== undefined && typeof d.category !== 'string') fail(`${path}.category`, 'must be a string')
+  const version = (d.version ?? 1) as number
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) fail(`${path}.version`, 'must be an integer >= 1')
+  if (d.migrations !== undefined && !isPlainObject(d.migrations)) fail(`${path}.migrations`, 'must be an object of functions keyed by version')
+  const migrations = (d.migrations ?? {}) as Record<string, unknown>
+  for (let v = 2; v <= version; v++) {
+    if (typeof migrations[v] !== 'function') fail(`${path}.migrations.${v}`, `missing migration from version ${v - 1} to ${v}`)
+  }
+  for (const k of Object.keys(migrations)) {
+    const v = Number(k)
+    if (!Number.isInteger(v) || v < 2 || v > version) fail(`${path}.migrations.${k}`, `unexpected key: migrations go from 2 to version (${version})`)
+  }
 
   const fields = validateFields(d.fields ?? {}, `${path}.fields`, true)
   if (kind === 'root' && 'children' in fields) fail(`${path}.fields.children`, '"children" is reserved for the page body')
@@ -261,6 +273,7 @@ export function validateDefinition(def: unknown, kind: 'block' | 'root', name: s
     propRefs,
     usesRequestParams,
     slots,
+    version,
   }
 }
 

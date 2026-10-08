@@ -3,6 +3,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fsArtifactStore } from '@puck-remote/artifacts-fs'
 import type { ArtifactStore } from '@puck-remote/sdk/host'
+import { checkBaseline } from './build.ts'
 
 /** An ArtifactStore, or a directory path (shorthand for fsArtifactStore). */
 export type ArtifactTarget = ArtifactStore | string
@@ -13,6 +14,8 @@ export interface PublishOptions {
   distDir: string
   artifacts: ArtifactTarget
   quiet?: boolean
+  /** Publish even if blocks changed without a version bump compared with the active artifact. */
+  force?: boolean
 }
 
 async function listFiles(dir: string, base = dir): Promise<string[]> {
@@ -34,6 +37,14 @@ export async function activate(artifacts: ArtifactTarget, version: number): Prom
 export async function publish(opts: PublishOptions): Promise<{ version: number }> {
   if (!existsSync(path.join(opts.distDir, 'manifest.json'))) throw new Error(`no manifest.json in ${opts.distDir}; run "puck-remote build" first`)
   const store = toStore(opts.artifacts)
+  // Catch a forgotten --baseline: compare with what the site currently serves.
+  const active = await store.readPointer()
+  const activeManifest = active ? await store.readFile(active, 'manifest.json') : null
+  if (activeManifest && !opts.force) {
+    const next = JSON.parse(await readFile(path.join(opts.distDir, 'manifest.json'), 'utf8'))
+    const problem = checkBaseline(next, JSON.parse(new TextDecoder().decode(activeManifest)))
+    if (problem) throw new Error(`${problem} (compared with the active artifact v${active}; use --force to publish anyway)`)
+  }
   const versions = await store.listVersions()
   const version = (versions.length ? Math.max(...versions) : 0) + 1
   const files: Record<string, Uint8Array> = {}

@@ -50,9 +50,9 @@ function CanvasStyles({ document: doc, children }: { document?: Document; childr
 
 export type { EditorProps }
 
-export function EditorClient({ manifest, version, slug, site, routes, siteOrigin, initialData, page, previewEnabled }: EditorProps) {
+export function EditorClient({ manifest, version, slug, site, routes, siteOrigin, initialData, page, previewEnabled, migrationErrors }: EditorProps) {
   const assetBase = themeAssetBase(routes.theme, version)
-  const [status, setStatus] = useState<string>('')
+  const [status, setStatus] = useState<string>(migrationErrors.length ? `Migration failed: ${migrationErrors.join(', ')}` : '')
   // Blocks are rendered by the server (one batched call per tick); theme JS never runs here.
   const renderer = useMemo(() => createRemoteRenderer({ apiRoute: routes.api, slug }), [routes.api, slug, version])
   const api = useMemo(() => createApi(routes.api), [routes.api])

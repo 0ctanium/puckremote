@@ -42,17 +42,21 @@ sequenceDiagram
       `getRevision` and data resolves in **draft** mode. An invalid token is a 404. The
       `puck_preview` parameter is removed from the query that `$query` blocks see;
    2. `rewriteMissing`: unknown block types become `__missing` ([missing blocks](/docs/internal/architecture/missing-blocks));
-   3. `collectInstances`: the host's own depth-first walk of root → content → slots
+   3. `migratePage`: items whose `__v` is older than their block's `version` are upgraded with
+      `__migrate` in the page's session; the host keeps `id`, slot content and `__` keys. Failed
+      items are skipped by the data pass and render as failures (`error: 'migration'`)
+      ([migrations](/docs/sdk/migrations));
+   4. `collectInstances`: the host's own depth-first walk of root → content → slots
       ([D-0016](/docs/internal/decisions#D-0016)), giving every instance with its manifest metadata;
-   4. open **one render session** (a fresh isolate context) for the whole request;
-   5. `resolvePageData` in `public` mode: plan, dedupe, budget, execute, cache
+   5. **one render session** (a fresh isolate context, opened before the migration step) serves the whole request;
+   6. `resolvePageData` in `public` mode: plan, dedupe, budget, execute, cache
       ([query resolver](/docs/internal/architecture/query-resolver)). `$query` params are only passed if the
       page has a block that uses them;
-   6. render the root and every block in tree order with a **fresh nonce per call**; if the
+   7. render the root and every block in tree order with a **fresh nonce per call**; if the
       isolate died (memory or watchdog), later blocks get a new session;
-   7. `mergeEffects`: dedupe title/meta/styles/scripts and drop URLs that are not own assets or
+   8. `mergeEffects`: dedupe title/meta/styles/scripts and drop URLs that are not own assets or
       allowlisted https origins;
-   8. release the session.
+   9. release the session.
 5. **`<PuckRemotePage>`** renders theme stylesheets (`<link precedence="theme">`, hoisted by
    React 19), then Puck's RSC `<Render>` with `metadata.rendered`, then theme scripts with the
    nonce.
@@ -72,3 +76,4 @@ effects before streaming markup, and keeps "one fresh context per request".
 <Source path="packages/core/src/server/puck-rsc.tsx" />
 <Source path="packages/core/src/react/PuckRemotePage.tsx" />
 <Source path="packages/core/src/server/preview.ts" />
+<Source path="packages/core/src/server/migrate.ts" />

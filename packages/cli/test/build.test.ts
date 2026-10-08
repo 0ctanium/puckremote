@@ -90,3 +90,53 @@ describe('21. build validation', () => {
     await expectBuildError({ 'blocks/good.tsx': block(ok), 'blocks/bad.tsx': block(`defineBlock({ fields: { x: { type: 'external' } }, render: () => null } as any)`) }, /blocks\/bad/)
   })
 })
+
+describe('content migrations: versions and baseline', () => {
+  const v = (version: number, fields: string, migrations = '') =>
+    block(`defineBlock({ version: ${version}, ${migrations ? `migrations: { ${migrations} },` : ''} fields: { ${fields} }, render: () => null })`)
+  const step = (n: number) => `${n}: (p) => p`
+
+  it('requires every migration step and rejects extra or invalid ones', async () => {
+    await expectBuildError({ 'blocks/a.tsx': v(3, `t: { type: 'text' }`, step(2)) }, /migrations\.3: missing migration from version 2 to 3/)
+    await expectBuildError({ 'blocks/a.tsx': v(2, `t: { type: 'text' }`, `${step(2)}, ${step(3)}`) }, /migrations\.3: unexpected key/)
+    await expectBuildError({ 'blocks/a.tsx': v(1, `t: { type: 'text' }`, step(1)) }, /migrations\.1: unexpected key/)
+    await expectBuildError({ 'blocks/a.tsx': v(0, `t: { type: 'text' }`) }, /version: must be an integer >= 1/)
+    await expectBuildError({ 'blocks/a.tsx': block(`defineBlock({ version: 2, migrations: { 2: 'x' }, fields: {}, render: () => null } as any)`) }, /missing migration from version 1 to 2/)
+    const { manifest } = await build({ cwd: await theme({ 'blocks/a.tsx': v(3, `t: { type: 'text' }`, `${step(2)}, ${step(3)}`), 'blocks/b.tsx': block(ok) }), quiet: true })
+    expect(manifest.blocks.a.version).toBe(3)
+    expect(manifest.blocks.b.version).toBe(1)
+  })
+
+  it('--baseline: changed fields need a version bump; versions never go down; labels are free', async () => {
+    const base = await build({ cwd: await theme({ 'blocks/a.tsx': v(1, `t: { type: 'text', label: 'Title' }, s: { type: 'select', options: [{ label: 'A', value: 'a' }] }`) }), quiet: true })
+    const baseline = path.join(base.outDir, 'manifest.json')
+    const attempt = async (src: string) => build({ cwd: await theme({ 'blocks/a.tsx': src }), quiet: true, baseline }).then(() => null, (e) => e)
+
+    // Label-only change: fine.
+    expect(await attempt(v(1, `t: { type: 'text', label: 'Heading' }, s: { type: 'select', options: [{ label: 'Option A', value: 'a' }] }`))).toBeNull()
+    // Renamed field, changed type, changed option value: need a bump.
+    for (const fields of [`title: { type: 'text' }, s: { type: 'select', options: [{ label: 'A', value: 'a' }] }`, `t: { type: 'textarea' }, s: { type: 'select', options: [{ label: 'A', value: 'a' }] }`, `t: { type: 'text' }, s: { type: 'select', options: [{ label: 'A', value: 'b' }] }`]) {
+      const err = await attempt(v(1, fields))
+      expect(err).toBeInstanceOf(BuildError)
+      expect(err.message).toBe('block "a": fields changed without a version bump (still v1); bump "version" and add a migration')
+    }
+    expect(await attempt(v(2, `title: { type: 'text' }`, step(2)))).toBeNull()
+    const down = await build({ cwd: await theme({ 'blocks/a.tsx': v(2, `title: { type: 'text' }`, step(2)) }), quiet: true })
+    const err = await build({ cwd: await theme({ 'blocks/a.tsx': v(1, `title: { type: 'text' }`) }), quiet: true, baseline: path.join(down.outDir, 'manifest.json') }).catch((e) => e)
+    expect(err.message).toBe('block "a": version went down (2 → 1)')
+  })
+
+  it('publish compares with the active artifact and refuses unless forced', async () => {
+    const { publish } = await import('../src/index.ts')
+    const artifacts = path.join(await theme({}), 'artifacts')
+    const one = await build({ cwd: await theme({ 'blocks/a.tsx': v(1, `t: { type: 'text' }`) }), quiet: true })
+    await publish({ distDir: one.outDir, artifacts, quiet: true })
+    const changed = await build({ cwd: await theme({ 'blocks/a.tsx': v(1, `u: { type: 'text' }`) }), quiet: true })
+    await expect(publish({ distDir: changed.outDir, artifacts, quiet: true })).rejects.toThrow(
+      'block "a": fields changed without a version bump (still v1); bump "version" and add a migration (compared with the active artifact v1; use --force to publish anyway)',
+    )
+    expect((await publish({ distDir: changed.outDir, artifacts, quiet: true, force: true })).version).toBe(2)
+    const bumped = await build({ cwd: await theme({ 'blocks/a.tsx': v(2, `w: { type: 'text' }`, step(2)) }), quiet: true })
+    expect((await publish({ distDir: bumped.outDir, artifacts, quiet: true })).version).toBe(3)
+  })
+})

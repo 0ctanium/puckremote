@@ -6,7 +6,7 @@ description: The structure of manifest.json, as the host validates it.
 ```ts
 {
   artifactVersion: string            // "<package version>+<first 12 hex of bundle sha256>"
-  sdkMajor: 1                        // anything else is rejected
+  sdkMajor: 2                        // anything else is rejected (rebuild older artifacts)
   createdAt: string
   files: { [relPath]: sha256hex }    // every file of the version, bundle.js required
   blocks: { [slug]: BlockMeta }      // slug: ^[a-z][a-z0-9-]*$
@@ -24,6 +24,7 @@ BlockMeta = {
   propRefs: { [dataKey]: string[] }  // recomputed by the host
   usesRequestParams: boolean         // recomputed by the host
   slots: string[]                    // must be slot fields
+  version: number                    // integer >= 1; saved items older than this are migrated
 }
 ```
 

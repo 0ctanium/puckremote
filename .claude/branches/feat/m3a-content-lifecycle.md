@@ -98,6 +98,14 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
 | D-0173 | preview-link returns 404 when previews are off or the revision is missing (after auth); relative URL without origins; tokens over 2048 chars rejected | user | accepted |
 | D-0174 | Demo app: 'PUCK_REMOTE_PREVIEW_SECRET is required in production'; clipboard fallback prompt 'Preview link'; status 'Preview link failed (<status>)' | user | accepted |
 | D-0175 | Preview responses end up 'no-store' (Next replaces the proxy's 'private, no-store' on dynamic pages); accepted and documented | user | accepted |
+| D-0176 | Migration functions take untyped Record<string, unknown> props and return a plain object; the host keeps id, reattaches slots, drops __ keys; one __migrate call per outdated item in the page session, before data resolution | user | accepted |
+| D-0177 | Editor surfaces failed migrations via EditorProps.migrationErrors and the status 'Migration failed: <blocks>' | user | accepted |
+| D-0178 | build({ baseline: path }); messages 'block "x": fields changed without a version bump (still vN); bump "version" and add a migration', 'block "x": version went down (a → b)'; publish adds '(compared with the active artifact vN; use --force to publish anyway)'; publish({ force }) | user | accepted |
+| D-0179 | A failed public migration renders like a failed block render (empty, counted, logged as 'failed (migration)'); its data isn't fetched | user | accepted |
+| D-0180 | Build errors for versions/migrations: 'must be an integer >= 1', 'missing migration from version N-1 to N', 'unexpected key: migrations go from 2 to version (V)', 'must be an object of functions keyed by version' | user | accepted |
+| D-0181 | Migration runtime texts: '[migrate] <block>#<id> was saved with version N, newer than the theme's M; rendering it as is'; isolate and host error strings as implemented | user | accepted |
+| D-0182 | Content migrated on editor load is the unsaved-changes baseline (status unchanged until an edit); the next save persists it | user | accepted |
+| D-0183 | Migration tests: fixture theme test/fixtures/migrations and suite test/migrations.test.ts; theme-switching artifact tests publish with force | user | accepted |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -146,6 +154,13 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
   - `server/preview.ts` (token create/verify);
   - the Next proxy sets no-store/noindex for previews;
   - the demo app uses `PUCK_REMOTE_PREVIEW_SECRET`.
+- **Slice E:**
+  - `defineBlock`/`defineRoot` accept `version` and `migrations`.
+  - SDK constants: `SDK_MAJOR` is now 2, and `FUNCTION_KEYS` gains `migrations`.
+  - Runtime: new `__migrate` entry point; the manifest `BlockMeta.version` is required.
+  - Core: `server/migrate.ts` (`migratePage`, `stampVersions`, `VERSION_PROP`) and `EditorProps.migrationErrors`.
+  - CLI: `build({ baseline })` with `--baseline`, `publish({ force })` with `--force`, and the `checkBaseline` helper.
+  - Example theme: `quote` is now v2.
 - **Slice C:** the editor header (`editor/workflow.tsx`) replaces Puck's Publish button; `EditorClient` uses Puck `onChange` and stable `OVERRIDES`.
 
 ### Docs pages touched
@@ -165,6 +180,13 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
   - `(framework)/guides/publishing.mdx` (preview section);
   - `core/entry-points.mdx`;
   - `internal/architecture/{public-request,editor-lifecycle}.mdx`;
+  - `internal/quality/testing.mdx`.
+
+- **Slice E:**
+  - new `sdk/migrations.mdx`;
+  - `sdk/{blocks,manifest}.mdx`;
+  - `cli/{commands,programmatic-api}.mdx`;
+  - `internal/architecture/{build-pipeline,isolate-runtime,worker-protocol,public-request,editor-lifecycle}.mdx`;
   - `internal/quality/testing.mdx`.
 
 ## Investigation Notes

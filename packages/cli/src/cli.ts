@@ -5,8 +5,8 @@ import { activate, publish } from './publish.ts'
 import { BuildError } from './validate.ts'
 
 const USAGE = `usage:
-  puck-remote build   [--cwd .] [--out dist]
-  puck-remote publish [--cwd .] [--out dist] --artifacts <dir>
+  puck-remote build   [--cwd .] [--out dist] [--baseline <old manifest.json>]
+  puck-remote publish [--cwd .] [--out dist] --artifacts <dir> [--force]
   puck-remote activate <version> --artifacts <dir>     (rollback = activate an older version)`
 
 async function main() {
@@ -16,6 +16,8 @@ async function main() {
       cwd: { type: 'string', default: process.cwd() },
       out: { type: 'string', default: 'dist' },
       artifacts: { type: 'string', default: process.env.PUCK_REMOTE_ARTIFACTS_DIR },
+      baseline: { type: 'string' },
+      force: { type: 'boolean', default: false },
     },
   })
   const cwd = path.resolve(values.cwd!)
@@ -26,10 +28,10 @@ async function main() {
   }
   switch (cmd) {
     case 'build':
-      await build({ cwd, outDir: values.out })
+      await build({ cwd, outDir: values.out, baseline: values.baseline })
       break
     case 'publish':
-      await publish({ distDir: path.resolve(cwd, values.out!), artifacts: artifactsDir() })
+      await publish({ distDir: path.resolve(cwd, values.out!), artifacts: artifactsDir(), force: values.force })
       break
     case 'activate': {
       const v = Number(arg)

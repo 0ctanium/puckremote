@@ -1,7 +1,7 @@
 // Shared, data-only contract between the SDK, the CLI and the host.
 // The host re-declares these in its zod schema; it never imports developer code.
 
-export const SDK_MAJOR = 1
+export const SDK_MAJOR = 2
 
 export const FIELD_TYPES = [
   'text',
@@ -20,7 +20,7 @@ export const FIELD_TYPES = [
 export const WHERE_OPERATORS = ['equals', 'in', 'contains', 'gt', 'lt'] as const
 
 /** Keys a block/root definition may hold functions in. Everything else must be JSON. */
-export const FUNCTION_KEYS = ['render'] as const
+export const FUNCTION_KEYS = ['render', 'migrations'] as const
 export const ADAPTER_FUNCTION_KEYS = ['toRequest', 'fromResponse'] as const
 
 /** Puck options we deliberately do not support. Their presence fails the build. */

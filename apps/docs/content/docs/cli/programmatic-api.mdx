@@ -18,6 +18,7 @@ await activate(myS3Store, 3);
     cwd: { description: "Theme folder.", type: 'string', required: true },
     outDir: { description: "Output folder, relative to cwd.", type: 'string', default: "'dist'" },
     quiet: { description: "No console output.", type: 'boolean', default: 'false' },
+    baseline: { description: "Path to a previous manifest.json; fail on fields changed without a version bump.", type: 'string' },
   }}
 />
 
@@ -30,10 +31,12 @@ Returns `{ manifest, outDir }`. Throws `BuildError` with a path-prefixed message
     distDir: { description: "A build output folder.", type: 'string', required: true },
     artifacts: { description: "An ArtifactStore, or a directory path (file-system store).", type: 'ArtifactStore | string', required: true },
     quiet: { description: "No console output.", type: 'boolean', default: 'false' },
+    force: { description: "Skip the version check against the active artifact.", type: 'boolean', default: 'false' },
   }}
 />
 
-Returns `{ version }`.
+Returns `{ version }`. Throws if blocks changed without a version bump compared with the active
+version, unless `force`.
 
 ## `activate(artifacts, version)`
 

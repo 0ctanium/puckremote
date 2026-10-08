@@ -13,6 +13,7 @@ puck-remote build --cwd . --out dist
   type={{
     '--cwd': { description: "Theme folder.", type: 'path', default: 'current directory' },
     '--out': { description: "Output folder, relative to --cwd. Emptied first.", type: 'path', default: 'dist' },
+    '--baseline': { description: "A previous manifest.json: fail if a block's fields changed without a version bump, or a version went down.", type: 'path' },
   }}
 />
 
@@ -21,7 +22,8 @@ Validates every definition and fails with the file and key at fault, for example
 rejected: functions other than `render` / `toRequest` / `fromResponse`, non-JSON values (class
 instances, Dates, Maps, symbols, `undefined`, non-finite numbers), unknown field types,
 `permissions` / `resolve*` / `inline` keys, unknown adapters, invalid parameter references, block
-names that are not lowercase slugs or start with `__`.
+names that are not lowercase slugs or start with `__`, and invalid `version` / `migrations` (see
+[Content migrations](/docs/sdk/migrations)).
 
 ## `puck-remote publish`
 
@@ -34,11 +36,16 @@ puck-remote publish --artifacts ../my-app/artifacts
     '--artifacts': { description: "Artifact directory (a file-system artifact store).", type: 'path', default: '$PUCK_REMOTE_ARTIFACTS_DIR', required: true },
     '--cwd': { description: "Theme folder.", type: 'path', default: 'current directory' },
     '--out': { description: "The build output to publish.", type: 'path', default: 'dist' },
+    '--force': { description: "Publish even if blocks changed without a version bump compared with the active version.", type: 'boolean', default: 'false' },
   }}
 />
 
 Writes the build output as **the next version number** (highest existing + 1, never reused, even
 after a rollback) and makes it active. Running hosts switch to it automatically.
+
+Before writing, it compares the blocks with the **active** version, like `build --baseline`, and
+refuses with e.g. `block "quote": fields changed without a version bump (still v1); bump "version"
+and add a migration (compared with the active artifact v6; use --force to publish anyway)`.
 
 ## `puck-remote activate`
 

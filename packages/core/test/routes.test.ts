@@ -195,13 +195,14 @@ describe('preview links', () => {
   })
 
   it('validates the preview config', () => {
-    expect(() => resolveConfig({ ...core.config, preview: { secret: SECRET, ttlSeconds: 59 } })).toThrow(/between 60 and 2592000/)
-    expect(() => resolveConfig({ ...core.config, preview: { secret: SECRET, ttlSeconds: 2592001 } })).toThrow(/between 60 and 2592000/)
+    const denyAll = { authenticate: async () => null, authorize: () => false }
+    expect(() => resolveConfig({ ...core.config, auth: denyAll, preview: { secret: SECRET, ttlSeconds: 59 } })).toThrow(/between 60 and 2592000/)
+    expect(() => resolveConfig({ ...core.config, auth: denyAll, preview: { secret: SECRET, ttlSeconds: 2592001 } })).toThrow(/between 60 and 2592000/)
     const env = process.env.NODE_ENV
     try {
       process.env.NODE_ENV = 'production'
-      expect(() => resolveConfig({ ...core.config, allowSharedOrigin: true, preview: { secret: 'short' } })).toThrow(/at least 32 bytes in production/)
-      expect(resolveConfig({ ...core.config, allowSharedOrigin: true, preview: { secret: SECRET } }).preview).toEqual({ secret: SECRET, ttlSeconds: 86400 })
+      expect(() => resolveConfig({ ...core.config, auth: denyAll, allowSharedOrigin: true, preview: { secret: 'short' } })).toThrow(/at least 32 bytes in production/)
+      expect(resolveConfig({ ...core.config, auth: denyAll, allowSharedOrigin: true, preview: { secret: SECRET } }).preview).toEqual({ secret: SECRET, ttlSeconds: 86400 })
     } finally {
       process.env.NODE_ENV = env
     }
