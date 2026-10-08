@@ -4,6 +4,7 @@
  */
 import { timingSafeEqual } from 'node:crypto'
 import type { Action, AuthAdapter, Principal } from '@puck-remote/sdk/host'
+import { requestOrigin } from './surface.ts'
 
 export class AccessDeniedError extends Error {
   constructor(
@@ -80,7 +81,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 export function checkCsrf(request: Request, allowedOrigins: readonly string[]): AccessDeniedError | null {
   if (SAFE_METHODS.has(request.method)) return null
   if (request.headers.get(CSRF_HEADER) !== '1') return new AccessDeniedError(403, `missing ${CSRF_HEADER} header`)
-  const own = new URL(request.url).origin
+  const own = requestOrigin(request)
   const origin = request.headers.get('origin')
   if (origin && origin !== own && !allowedOrigins.includes(origin)) return new AccessDeniedError(403, `origin ${origin} not allowed`)
   const site = request.headers.get('sec-fetch-site')

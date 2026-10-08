@@ -21,6 +21,8 @@ export interface RenderedBlock {
 /** Per-request overrides the app may pass in (e.g. from i18n routing). */
 export interface PageContext {
   locale?: string
+  /** The incoming request, when available: lets the core enforce which origins serve the site. */
+  request?: Request
 }
 
 export interface PreparedPage {

@@ -3,6 +3,7 @@ export { defineConfig, resolveConfig, DEFAULT_ROUTES, type HostConfig, type Puck
 export type { PageContext, PreparedPage } from './server/public-render.ts'
 export { normalizeSlug } from './server/pages.ts'
 export { AccessDeniedError, CSRF_HEADER, devAllowAll, sharedSecretAuth } from './server/auth.ts'
+export { classifyRequest, surfaceOf, WrongSurfaceError, type OriginsConfig, type Surface } from './server/surface.ts'
 export { memoryCache, type MemoryCache } from './server/query/cache.ts'
 export { inProcessRenderer } from './server/runtime/in-process.ts'
 export { bubblewrap, workerLaunchOptions, workerPoolRenderer, type WorkerPoolOptions } from './server/runtime/worker-pool.ts'

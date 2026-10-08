@@ -58,7 +58,7 @@ function apiPost(apiRoute: string, path: string, body?: unknown) {
   })
 }
 
-export function EditorClient({ manifest, version, slug, site, routes, initialData }: EditorProps) {
+export function EditorClient({ manifest, version, slug, site, routes, siteOrigin, initialData }: EditorProps) {
   const assetBase = themeAssetBase(routes.theme, version)
   const [status, setStatus] = useState<string>('')
   // Blocks are rendered by the server (one batched call per tick); theme JS never runs here.
@@ -111,7 +111,7 @@ export function EditorClient({ manifest, version, slug, site, routes, initialDat
             >
               Reload theme
             </button>
-            <a href={`/${slug === 'home' ? '' : slug}`} target="_blank" rel="noreferrer">
+            <a href={`${siteOrigin}/${slug === 'home' ? '' : slug}`} target="_blank" rel="noreferrer">
               View page
             </a>
             {children}

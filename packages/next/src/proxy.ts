@@ -1,18 +1,25 @@
 /**
- * Next.js proxy (middleware) factory: cache headers for public pages. Pages using URL query
- * params ($query) are never cacheable. Imports only @puck-remote/core/cacheability (no isolate).
+ * Next.js proxy (middleware) factory. For every request:
+ *  - 404 when the request's origin doesn't serve its surface (editor/API only on editor origins,
+ *    public pages only on site origins);
+ *  - cache headers for public pages (pages using URL query params are never cacheable).
+ * Imports only @puck-remote/core/edge (no isolate, no workers).
  *
  *   // src/proxy.ts
  *   export const proxy = createProxy(remoteConfig)
- *   export const config = { matcher: ['/((?!_next/|api/|editor(?:/|$)|theme/|favicon\.ico).*)'] }
+ *   export const config = { matcher: ['/((?!_next/|favicon\\.ico).*)'] }
  */
+import { classifyRequest, normalizeSlug, pageCacheability, resolveSurfaces } from '@puck-remote/core/edge'
 import type { PuckRemoteConfig } from '@puck-remote/core/config'
-import { normalizeSlug, pageCacheability } from '@puck-remote/core/cacheability'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export function createProxy(config: Pick<PuckRemoteConfig, 'artifacts' | 'pages'>) {
+export function createProxy(config: Pick<PuckRemoteConfig, 'artifacts' | 'pages' | 'routes' | 'origins' | 'allowSharedOrigin'>) {
+  const surfaces = resolveSurfaces(config)
   return async function proxy(req: NextRequest) {
+    const where = classifyRequest(req, surfaces)
+    if (!where.allowed) return new NextResponse('Not found', { status: 404, headers: { 'cache-control': 'no-store' } })
     const res = NextResponse.next()
+    if (where.surface !== 'site') return res
     const slug = normalizeSlug(req.nextUrl.pathname)
     if (!slug) return res
     const c = await pageCacheability(config, slug).catch(() => null)

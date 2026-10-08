@@ -18,10 +18,15 @@
       "types": "./dist/config.d.ts",
       "default": "./dist/config.js"
     },
+    "./edge": {
+      "@puck-remote/source": "./src/edge.ts",
+      "types": "./dist/edge.d.ts",
+      "default": "./dist/edge.js"
+    },
     "./cacheability": {
-      "@puck-remote/source": "./src/server/cacheability.ts",
-      "types": "./dist/cacheability.d.ts",
-      "default": "./dist/cacheability.js"
+      "@puck-remote/source": "./src/edge.ts",
+      "types": "./dist/edge.d.ts",
+      "default": "./dist/edge.js"
     },
     "./react": {
       "@puck-remote/source": "./src/react/index.ts",

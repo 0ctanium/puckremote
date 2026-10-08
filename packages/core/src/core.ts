@@ -6,6 +6,7 @@ import type { Data } from '@puckeditor/core'
 import { resolveConfig, type HostConfig, type PuckRemoteConfig, type Routes } from './server/config.ts'
 import type { Action } from '@puck-remote/sdk/host'
 import { AccessDeniedError, authorizeRequest, checkCsrf } from './server/auth.ts'
+import { classifyRequest, WrongSurfaceError } from './server/surface.ts'
 import { handleResolve } from './server/editor-rpc.ts'
 import { createHost, type Host } from './server/host.ts'
 import type { RenderSession } from './server/runtime/types.ts'
@@ -53,6 +54,8 @@ export interface EditorProps {
   slug: string
   site: { name: string; locale: string }
   routes: Routes
+  /** Where the public site lives ('' = same origin), for "View page" links. */
+  siteOrigin: string
   initialData: Data
   uncacheable: boolean
 }
@@ -196,6 +199,8 @@ function build(config: HostConfig): PuckRemoteCore {
   }
 
   async function handleApi(request: Request): Promise<Response> {
+    // The editor API only answers on editor origins (404 elsewhere: its existence isn't revealed).
+    if (!classifyRequest(request, config).allowed) return json({ error: 'not found' }, 404)
     const sub = subpath(request, config.routes.api)
     const route = sub !== null && Object.hasOwn(routes, sub) ? routes[sub] : null
     if (!route) return json({ error: 'not found' }, 404)
@@ -218,6 +223,7 @@ function build(config: HostConfig): PuckRemoteCore {
 
   async function handleTheme(request: Request): Promise<Response> {
     if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method not allowed', { status: 405, headers: { allow: 'GET, HEAD' } })
+    if (!classifyRequest(request, config).allowed) return fileResponse(null)
     const sub = subpath(request, config.routes.theme)
     const m = sub === null ? null : /^(v[1-9]\d{0,6})\/(assets\/.+)$/.exec(sub)
     if (!m) return fileResponse(null)
@@ -230,9 +236,13 @@ function build(config: HostConfig): PuckRemoteCore {
     config,
     host,
     async preparePage(slug, query = {}, context = {}) {
+      // With a request, the public site only answers on site origins (null → 404).
+      if (context.request && !classifyRequest(context.request, config).allowed) return null
       return preparePage(await host(), slug, query, context)
     },
     async loadEditor(slug, request) {
+      const where = classifyRequest(request, config)
+      if (!where.allowed) throw new WrongSurfaceError('editor', where.origin)
       await authorizeRequest(config.auth, request, 'editor:open', { slug })
       const h = await host()
       const { manifest, version } = h.store.get()
@@ -244,6 +254,7 @@ function build(config: HostConfig): PuckRemoteCore {
         slug,
         site: config.site,
         routes: config.routes,
+        siteOrigin: config.origins?.site[0] ?? '',
         initialData: data as unknown as Data,
         uncacheable: collectInstances(data, manifest).some((i) => i.meta?.usesRequestParams),
       }

@@ -9,7 +9,7 @@
  *   // app/api/[[...path]]/route.ts    → export const { GET, POST } = remote.api
  *   // app/theme/[[...path]]/route.ts  → export const { GET } = remote.theme
  */
-import { AccessDeniedError, createCore, normalizeSlug, type EditorProps, type PageContext, type PuckRemoteConfig, type PuckRemoteCore, type PreparedPage } from '@puck-remote/core'
+import { AccessDeniedError, createCore, normalizeSlug, WrongSurfaceError, type EditorProps, type PageContext, type PuckRemoteConfig, type PuckRemoteCore, type PreparedPage } from '@puck-remote/core'
 import { pageMetadata } from '@puck-remote/core/react'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
@@ -68,8 +68,11 @@ async function currentRequest(pathname: string): Promise<Request> {
 export function createPuckRemote(config: PuckRemoteConfig, options: NextBindingOptions = {}): PuckRemote {
   const core = createCore(config)
   // Per-request memo: generateMetadata and the page share one isolate pass.
+  // React cache() is per request, so the memo never crosses requests (or hostnames).
   const prepare = cache(async (slug: string, qs: string, locale: string | undefined) => {
-    return core.preparePage(slug, Object.fromEntries(new URLSearchParams(qs)), { locale })
+    // The request lets the core check that this origin serves the public site.
+    const request = await currentRequest(`/${slug === 'home' ? '' : slug}`)
+    return core.preparePage(slug, Object.fromEntries(new URLSearchParams(qs)), { locale, request })
   })
   const loadPage: PuckRemote['loadPage'] = async ({ params, searchParams }, context = {}) => {
     const slug = await slugOf(params)
@@ -90,6 +93,7 @@ export function createPuckRemote(config: PuckRemoteConfig, options: NextBindingO
       try {
         return await core.loadEditor(slug, await currentRequest(path))
       } catch (e) {
+        if (e instanceof WrongSurfaceError) notFound()
         if (!(e instanceof AccessDeniedError)) throw e
         if (e.status === 401 && options.loginUrl) redirect(`${options.loginUrl}?next=${encodeURIComponent(path)}`)
         notFound()

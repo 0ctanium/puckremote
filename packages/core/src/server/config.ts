@@ -1,5 +1,6 @@
 import type { AnyDataSource, ArtifactStore, AuthAdapter, CacheStore, PageStore } from '@puck-remote/sdk/host'
 import type { RendererFactory } from './runtime/types.ts'
+import { normalizeOrigin, type OriginsConfig } from './surface.ts'
 import { memoryCache } from './query/cache.ts'
 
 export interface SecretDef {
@@ -28,6 +29,11 @@ export interface HostConfig {
    * only. Add the editor origin here when the API is called cross-origin.
    */
   allowedOrigins: string[]
+  /**
+   * Which hostnames serve which surface (see surface.ts). null = single-origin mode, allowed in
+   * development only (or with allowSharedOrigin).
+   */
+  origins: OriginsConfig | null
   site: { name: string; locale: string }
   isolate: {
     memoryLimitMb: number
@@ -71,7 +77,7 @@ export interface Routes {
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? Partial<T[K]> : T[K] }
 
 /** What an app provides. Everything except paths and plugins has a default. */
-type Plugins = 'artifacts' | 'source' | 'pages' | 'cache' | 'auth' | 'secrets' | 'allowedOrigins' | 'renderer'
+type Plugins = 'artifacts' | 'source' | 'pages' | 'cache' | 'auth' | 'secrets' | 'allowedOrigins' | 'renderer' | 'origins'
 
 /** What an app provides. Everything except the storage plugins has a default. */
 export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, Plugins>> {
@@ -87,6 +93,14 @@ export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, Plugins>>
   /** Who may open the editor, read drafts, save pages, switch artifacts. Mandatory in production. */
   auth?: AuthAdapter
   allowedOrigins?: string[]
+  /**
+   * Public site and editor origins, e.g. { site: ['https://www.example.com'], editor: ['https://admin.example.com'] }.
+   * Required in production: theme scripts run on the site origin and must not share it with the
+   * editor's session. Point both DNS names at the same app.
+   */
+  origins?: OriginsConfig | null
+  /** Escape hatch: serve site and editor from one origin in production (not recommended). */
+  allowSharedOrigin?: boolean
   secrets?: Record<string, SecretDef>
 }
 
@@ -108,7 +122,34 @@ function requireAuthInProduction(auth: AuthAdapter | undefined): AuthAdapter | n
   return null
 }
 
+function resolveOrigins(input: PuckRemoteConfig): OriginsConfig | null {
+  const raw = input.origins
+  if (raw) {
+    const origins = { site: raw.site.map(normalizeOrigin), editor: raw.editor.map(normalizeOrigin) }
+    const shared = origins.editor.filter((o) => origins.site.includes(o))
+    if (shared.length && !input.allowSharedOrigin) {
+      throw new ConfigError(`puck-remote: ${shared.join(', ')} is both a site and an editor origin. Theme scripts on the site could act with editor sessions; use a separate editor hostname (or set allowSharedOrigin).`)
+    }
+    if (!origins.editor.length) throw new ConfigError('puck-remote: origins.editor must list at least one origin')
+    return origins
+  }
+  if (process.env.NODE_ENV === 'production' && !input.allowSharedOrigin) {
+    throw new ConfigError(
+      'puck-remote: `origins` is required in production, e.g. { site: ["https://www.example.com"], editor: ["https://admin.example.com"] }. ' +
+        'Theme scripts run on the site origin; the editor (and its session cookies) must live on another one. Set allowSharedOrigin to opt out.',
+    )
+  }
+  return null
+}
+
+/** Just what request routing needs (proxy/middleware), without resolving the rest. */
+export function resolveSurfaces(input: Pick<PuckRemoteConfig, 'routes' | 'origins' | 'allowSharedOrigin'>): { routes: Routes; origins: OriginsConfig | null } {
+  return { routes: { ...DEFAULT_ROUTES, ...input.routes }, origins: resolveOrigins(input as PuckRemoteConfig) }
+}
+
 export function resolveConfig(input: PuckRemoteConfig): HostConfig {
+  const auth = requireAuthInProduction(input.auth)
+  const origins = resolveOrigins(input)
   return {
     id: input.id ?? 'default',
     artifacts: input.artifacts,
@@ -117,8 +158,10 @@ export function resolveConfig(input: PuckRemoteConfig): HostConfig {
     pages: input.pages,
     cache: input.cache ?? memoryCache(),
     renderer: input.renderer ?? null,
-    auth: requireAuthInProduction(input.auth),
-    allowedOrigins: input.allowedOrigins ?? [],
+    auth,
+    origins,
+    // CSRF: mutations may come from the request's own origin, the editor origins, or this list.
+    allowedOrigins: [...new Set([...(input.allowedOrigins ?? []), ...(origins?.editor ?? [])])],
     routes: { ...DEFAULT_ROUTES, ...input.routes },
     site: { name: 'Site', locale: 'en', ...input.site },
     isolate: {
