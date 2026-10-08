@@ -1,0 +1,61 @@
+---
+title: Drafts and publishing
+description: Save drafts, publish, resolve conflicts and restore old revisions.
+---
+
+Every page has a **draft** (what the editor opens) and, once published, a **published revision**
+(what the public site serves). Saving never changes the public site; publishing does.
+
+## In the editor
+
+The editor header shows the page status and the workflow buttons:
+
+| Status | Meaning |
+|---|---|
+| `Unsaved changes` | The editor has changes that aren't saved yet (also for a page that was never saved) |
+| `Draft only` | Saved, never published (or unpublished): the public site answers 404 |
+| `Unpublished changes` | The draft differs from what the site serves |
+| `Published` | The site serves the current draft |
+
+- **Save draft** stores a new revision. The public site doesn't change.
+- **Publish** saves first if needed, then makes that revision public. It is disabled when the page
+  is already published as-is.
+- **History** lists revisions, newest first (20 at a time, **Load more** for older ones), with who
+  saved them and which one is published. **Restore** saves an old revision as a new draft and loads
+  it into the editor; with unsaved changes, it asks first. Publish afterwards to make it public.
+
+Leaving the page with unsaved changes asks for confirmation.
+
+## Conflicts
+
+Each save names the revision the editor started from. If someone else saved in the meantime, the
+save is refused and a banner says the page was changed elsewhere:
+
+- **Reload** opens the latest version (your unsaved changes are lost);
+- **Overwrite** saves your version on top of theirs (theirs stays in History).
+
+Publishing is refused the same way if the draft changed since you last saw it, so nobody publishes
+changes they haven't seen ([D-0123](/docs/internal/decisions#D-0123)).
+
+## Permissions
+
+| Action | Allows |
+|---|---|
+| `page:read-draft` | Opening drafts and history |
+| `page:write` | Save draft, Restore |
+| `page:publish` | Publish, unpublish |
+| `page:delete` | Deleting a page (API only) |
+
+Your [auth adapter](/docs/core/adapters/auth) receives the page slug with each action, so you can
+give people rights on parts of the site only.
+
+## Without the editor
+
+Everything the editor does goes through the [HTTP API](/docs/http-api) (`pages/save`,
+`pages/publish`, `pages/unpublish`, `pages/delete`, `pages/history`, `pages/revision`,
+`pages/restore`), so scripts and CI can manage pages with a bearer token.
+
+## Where pages are stored
+
+In the [page store](/docs/core/adapters/page-store). `@puck-remote/pages-fs` keeps the revisions on
+disk for a single instance; use a database-backed store when you run several.

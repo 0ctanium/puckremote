@@ -45,6 +45,12 @@ when a prop referenced by `$prop` changed (from the manifest's `propRefs`), on l
 force, and keystrokes are debounced. **On save, `__data` is stripped** from every node, because
 Puck would otherwise persist it ([D-0028](/docs/internal/decisions#D-0028); test 18).
 
+## Saving and publishing
+
+The editor opens the page's latest **draft**. **Save draft** stores a new revision without touching
+the public site; **Publish** makes a revision public. Saves are refused if someone else saved in
+the meantime. See [Drafts and publishing](/docs/guides/publishing).
+
 ## Rendering pipeline in the browser
 
 `createRemoteRenderer` batches every render request issued in the same tick into one POST (one

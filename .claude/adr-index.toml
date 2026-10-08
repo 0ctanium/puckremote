@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 158
+next_decision = 168
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -95,7 +95,7 @@ created = "2026-10-08"
 title = "M3a: content lifecycle (drafts, publish, history, preview, migrations)"
 description = "M3a: content lifecycle (drafts, publish, history, preview, migrations)"
 tags = [ "pages", "editor", "migrations", "preview", "roadmap" ]
-decisions = [ "D-0116", "D-0117", "D-0118", "D-0119", "D-0120", "D-0121", "D-0122", "D-0123", "D-0124", "D-0125", "D-0126", "D-0127", "D-0128", "D-0129", "D-0130", "D-0131", "D-0132", "D-0133", "D-0134", "D-0135", "D-0136", "D-0137", "D-0138", "D-0139", "D-0140", "D-0141", "D-0142", "D-0143", "D-0144", "D-0145", "D-0146", "D-0147", "D-0148", "D-0149", "D-0150", "D-0151", "D-0152", "D-0153", "D-0154", "D-0155", "D-0156", "D-0157" ]
+decisions = [ "D-0116", "D-0117", "D-0118", "D-0119", "D-0120", "D-0121", "D-0122", "D-0123", "D-0124", "D-0125", "D-0126", "D-0127", "D-0128", "D-0129", "D-0130", "D-0131", "D-0132", "D-0133", "D-0134", "D-0135", "D-0136", "D-0137", "D-0138", "D-0139", "D-0140", "D-0141", "D-0142", "D-0143", "D-0144", "D-0145", "D-0146", "D-0147", "D-0148", "D-0149", "D-0150", "D-0151", "D-0152", "D-0153", "D-0154", "D-0155", "D-0156", "D-0157", "D-0158", "D-0159", "D-0160", "D-0161", "D-0162", "D-0163", "D-0164", "D-0165", "D-0166", "D-0167" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -1359,6 +1359,88 @@ date = "2026-10-08"
 provenance = "user"
 status = "accepted"
 tags = [ "auth", "security" ]
+
+[decisions.D-0158]
+title = "A never-saved page shows the status 'Unsaved changes'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0159]
+title = "Restore with unsaved changes asks 'Discard your unsaved changes and restore this revision?'; the restored draft is loaded into the editor"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0160]
+title = "History is a dropdown panel with the 20 newest revisions (date, author, published/draft markers) and 'Load more'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0161]
+title = "Publish is disabled when nothing is unsaved and the draft is already published, and while a request runs"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0162]
+title = "History disables Restore on the row that is already the current draft"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0163]
+title = "Editor status messages: Saved/Published HH:MM:SS, Restored revision <id>, <Action> failed (<status>); empty history 'No revisions yet.'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0164]
+title = "History rows without an author show an em dash"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0165]
+title = "'Unsaved changes' compares editor data ignoring __data and readOnly keys"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0166]
+title = "Editor header overrides are a stable component fed by React context (Puck remounts overrides whose identity changes)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0167"
+
+[decisions.D-0167]
+title = "Editor header overrides are a stable component fed by React context (Puck remounts overrides whose identity changes); D-0166 was mislabeled as user-approved"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "editor" ]
+supersedes = [ "D-0166" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

@@ -1,12 +1,13 @@
 'use client'
-import { Puck, type Data } from '@puckeditor/core'
+import { Puck } from '@puckeditor/core'
 // The variant without external imports: the editor's CSP allows no third-party origins.
 import '@puckeditor/core/no-external.css'
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import type { EditorProps } from '../core.ts'
-import { apiUrl, themeAssetBase } from '../shared/urls.ts'
+import { themeAssetBase } from '../shared/urls.ts'
 import { createRemoteRenderer } from './remote-render.ts'
 import { buildEditorConfig, type EditorEffect } from './config.tsx'
+import { createApi, useWorkflowState, WorkflowHeader } from './workflow.tsx'
 
 // Stylesheets requested by blocks via ctx.assets.style(), injected into Puck's canvas iframe.
 // Updated asynchronously so render functions never set state during render.
@@ -49,21 +50,13 @@ function CanvasStyles({ document: doc, children }: { document?: Document; childr
 
 export type { EditorProps }
 
-/** Mutating calls carry the CSRF header (see server/auth.ts) and same-origin credentials. */
-function apiPost(apiRoute: string, path: string, body?: unknown) {
-  return fetch(apiUrl(apiRoute, path), {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json', 'x-puck-remote': '1' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-}
-
-export function EditorClient({ manifest, version, slug, site, routes, siteOrigin, initialData }: EditorProps) {
+export function EditorClient({ manifest, version, slug, site, routes, siteOrigin, initialData, page }: EditorProps) {
   const assetBase = themeAssetBase(routes.theme, version)
   const [status, setStatus] = useState<string>('')
   // Blocks are rendered by the server (one batched call per tick); theme JS never runs here.
   const renderer = useMemo(() => createRemoteRenderer({ apiRoute: routes.api, slug }), [routes.api, slug, version])
+  const api = useMemo(() => createApi(routes.api), [routes.api])
+  const workflow = useWorkflowState(page)
 
   const config = useMemo(
     () =>
@@ -74,51 +67,61 @@ export function EditorClient({ manifest, version, slug, site, routes, siteOrigin
         renderer,
         onEffects: (e) => addEffects(e, assetBase),
         resolve: async (blockType, props) => {
-          const res = await apiPost(routes.api, 'blocks/resolve', { blockType, props, slug })
+          const res = await api.post('blocks/resolve', { blockType, props, slug })
           if (!res.ok) throw new Error(`resolve failed: ${res.status}`)
           return (await res.json()).data
         },
       }),
-    [manifest, version, assetBase, slug, site, routes.api, renderer],
+    [manifest, version, assetBase, slug, site, api, renderer],
   )
 
-  const save = async (data: Data) => {
-    setStatus('Saving…')
-    const res = await apiPost(routes.api, 'pages', { slug, data })
-    setStatus(res.ok ? `Saved ${new Date().toLocaleTimeString()}` : `Save failed (${res.status})`)
-  }
-
+  const header = { slug, version, siteOrigin, api, workflow, status, setStatus }
   return (
-    <Puck
-      config={config}
-      data={initialData}
-      onPublish={save}
-      headerTitle={`/${slug === 'home' ? '' : slug}`}
-      overrides={{
-        iframe: CanvasStyles,
-        headerActions: ({ children }) => (
-          <>
-            <span style={{ fontSize: 12, color: '#64748b' }} data-testid="artifact-version">
-              theme v{version} · {status}
-            </span>
-            <button
-              type="button"
-              onClick={async () => {
-                const r = await apiPost(routes.api, 'artifact/reload')
-                const j = await r.json()
-                setStatus(j.ok ? `artifact v${j.version}` : `reload failed: ${j.error}`)
-                if (j.ok && j.version !== version) location.reload()
-              }}
-            >
-              Reload theme
-            </button>
-            <a href={`${siteOrigin}/${slug === 'home' ? '' : slug}`} target="_blank" rel="noreferrer">
-              View page
-            </a>
-            {children}
-          </>
-        ),
-      }}
-    />
+    <HeaderContext.Provider value={header}>
+      <Puck config={config} data={initialData} onChange={workflow.onChange} headerTitle={`/${slug === 'home' ? '' : slug}`} overrides={OVERRIDES} />
+    </HeaderContext.Provider>
   )
 }
+
+/**
+ * Header state comes through context: Puck remounts an override whose identity changes, so the
+ * overrides object must stay stable (otherwise every edit would reset the header's state).
+ */
+const HeaderContext = createContext<{
+  slug: string
+  version: number
+  siteOrigin: string
+  api: ReturnType<typeof createApi>
+  workflow: ReturnType<typeof useWorkflowState>
+  status: string
+  setStatus(s: string): void
+} | null>(null)
+
+// Puck's own Publish button (children) is replaced by the workflow controls.
+function HeaderActions() {
+  const { slug, version, siteOrigin, api, workflow, status, setStatus } = useContext(HeaderContext)!
+  return (
+    <>
+      <span style={{ fontSize: 12, color: '#64748b' }} data-testid="artifact-version">
+        theme v{version} · {status}
+      </span>
+      <button
+        type="button"
+        onClick={async () => {
+          const r = await api.post('artifact/reload')
+          const j = await r.json()
+          setStatus(j.ok ? `artifact v${j.version}` : `reload failed: ${j.error}`)
+          if (j.ok && j.version !== version) location.reload()
+        }}
+      >
+        Reload theme
+      </button>
+      <a href={`${siteOrigin}/${slug === 'home' ? '' : slug}`} target="_blank" rel="noreferrer">
+        View page
+      </a>
+      <WorkflowHeader slug={slug} api={api} workflow={workflow} onStatus={setStatus} />
+    </>
+  )
+}
+
+const OVERRIDES = { iframe: CanvasStyles, headerActions: HeaderActions }

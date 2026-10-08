@@ -30,6 +30,12 @@ description: From opening the editor page to saving, step by step.
    `loadEditor` opens the latest **draft** (`readDraft`), and passes its `PageMeta` as
    `EditorProps.page`.
 7. **Reload theme** → `POST /api/artifact/reload`; if the version changed, the page reloads.
+8. **Workflow header** (`workflow.tsx`): Save draft, Publish, History/Restore and the conflict
+   banner call the `pages/*` routes. "Unsaved changes" compares the editor data with the last saved
+   data, ignoring `__data` and `readOnly` (what `resolveData` adds), so loading data never marks a
+   page as changed ([D-0165](/docs/internal/decisions#D-0165)). The header gets its state through React
+   context: Puck remounts an override whose identity changes, so the `overrides` object is a
+   stable module constant ([D-0167](/docs/internal/decisions#D-0167)).
 
 ## resolveData details
 
@@ -41,6 +47,7 @@ description: From opening the editor page to saving, step by step.
 <Source path="packages/core/src/editor/EditorClient.tsx" />
 <Source path="packages/core/src/editor/config.tsx" />
 <Source path="packages/core/src/editor/remote-render.ts" />
+<Source path="packages/core/src/editor/workflow.tsx" />
 <Source path="packages/core/src/editor/fields.ts" />
 <Source path="packages/core/src/editor/host-fields.tsx" />
 <Source path="packages/core/src/editor/visible-if.ts" />

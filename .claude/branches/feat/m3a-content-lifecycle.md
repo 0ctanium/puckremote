@@ -80,6 +80,16 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
 | D-0155 | Invalid GET query strings on the API return 400 'invalid query' | user | accepted |
 | D-0156 | unpublish of a missing page is 404; delete is idempotent (200 { ok: true }) | user | accepted |
 | D-0157 | handleApi fails closed if a handler returns (other than 400) without authorizing | user | accepted |
+| D-0158 | A never-saved page shows the status 'Unsaved changes' | user | accepted |
+| D-0159 | Restore with unsaved changes asks 'Discard your unsaved changes and restore this revision?'; the restored draft is loaded into the editor | user | accepted |
+| D-0160 | History is a dropdown panel with the 20 newest revisions (date, author, published/draft markers) and 'Load more' | user | accepted |
+| D-0161 | Publish is disabled when nothing is unsaved and the draft is already published, and while a request runs | user | accepted |
+| D-0162 | History disables Restore on the row that is already the current draft | user | accepted |
+| D-0163 | Editor status messages: Saved/Published HH:MM:SS, Restored revision <id>, <Action> failed (<status>); empty history 'No revisions yet.' | user | accepted |
+| D-0164 | History rows without an author show an em dash | user | accepted |
+| D-0165 | 'Unsaved changes' compares editor data ignoring __data and readOnly keys | user | accepted |
+| D-0166 | Editor header overrides are a stable component fed by React context (Puck remounts overrides whose identity changes) | user | superseded by D-0167 |
+| D-0167 | Editor header overrides are a stable component fed by React context (Puck remounts overrides whose identity changes); D-0166 was mislabeled as user-approved | agent-unreviewed | needs-review |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -119,6 +129,8 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
   - `EditorProps.page` added.
   - Core internals: `authenticateRequest` and `authorizePrincipal` split out of `authorizeRequest`; `pages.ts` gains `readPublished`, `readDraft`, `cleanPage`, `saveDraft`, `PAGE_SCHEMA_VERSION` and `PageFormatError`.
 
+- **Slice C:** the editor header (`editor/workflow.tsx`) replaces Puck's Publish button; `EditorClient` uses Puck `onChange` and stable `OVERRIDES`.
+
 ### Docs pages touched
 - **Slice A:** `core/adapters/page-store.mdx`, `core/adapters/testing.mdx`.
 - **Slice B:**
@@ -126,12 +138,22 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
   - `core/adapters/auth.mdx`
   - `internal/architecture/{auth-and-csrf,editor-lifecycle,public-request}.mdx`
   - `internal/quality/testing.mdx`
+- **Slice C:**
+  - new `(framework)/guides/publishing.mdx`, placed before "Deploying safely";
+  - `(framework)/concepts/editor.mdx`;
+  - `internal/architecture/editor-lifecycle.mdx`.
 
 ## Investigation Notes
-[Research, experiments, dead ends]
+- Puck 0.23 exposes `useGetPuck()` (current data, `dispatch({ type: 'setData' })`) and an `onChange` prop. Both are used by the workflow header.
+
 
 ## Challenges & Solutions
-[Technical and process challenges encountered]
+- **Header state lost on edits.**
+  - Symptom: the History panel closed while typing.
+  - Cause: the `headerActions` override was an inline function, so Puck remounted it on every edit and reset its state.
+  - Fix: a stable module-level override fed by React context (D-0167, agent-unreviewed).
+- **Mislabeled decision.** D-0166 was recorded as `user` by mistake, and D-0167 supersedes it.
+- **Missing local launch config.** The docs-branch commit untracked `.claude/launch.json` (it is gitignored), so it was restored locally from history.
 
 ## Impact Assessment
 [Performance, user, maintenance, security]
