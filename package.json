@@ -14,12 +14,14 @@
     "lint:pkg": "pnpm -r --filter \"./packages/*\" lint:pkg",
     "changeset": "changeset",
     "release": "pnpm build && pnpm lint:pkg && changeset publish",
-    "version-packages": "changeset version && pnpm install --lockfile-only"
+    "version-packages": "changeset version && pnpm install --lockfile-only",
+    "adr": "node .claude/adr-helper.mjs"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",
     "@changesets/cli": "3.0.3",
     "publint": "0.3.25",
+    "smol-toml": "1.9.0",
     "tsdown": "0.23.0",
     "typescript": "7.0.2"
   }

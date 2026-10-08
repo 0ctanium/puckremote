@@ -1,0 +1,915 @@
+# puck-remote decision index — managed by `pnpm adr` (see .claude/ADR-SYSTEM-GUIDE.md). Do not edit by hand.
+
+[meta]
+project = "puck-remote"
+guide = ".claude/ADR-SYSTEM-GUIDE.md"
+next_decision = 101
+
+[adrs."feat/poc-sandboxed-blocks"]
+file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
+type = "feat"
+status = "merged"
+created = "2026-10-07"
+merged = "2026-10-07"
+title = "POC: sandboxed React blocks for Puck"
+description = "Untrusted React blocks drive a Puck editor and an RSC public site; developer code only runs inside isolated-vm."
+tags = [ "poc", "isolate", "puck", "rsc", "editor", "data", "security" ]
+commits = [ "5c9f3a7", "78b84c4", "6e106ff", "0a85c3e", "a6afec7", "a3fe188", "1498e9c", "3f3e27f" ]
+decisions = [ "D-0001", "D-0002", "D-0003", "D-0004", "D-0005", "D-0006", "D-0007", "D-0008", "D-0009", "D-0010", "D-0011", "D-0012", "D-0013", "D-0014", "D-0015", "D-0016", "D-0017", "D-0018", "D-0019", "D-0020", "D-0021", "D-0022", "D-0023", "D-0024", "D-0025", "D-0026", "D-0027", "D-0028", "D-0029", "D-0030", "D-0031", "D-0032", "D-0033" ]
+
+[adrs."feat/pluggable-data-source"]
+file = "merged/2026-10/feat-pluggable-data-source.md"
+type = "feat"
+status = "merged"
+created = "2026-10-07"
+merged = "2026-10-07"
+title = "Pluggable host data source and page store"
+description = "Backend-agnostic DataSource/PageStore plugins with policy enforced by the host core; typed theme queries."
+tags = [ "data-source", "adapters", "typing", "security", "page-store" ]
+commits = [ "1dc6604" ]
+decisions = [ "D-0034", "D-0035", "D-0036", "D-0037", "D-0038", "D-0039", "D-0040", "D-0041", "D-0042" ]
+
+[adrs."chore/package-split"]
+file = "merged/2026-10/chore-package-split.md"
+type = "chore"
+status = "merged"
+created = "2026-10-08"
+merged = "2026-10-08"
+title = "Package split: framework-agnostic core + Next bindings"
+description = "Engine in @core, thin @next bindings, separate thin SDK, app reduced to wiring."
+tags = [ "packaging", "architecture", "next", "core" ]
+commits = [ "9af95f1" ]
+decisions = [ "D-0043", "D-0044", "D-0045", "D-0046", "D-0047", "D-0048" ]
+
+[adrs."chore/rename-puck-remote"]
+file = "merged/2026-10/chore-rename-puck-remote.md"
+type = "chore"
+status = "merged"
+created = "2026-10-08"
+merged = "2026-10-08"
+title = "Rename @poc to @puck-remote"
+description = "Rename packages, binary, APIs, env vars and internal keys."
+tags = [ "naming", "packaging" ]
+commits = [ "7886ef5" ]
+decisions = [ "D-0049", "D-0050", "D-0051" ]
+
+[adrs."feat/m1-foundations"]
+file = "merged/2026-10/feat-m1-foundations.md"
+type = "feat"
+status = "merged"
+created = "2026-10-08"
+merged = "2026-10-08"
+title = "M1: foundations (contracts, auth, packaging, CI)"
+description = "V1 roadmap answers; ArtifactStore/CacheStore/AuthAdapter, auth + CSRF, contract kits, tsdown, CI, changesets."
+tags = [ "roadmap", "auth", "csrf", "artifacts", "cache", "packaging", "ci" ]
+commits = [ "5772629", "00cdc42" ]
+decisions = [ "D-0052", "D-0053", "D-0054", "D-0055", "D-0056", "D-0057", "D-0058", "D-0059", "D-0060", "D-0061", "D-0062", "D-0063", "D-0064", "D-0065", "D-0066", "D-0067", "D-0068", "D-0069", "D-0070", "D-0071", "D-0072", "D-0073", "D-0074", "D-0075" ]
+
+[adrs."feat/m2-isolation"]
+file = "merged/2026-10/feat-m2-isolation.md"
+type = "feat"
+status = "merged"
+created = "2026-10-08"
+merged = "2026-10-08"
+title = "M2: isolation (worker pool, server-rendered editor, origins, CSP)"
+description = "Worker-process sandbox, server-rendered editor, per-origin surfaces, CSP and security headers."
+tags = [ "security", "isolation", "worker-pool", "editor", "origins", "csp" ]
+commits = [ "0d379f5", "49e9e3d", "e0ec3db", "89bfd25", "6c93575", "816d06c" ]
+decisions = [ "D-0076", "D-0077", "D-0078", "D-0079", "D-0080", "D-0081", "D-0082", "D-0083", "D-0084", "D-0085", "D-0086", "D-0087", "D-0088", "D-0089", "D-0090", "D-0091" ]
+
+[adrs."docs/fumadocs-and-adr-system"]
+file = "branches/docs/fumadocs-and-adr-system.md"
+type = "docs"
+status = "active"
+created = "2026-10-08"
+title = "Docs (Fumadocs), ADR decision system, agent rules and enforcement"
+description = "Fumadocs docs, decision log with provenance, agent skills, hooks/pre-commit/CI enforcement."
+tags = [ "docs", "adr", "process", "agents", "enforcement" ]
+decisions = [ "D-0092", "D-0093", "D-0094", "D-0095", "D-0096", "D-0097", "D-0098", "D-0099", "D-0100" ]
+
+[decisions.D-0001]
+title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "sdk", "blocks" ]
+
+[decisions.D-0002]
+title = "Everything except render is JSON, extracted at build time on the developer machine and re-validated by the host"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "sdk", "manifest", "build" ]
+
+[decisions.D-0003]
+title = "render(props, data, ctx) is synchronous and pure, runs in isolated-vm, renderToString inside the isolate; no handlers/state reach the page"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "isolate", "render" ]
+
+[decisions.D-0004]
+title = "Data is declarative: blocks declare queries, the host resolves them (parallel, deduped, budgeted); the isolate never does I/O"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "data" ]
+
+[decisions.D-0005]
+title = "Theme adapters are sans-IO: toRequest/fromResponse synchronous in the isolate, host performs HTTP"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "adapters", "isolate" ]
+
+[decisions.D-0006]
+title = "No custom/external Puck fields, no permissions/resolvePermissions/function options; visibleIf replaces resolveFields; rich pickers only as host:* fields"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "fields", "puck" ]
+
+[decisions.D-0007]
+title = "root.tsx uses defineRoot through the same pipeline; page body passed as <Slot name=\"children\" />"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "sdk", "root" ]
+
+[decisions.D-0008]
+title = "Client JS, custom assets and iframes are allowed in block output (Shopify-like permissiveness)"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "security", "assets" ]
+
+[decisions.D-0009]
+title = "Single tenant: one site, one active artifact pointer"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "scope" ]
+
+[decisions.D-0010]
+title = "The developer builds; the host never builds. A CLI produces and publishes artifacts"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "cli", "artifacts" ]
+
+[decisions.D-0011]
+title = "Client-side data loading (pagination, load more) is the theme developer's responsibility; out of scope"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "data", "scope" ]
+
+[decisions.D-0012]
+title = "Pages using $query params are uncacheable: flagged in the manifest, Cache-Control no-store, editor notice"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "cache", "data" ]
+
+[decisions.D-0013]
+title = "Stack: pnpm monorepo, TypeScript, vitest, Next.js App Router, Puck (current), isolated-vm, esbuild (CLI), zod, html-react-parser, undici"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "stack" ]
+
+[decisions.D-0014]
+title = "Target native arm64 Node 26 (isolated-vm has no darwin-x64 prebuild for ABI 147)"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "runtime", "node" ]
+
+[decisions.D-0015]
+title = "Editor renders blocks by evaluating bundle.js in the browser (spec-preferred path)"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0080"
+
+[decisions.D-0016]
+title = "Public data is resolved by a host tree walker (not Puck resolveAllData) so the page can be deduped and budgeted"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "data", "puck" ]
+
+[decisions.D-0017]
+title = "Unknown block types are rewritten to a __missing block (Puck drops them silently) and restored on save"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "puck", "resilience" ]
+
+[decisions.D-0018]
+title = "Pre-render pass: resolve data, render every block in one fresh context, then Puck <Render> only parses HTML"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "render", "rsc" ]
+
+[decisions.D-0019]
+title = "Head merge: stylesheets/scripts via React 19 hoisting; title/meta via Next generateMetadata"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "head", "next" ]
+
+[decisions.D-0020]
+title = "Host calls the isolate with async Reference.apply plus a wall-clock watchdog that disposes the isolate"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "isolate", "watchdog" ]
+
+[decisions.D-0021]
+title = "Only two isolate shims (MessageChannel, TextEncoder); no timers, fetch, process or require"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "isolate", "shims" ]
+
+[decisions.D-0022]
+title = "Page cacheability headers set in the Next proxy (x-page-cacheable / no-store)"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "cache", "next" ]
+
+[decisions.D-0023]
+title = "Editor loads bundle.js into a hidden same-origin iframe realm (shims would break React in the editor window)"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0080"
+
+[decisions.D-0024]
+title = "pnpm 12 installed globally into the fnm Node 26 (Node 26 no longer ships corepack)"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "tooling" ]
+
+[decisions.D-0025]
+title = "Every script sets NODE_OPTIONS=--no-node-snapshot (isolated-vm guidance, harmless on Node 26)"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "tooling", "isolate" ]
+
+[decisions.D-0026]
+title = "One isolate per artifact version, compiled once; fresh context per page request; blocks of one request share it"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "isolate" ]
+
+[decisions.D-0027]
+title = "Slot markers carry a per-render nonce; the host swaps only nonce-valid markers, each slot at most once"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "slots", "security" ]
+
+[decisions.D-0028]
+title = "Editor resolveData writes a reserved read-only __data prop, stripped on save, always re-resolved at render"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "data" ]
+
+[decisions.D-0029]
+title = "Content source mocked in-memory with collection/field allowlists, limit/depth clamps and a host-only draft mode"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "data", "payload" ]
+
+[decisions.D-0030]
+title = "Outbound HTTP: https only, origin allowlist, pinned DNS rejecting private IPs, manual same-origin redirects, timeouts and size caps"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "security", "ssrf" ]
+
+[decisions.D-0031]
+title = "Secrets are bound to origins in host config and substituted on the host; never enter the isolate"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "security", "secrets" ]
+
+[decisions.D-0032]
+title = "Tests point the manifest adapter origin at a random-port mock API (test seam)"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "testing" ]
+
+[decisions.D-0033]
+title = "Queries deduped by hash; static budget (count, bytes, wall time) degrades later blocks in tree order"
+adr = "feat/poc-sandboxed-blocks"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "data", "budget" ]
+
+[decisions.D-0034]
+title = "Theme defineAdapter stays untrusted and runs in the isolate"
+adr = "feat/pluggable-data-source"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "adapters", "isolate" ]
+
+[decisions.D-0035]
+title = "Host data access is a pluggable, trusted DataSource contract (in the SDK host entry) so hosts can plug any DB/framework"
+adr = "feat/pluggable-data-source"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "data-source", "adapters" ]
+
+[decisions.D-0036]
+title = "Each collection declares its policy (fields, filters, sort, limits, depth, tags); the host core enforces it and the plugin receives a normalized query"
+adr = "feat/pluggable-data-source"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "data-source", "security" ]
+
+[decisions.D-0037]
+title = "Theme queries typed via Register module augmentation plus source<S>() (find<Adapter>() is impossible without partial inference)"
+adr = "feat/pluggable-data-source"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "typing", "sdk" ]
+
+[decisions.D-0038]
+title = "Populated relations are projected with the target collection policy; depth clamped to maxDepth"
+adr = "feat/pluggable-data-source"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "data-source", "security" ]
+
+[decisions.D-0039]
+title = "Page storage is a pluggable PageStore; concrete plugins are wired only in the app config"
+adr = "feat/pluggable-data-source"
+date = "2026-10-07"
+provenance = "user"
+status = "accepted"
+tags = [ "page-store", "adapters" ]
+
+[decisions.D-0040]
+title = "Example plugins as separate packages: source-mock (in-memory CMS) and pages-fs (JSON files)"
+adr = "feat/pluggable-data-source"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "packaging", "adapters" ]
+
+[decisions.D-0041]
+title = "QuerySpec source renamed payload → host; sdkMajor bumped 0 → 1 (older artifacts rejected)"
+adr = "feat/pluggable-data-source"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "manifest", "versioning" ]
+
+[decisions.D-0042]
+title = "Draft results are never cached; the source change feed invalidates cache tags"
+adr = "feat/pluggable-data-source"
+date = "2026-10-07"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "cache", "data-source" ]
+
+[decisions.D-0043]
+title = "Keep @sdk separate and thin (bundled into themes); the engine is a separate package"
+adr = "chore/package-split"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "packaging", "architecture" ]
+
+[decisions.D-0044]
+title = "Split into a framework-agnostic core and thin Next.js bindings"
+adr = "chore/package-split"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "packaging", "next" ]
+
+[decisions.D-0045]
+title = "App reduced to wiring: proxy, public catch-all page, editor page, api/[[...path]], theme/[[...path]]"
+adr = "chore/package-split"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "next", "app" ]
+
+[decisions.D-0046]
+title = "Theme files served at /theme/v<N>/assets/** (and bundle at /theme/v<N>/bundle.js, later removed)"
+adr = "chore/package-split"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "routes", "assets" ]
+
+[decisions.D-0047]
+title = "createCore memoized on globalThis by config.id so all route bundles share one runtime"
+adr = "chore/package-split"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "core", "runtime" ]
+
+[decisions.D-0048]
+title = "App config resolves data paths from process.cwd() (import.meta.dirname is undefined in Next server bundles)"
+adr = "chore/package-split"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "next", "config" ]
+
+[decisions.D-0049]
+title = "Package scope @puck-remote (sdk, cli, core, next, source-mock, pages-fs); CLI binary puck-remote"
+adr = "chore/rename-puck-remote"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "naming" ]
+
+[decisions.D-0050]
+title = "API names: defineConfig, PuckRemoteConfig, createCore/PuckRemoteCore, createPuckRemote/PuckRemote, withPuckRemote, PuckRemotePage, app instance `remote`"
+adr = "chore/rename-puck-remote"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "naming", "api" ]
+
+[decisions.D-0051]
+title = "Keep \"POC\" prose, the demo site name and the repository folder name unchanged"
+adr = "chore/rename-puck-remote"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "naming" ]
+
+[decisions.D-0052]
+title = "Theme authors are untrusted (marketplace possible later)"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "roadmap", "security" ]
+
+[decisions.D-0053]
+title = "puck-remote is a self-hosted library usable by anyone, including on distributed systems"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "roadmap" ]
+
+[decisions.D-0054]
+title = "Payload is the first real backend"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "roadmap", "payload" ]
+
+[decisions.D-0055]
+title = "Split V1 into milestones M1–M5, each with its own approved plan"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "roadmap", "process" ]
+
+[decisions.D-0056]
+title = "AuthAdapter contract based on the standard Request (authenticate + authorize per action); auth required in production; devAllowAll for dev"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth" ]
+
+[decisions.D-0057]
+title = "CSRF: mutations need the x-puck-remote header and an own/allowlisted Origin (Sec-Fetch-Site honored)"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "csrf", "security" ]
+
+[decisions.D-0058]
+title = "Pluggable ArtifactStore; default fs adapter; change detection via store watch or polling"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "artifacts", "adapters" ]
+
+[decisions.D-0059]
+title = "Pluggable CacheStore; default in-memory (globalThis) implementation"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "cache", "adapters" ]
+
+[decisions.D-0060]
+title = "Packages built with tsdown (ESM + d.ts), peer dependencies, CI matrix (Linux x64/arm64, macOS arm64 × Node 24/26)"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "packaging", "ci" ]
+
+[decisions.D-0061]
+title = "License: MIT"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "legal" ]
+
+[decisions.D-0062]
+title = "@puck-remote/source export condition: workspace tests/typecheck use sources, apps use dist"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "packaging" ]
+
+[decisions.D-0063]
+title = "Changesets with all @puck-remote/* packages in one fixed version group"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "packaging", "versioning" ]
+
+[decisions.D-0064]
+title = "Built-in auth helpers: devAllowAll (throws in production) and sharedSecretAuth (bearer or cookie)"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth" ]
+
+[decisions.D-0065]
+title = "Artifact pointer polling default 2000 ms when the store has no change feed"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "artifacts" ]
+
+[decisions.D-0066]
+title = "memoryCache keeps at most 10 000 entries (oldest evicted); shared-cache errors are treated as misses"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "cache" ]
+
+[decisions.D-0067]
+title = "Adapter contract test suites exported from @puck-remote/core/testing"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing", "adapters" ]
+
+[decisions.D-0068]
+title = "Content migrations: block version + migrations run in the isolate, items carry props.__v, build fails on field changes without a bump (planned M3)"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "migrations", "roadmap" ]
+
+[decisions.D-0069]
+title = "Publishing workflow (drafts, publish, history, conflicts, preview links) lives in the PageStore contract (planned M3)"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "page-store", "roadmap" ]
+
+[decisions.D-0070]
+title = "Caching semantics (tags, invalidation events) in the core; bindings apply them (Next revalidateTag, CDN headers) (planned M3)"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "cache", "roadmap" ]
+
+[decisions.D-0071]
+title = "Richtext, inline editing and extensible, typed host fields are mandatory for V1 (planned M4)"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "roadmap" ]
+
+[decisions.D-0072]
+title = "Dependent ($ref) queries are post-V1; depth covers nested relations"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "data", "roadmap" ]
+
+[decisions.D-0073]
+title = "Localization is post-V1; locale detection is app-defined via a LocaleResolver (cookie, sub-path, domain…); V1 keeps locale-ready keys"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "i18n", "roadmap" ]
+
+[decisions.D-0074]
+title = "A `puck-remote dev` command is in scope (M5); create-theme scaffolding is not for now"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "dx", "roadmap" ]
+
+[decisions.D-0075]
+title = "Remote renderer service planned for M5 (only the RenderRuntime interface lands in M2)"
+adr = "feat/m1-foundations"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "isolation", "roadmap" ]
+
+[decisions.D-0076]
+title = "RenderRuntime abstraction (session/call/release) behind every isolate use"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "isolation", "runtime" ]
+
+[decisions.D-0077]
+title = "Default renderer: worker pool of forked processes with --permission, fs allowlist, no network/child processes/workers, empty env, heap cap, watchdog SIGKILL, respawn and recycling"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "isolation", "worker-pool", "security" ]
+
+[decisions.D-0078]
+title = "Optional OS sandbox wrapper (bubblewrap preset, Linux, experimental)"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "isolation", "security" ]
+
+[decisions.D-0079]
+title = "Separate origin, not separate app: one app answers site and editor hostnames"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "origins", "security" ]
+
+[decisions.D-0080]
+title = "Editor renders blocks on the server (batched /blocks/render RPC); the theme bundle is never served to browsers"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "security" ]
+supersedes = [ "D-0015", "D-0023" ]
+
+[decisions.D-0081]
+title = "Production requires distinct site and editor origins (allowSharedOrigin opts out); wrong surface → 404"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "origins", "security" ]
+
+[decisions.D-0082]
+title = "CSP: editor enforced (nonce + strict-dynamic, no framing); site report-only by default; theme script/style origins allowlisted"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "csp", "security" ]
+
+[decisions.D-0083]
+title = "Request origin derived from X-Forwarded-Host/Proto then Host (Next builds request.url from its bound host)"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "origins", "next" ]
+
+[decisions.D-0084]
+title = "Editor receives siteOrigin so \"View page\" opens the public origin"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "editor" ]
+
+[decisions.D-0085]
+title = "Editor imports Puck no-external.css (default CSS loads a font from rsms.me, blocked by CSP)"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "editor", "csp" ]
+
+[decisions.D-0086]
+title = "Worker pool exposes an IPC tap option for diagnostics/tests"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "worker-pool", "observability" ]
+
+[decisions.D-0087]
+title = "Worker fs allowlist: worker dist, node_modules dirs on isolated-vm resolution path, real paths of isolated-vm and node-gyp-build (both spellings)"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "worker-pool", "security" ]
+
+[decisions.D-0088]
+title = "API POST bodies capped at 2 MB"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "api", "security" ]
+
+[decisions.D-0089]
+title = "Editor render RPC accepts data from the authorized editor (isolate treats it as untrusted)"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "api" ]
+
+[decisions.D-0090]
+title = "Dev hostnames: site on localhost/site.localhost, editor on editor.localhost (allowedDevOrigins *.localhost)"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "dx", "origins" ]
+
+[decisions.D-0091]
+title = "@puck-remote/core stays external in Next (serverExternalPackages) because it forks workers from its own files"
+adr = "feat/m2-isolation"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next", "worker-pool" ]
+
+[decisions.D-0092]
+title = "Documentation site built with Fumadocs (apps/docs), covering usage, reference and internals"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0093]
+title = "Decision log follows the owner's ADR system guide (branch ADRs, TOML index, templates, helper, archive) plus decision IDs and provenance"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "adr", "process" ]
+
+[decisions.D-0094]
+title = "AI agents never decide alone: every choice, even minor, is made or validated by a human via an approved plan"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "process", "agents" ]
+
+[decisions.D-0095]
+title = "Enforcement: instructions + Claude Code hooks (plan gate, docs/ADR stop check) + git pre-commit + CI check"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "process", "enforcement" ]
+
+[decisions.D-0096]
+title = "Backfill every past decision with provenance; agent-made ones flagged needs-review"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "adr" ]
+
+[decisions.D-0097]
+title = "Branch per unit of work (type/slug) with its ADR; a human merges to main; ADR archived after merge"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process", "git" ]
+
+[decisions.D-0098]
+title = "README becomes a quick start + link; ARCHITECTURE.md becomes a pointer; content moves into the docs"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0099]
+title = "ADRs are rendered in the docs straight from .claude/ (single source, no copies)"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs", "adr" ]
+
+[decisions.D-0100]
+title = "Hook blocks write-like Bash commands without an approved plan using a documented heuristic; SKIP_DOCS_CHECK is human-only"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "enforcement" ]
+
+[relationships.depends_on]
+"feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]
+"chore/package-split" = [ "feat/pluggable-data-source" ]
+"chore/rename-puck-remote" = [ "chore/package-split" ]
+"feat/m1-foundations" = [ "chore/rename-puck-remote" ]
+"feat/m2-isolation" = [ "feat/m1-foundations" ]
+"docs/fumadocs-and-adr-system" = [ "feat/m2-isolation" ]
+
+[categories.security]
+adrs = [ "feat/poc-sandboxed-blocks", "feat/m1-foundations", "feat/m2-isolation" ]
+
+[categories.data]
+adrs = [ "feat/poc-sandboxed-blocks", "feat/pluggable-data-source" ]
+
+[categories.packaging]
+adrs = [ "chore/package-split", "chore/rename-puck-remote", "feat/m1-foundations" ]
+
+[categories.process]
+adrs = [ "docs/fumadocs-and-adr-system" ]
+
+[categories.roadmap]
+adrs = [ "feat/m1-foundations" ]
+
