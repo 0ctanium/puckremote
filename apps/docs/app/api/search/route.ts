@@ -1,15 +1,5 @@
-import { createSearchAPI } from 'fumadocs-core/search/server';
-import { decisionSource, source } from '@/lib/source';
+import { createFromSource } from 'fumadocs-core/search/server';
+import { source } from '@/lib/source';
 
-// One index over the docs and the decision records.
-export const { GET } = createSearchAPI('advanced', {
-  indexes: () =>
-    [...source.getPages(), ...decisionSource.getPages()].map((page) => ({
-      id: page.url,
-      title: page.data.title ?? page.url,
-      description: page.data.description,
-      url: page.url,
-      structuredData: page.data.structuredData,
-      tag: page.url.startsWith('/decisions') ? 'decisions' : 'docs',
-    })),
-});
+// One loader holds the docs and the decision records (D-0108), so one index covers both.
+export const { GET } = createFromSource(source);

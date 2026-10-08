@@ -1,0 +1,107 @@
+---
+title: Docs conventions
+description: How the documentation is organized, which page documents which code, and how to write pages.
+---
+
+The site is a Fumadocs app in `apps/docs` ([D-0092](/docs/internal/decisions#D-0092)).
+
+```bash
+pnpm docs:dev
+```
+
+```bash
+pnpm docs:build
+```
+
+## Structure: five roots (Layout Tabs)
+
+([D-0107](/docs/internal/decisions#D-0107))
+
+```files
+apps/docs/content/docs
+├── meta.json
+├── (framework)
+│   ├── meta.json
+│   ├── index.mdx
+│   ├── installation.mdx
+│   ├── concepts
+│   ├── next-js
+│   ├── guides
+│   └── configuration.mdx
+├── core
+│   └── adapters
+├── cli
+├── sdk
+└── internal
+    ├── architecture
+    ├── quality
+    ├── contributing
+    └── decisions
+```
+
+| Root | URL | Audience |
+|---|---|---|
+| Framework (`(framework)`, a folder group) | `/docs` | Developers installing and using puck-remote; includes `@puck-remote/next` |
+| Core | `/docs/core` | Engine API and the **Adapters** section (artifacts, pages, data, cache, auth, renderer) |
+| CLI | `/docs/cli` | Theme developers building and publishing |
+| SDK | `/docs/sdk` | Theme developers writing blocks; adapter authors (`/host`) |
+| Internal | `/docs/internal` | People working on puck-remote: architecture, quality, contributing, decisions |
+
+**Audience rule** ([D-0115](/docs/internal/decisions#D-0115)): Framework, Core, CLI and SDK
+explain *how to use*, with short "why" notes and "Deep dive" links. Implementation details,
+`<Source>` references, test maps, performance and contributor material live in Internal.
+
+Each folder has a `meta.json` (`title`, `pages` order, `---Separators---`; roots add
+`"root": true`, `description` and a Lucide `icon`).
+
+## Decisions
+
+ADRs are read straight from `.claude/` and mounted under `/docs/internal/decisions`
+([D-0108](/docs/internal/decisions#D-0108)). `internal/decisions/index.mdx` renders
+`<DecisionIndex />` from `adr-index.toml`; link a decision as
+`[D-0080](/docs/internal/decisions#D-0080)`.
+
+## Components ([D-0111](/docs/internal/decisions#D-0111))
+
+| Need | Use |
+|---|---|
+| Options, members, props, flags | `<TypeTable type={{ name: { description, type, default, required } }} />` |
+| Directory layouts | A fenced `files` block (tree drawn with `├──`), or `<Files>`/`<Folder>`/`<File>`. No comments in tree lines: describe paths in a table |
+| Install commands | A fenced `npm` block: rendered as npm/pnpm/yarn/bun tabs |
+| Code | Fenced blocks with `title="file.ts"`; alternatives as consecutive blocks with `tab="…"` |
+| Procedures | `<Steps>` with one `<Step>` per `###` heading |
+| Diagrams | A fenced `mermaid` block (flowchart, sequence, state, class, ER; rendered on the server by beautiful-mermaid) |
+| Navigation | `<Cards>` / `<Card>` on index pages; `<Callout>` for warnings |
+| Source references (Internal only) | `<Source path="packages/…" />` |
+
+MDX setup: global remark plugins in `apps/docs/source.config.ts`, components in
+`apps/docs/components/mdx.tsx`.
+
+## Which page documents which code
+
+| Code | Pages |
+|---|---|
+| `packages/sdk/src` (theme API) | SDK › Blocks, Fields, Data, Render context, Adapters; Framework › Build a theme |
+| `packages/sdk/src/host.ts` | SDK › Host contracts; Core › Adapters › * |
+| `packages/cli/src` | CLI › *; Internal › Build pipeline |
+| `packages/core/src/server/config.ts` | Framework › Configuration |
+| `packages/core/src/core.ts` | Core › Overview; Framework › HTTP API |
+| `packages/core/src/edge.ts`, `index.ts` exports | Core › Entry points |
+| `packages/core/src/server/surface.ts`, `auth.ts` | Framework › Surfaces, Security headers; Core › Adapters › Auth; Internal › Auth and CSRF |
+| `packages/core/src/server/runtime/*` | Core › Adapters › Renderer; Internal › Isolate runtime, Worker pool, Worker protocol |
+| `packages/core/src/server/query/*` | Framework › Declarative data; Internal › Query resolver, Host source, HTTP source |
+| `packages/core/src/server/artifact-loader.ts`, `static-files.ts` | Framework › Artifacts; Internal › Artifact loader |
+| `packages/core/src/server/public-render.ts`, `page-tree.ts`, `puck-rsc.tsx` | Internal › Public request, Missing blocks |
+| `packages/core/src/editor/*` | Framework › The editor; Internal › Editor lifecycle |
+| `packages/core/src/testing` | Core › Adapters › Contract tests |
+| `packages/next/src` | Framework › Next.js setup, API reference |
+| `packages/artifacts-fs`, `pages-fs`, `source-mock` | Core › Adapters › Artifact store, Page store, Data source |
+| `apps/host` | Framework › Next.js setup, Environment |
+| tests | Internal › Testing |
+
+## Writing rules
+
+- Explain **why** with a decision link; keep defaults and limits in sync with the code.
+- In MDX prose, put anything with braces or angle brackets in backticks.
+- TypeTable values are JS strings: use double-quoted descriptions, avoid unescaped quotes.
+- One shell command per `bash` block.

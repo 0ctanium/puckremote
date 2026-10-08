@@ -1,0 +1,36 @@
+---
+title: Overview
+description: "@puck-remote/cli: build a theme into a versioned artifact, publish it, roll it back."
+icon: Terminal
+---
+
+Theme developers use the CLI; the host never builds theme code. `build` turns a theme folder into
+an artifact; `publish` uploads it as the next version and activates it; `activate` moves the
+active version (rollback).
+
+```npm
+npm install -D @puck-remote/cli
+```
+
+```mermaid
+graph LR
+  T[Theme folder] -->|puck-remote build| D[dist: manifest.json, bundle.js, assets]
+  D -->|puck-remote publish| S[(Artifact store: vN + current.json)]
+  S -->|puck-remote activate N| S
+```
+
+```json title="package.json"
+{
+  "scripts": {
+    "build": "puck-remote build",
+    "release": "puck-remote build && puck-remote publish --artifacts ../my-app/artifacts"
+  }
+}
+```
+
+<Cards>
+  <Card title="Commands" href="/docs/cli/commands" />
+  <Card title="Build output" href="/docs/cli/build-output" />
+  <Card title="Programmatic API" href="/docs/cli/programmatic-api" />
+  <Card title="Build a theme" href="/docs/guides/theme-development" />
+</Cards>

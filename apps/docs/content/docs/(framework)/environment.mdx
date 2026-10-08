@@ -1,0 +1,36 @@
+---
+title: Environment variables
+description: Variables read by the packages, the example app, the mock API and the repository tooling.
+---
+
+## Packages
+
+| Variable | Read by | Effect |
+|---|---|---|
+| `NODE_ENV` | core | `production` enables the guards (auth, origins required; `devAllowAll` throws) and disables dev CSP relaxations |
+| `NODE_OPTIONS=--no-node-snapshot` | Node | Required by isolated-vm on Node ≥ 20; set by every script and in CI |
+| `PUCK_REMOTE_ARTIFACTS_DIR` | CLI | Default for `--artifacts` |
+
+Render workers get an **empty environment**: nothing from the host process reaches them.
+
+## Example app (`apps/host`)
+
+| Variable | Default | Effect |
+|---|---|---|
+| `PORT` | `3100` | Dev/start port and default origins |
+| `PUCK_REMOTE_ROOT` | `<cwd>/../..` | Repository root (artifacts, data) |
+| `PUCK_REMOTE_SITE_ORIGINS` | `http://localhost:<PORT>,http://site.localhost:<PORT>` | Comma-separated site origins |
+| `PUCK_REMOTE_EDITOR_ORIGINS` | `http://editor.localhost:<PORT>` | Comma-separated editor origins |
+| `PUCK_REMOTE_ADMIN_TOKEN` | — | `sharedSecretAuth` secret in production (bearer or `puck_remote_token` cookie) |
+| `PUCK_REMOTE_MOCK_API_ORIGIN` | `http://localhost:4010` | Mock API origin |
+| `PUCK_REMOTE_ALLOW_DEV_ORIGINS` | — | Lets a production build reach the mock API over http (local testing only) |
+| `EVENTS_API_KEY` | a dev key | Secret bound to the mock API origin |
+
+## Mock API
+
+| Variable | Default |
+|---|---|
+| `PORT` | `4010` |
+| `EVENTS_API_KEY` | the same dev key |
+
+Repository tooling variables (for contributors) are listed in [Enforcement](/docs/internal/contributing/enforcement).

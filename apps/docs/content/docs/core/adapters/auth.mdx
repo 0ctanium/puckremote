@@ -1,0 +1,70 @@
+---
+title: Auth
+description: Decide who may open the editor, read drafts, save pages and switch theme versions.
+---
+
+An auth adapter only sees a standard `Request`, so it works with any framework and any identity
+system (sessions, cookies, bearer tokens, Payload users…). It is **required in production**.
+
+## Built-in helpers
+
+```ts
+import { devAllowAll, sharedSecretAuth } from '@puck-remote/core/config';
+
+auth: process.env.NODE_ENV === 'production'
+  ? sharedSecretAuth({ secret: process.env.PUCK_REMOTE_ADMIN_TOKEN })
+  : devAllowAll(),
+```
+
+| Helper | Behavior |
+|---|---|
+| `devAllowAll()` | Everyone may do everything. **Throws in production.** |
+| `sharedSecretAuth(options)` | One shared secret, as `Authorization: Bearer <secret>` or a cookie, compared in constant time. A missing secret denies everyone. |
+
+<TypeTable
+  type={{
+    secret: { description: "The shared secret.", type: 'string | undefined', required: true },
+    cookie: { description: "Cookie name to read the secret from.", type: 'string', default: "'puck_remote_token'" },
+    actions: { description: "Restrict which actions the secret grants.", type: 'Action[]', default: 'all actions' },
+  }}
+/>
+
+## Writing your own
+
+```ts
+import { defineAuth } from '@puck-remote/sdk/host';
+
+export const myAuth = defineAuth({
+  async authenticate(request) {
+    const user = await getSessionUser(request.headers.get('cookie'));
+    return user ? { id: user.id, name: user.name } : null;
+  },
+  authorize(principal, action, resource) {
+    return action !== 'artifact:activate' || principal.id === 'admin';
+  },
+});
+```
+
+<TypeTable
+  type={{
+    authenticate: { description: "Identify the caller, or null if anonymous (→ 401).", type: '(request: Request) => Promise<Principal | null>', required: true },
+    authorize: { description: "Allow or deny an action (false → 403). Exceptions count as a refusal.", type: '(principal, action: Action, resource?: { slug?: string }) => boolean | Promise<boolean>', required: true },
+  }}
+/>
+
+## Actions
+
+| Action | Needed for |
+|---|---|
+| `editor:open` | Opening the editor page |
+| `page:read-draft` | Reading pages and draft data in the editor, rendering blocks |
+| `page:write` | Saving a page |
+| `artifact:activate` | Reloading the active theme version |
+| `page:publish`, `artifact:publish` | Reserved for the publishing workflow |
+
+<Callout type="warn" title="Cookies">
+  Keep editor session cookies **host-only** on the editor domain, never `Domain=.example.com`:
+  theme scripts run on the site origin.
+</Callout>
+
+Editor API requests are also protected against CSRF; see [HTTP API](/docs/http-api#csrf).

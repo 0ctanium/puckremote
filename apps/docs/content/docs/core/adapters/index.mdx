@@ -1,0 +1,47 @@
+---
+title: Adapters
+description: Everything backend-specific is an adapter you pass to defineConfig.
+icon: Plug
+---
+
+The engine only depends on contracts. Your config picks an implementation for each one:
+
+```ts title="puck-remote.config.ts"
+export default defineConfig({
+  artifacts: fsArtifactStore({ dir }),  // where theme versions live
+  pages: fsPageStore({ dir }),          // where pages are saved
+  source: myCms(),                      // where block data comes from
+  cache: memoryCache(),                 // query result cache (default)
+  auth: sharedSecretAuth({ secret }),   // who may use the editor
+  renderer: workerPoolRenderer(),       // where theme code runs (default)
+});
+```
+
+| Contract | Built-in | Page |
+|---|---|---|
+| `ArtifactStore` | `@puck-remote/artifacts-fs` | [Artifact store](/docs/core/adapters/artifact-store) |
+| `PageStore` | `@puck-remote/pages-fs` (example) | [Page store](/docs/core/adapters/page-store) |
+| `DataSource` | `@puck-remote/source-mock` (example) | [Data source](/docs/core/adapters/data-source) |
+| `CacheStore` | `memoryCache()` | [Cache](/docs/core/adapters/cache) |
+| `AuthAdapter` | `devAllowAll()`, `sharedSecretAuth()` | [Auth](/docs/core/adapters/auth) |
+| `RendererFactory` | `workerPoolRenderer()`, `inProcessRenderer()` | [Renderer](/docs/core/adapters/renderer) |
+
+The contracts are types from `@puck-remote/sdk/host` ([Host contracts](/docs/sdk/host-contracts)),
+so an adapter package never depends on the engine itself.
+
+## Adapters are trusted; the engine still enforces
+
+Adapters are your code and run on your server. The engine keeps the security rules around them,
+so a buggy adapter cannot widen what a theme can reach:
+
+- data: exposed fields, filter operators, limits, depth and output projection;
+- artifacts: manifest validation and per-file hash verification;
+- cache: key namespacing, "drafts are never cached", errors treated as misses;
+- auth: per-route actions, CSRF checks, 401/403 mapping.
+
+<Callout title="Not to be confused with theme adapters">
+  Themes can ship `defineAdapter` translators for external HTTP APIs. Those are **untrusted**,
+  run in the sandbox and never do I/O themselves. See [SDK › Adapters](/docs/sdk/adapters).
+</Callout>
+
+Test your own adapters with the [contract test suites](/docs/core/adapters/testing).

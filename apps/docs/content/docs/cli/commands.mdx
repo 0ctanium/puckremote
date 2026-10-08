@@ -1,0 +1,64 @@
+---
+title: Commands
+description: puck-remote build, publish and activate.
+---
+
+## `puck-remote build`
+
+```bash
+puck-remote build --cwd . --out dist
+```
+
+<TypeTable
+  type={{
+    '--cwd': { description: "Theme folder.", type: 'path', default: 'current directory' },
+    '--out': { description: "Output folder, relative to --cwd. Emptied first.", type: 'path', default: 'dist' },
+  }}
+/>
+
+Validates every definition and fails with the file and key at fault, for example
+`✖ build failed: blocks/hero.fields.title: function values are not allowed here`. What is
+rejected: functions other than `render` / `toRequest` / `fromResponse`, non-JSON values (class
+instances, Dates, Maps, symbols, `undefined`, non-finite numbers), unknown field types,
+`permissions` / `resolve*` / `inline` keys, unknown adapters, invalid parameter references, block
+names that are not lowercase slugs or start with `__`.
+
+## `puck-remote publish`
+
+```bash
+puck-remote publish --artifacts ../my-app/artifacts
+```
+
+<TypeTable
+  type={{
+    '--artifacts': { description: "Artifact directory (a file-system artifact store).", type: 'path', default: '$PUCK_REMOTE_ARTIFACTS_DIR', required: true },
+    '--cwd': { description: "Theme folder.", type: 'path', default: 'current directory' },
+    '--out': { description: "The build output to publish.", type: 'path', default: 'dist' },
+  }}
+/>
+
+Writes the build output as **the next version number** (highest existing + 1, never reused, even
+after a rollback) and makes it active. Running hosts switch to it automatically.
+
+## `puck-remote activate`
+
+```bash
+puck-remote activate 3 --artifacts ../my-app/artifacts
+```
+
+<TypeTable
+  type={{
+    '<version>': { description: "An existing version number.", type: 'number', required: true },
+    '--artifacts': { description: "Artifact directory.", type: 'path', default: '$PUCK_REMOTE_ARTIFACTS_DIR', required: true },
+  }}
+/>
+
+Moves the active-version pointer. This is how you roll back.
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success |
+| `1` | Build or publish error |
+| `2` | Unknown command or bad usage |

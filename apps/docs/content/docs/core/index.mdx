@@ -1,0 +1,77 @@
+---
+title: Overview
+description: "@puck-remote/core: the framework-agnostic engine behind puck-remote."
+icon: Cpu
+---
+
+`@puck-remote/core` loads and verifies theme versions, runs blocks in the sandbox, resolves their
+data, renders pages with Puck, serves the editor and its API, and enforces auth, origins and CSP.
+It has no framework imports: it works with standard `Request` and `Response`.
+
+```npm
+npm install @puck-remote/core
+```
+
+Peer dependencies: `react` and `react-dom` 19, `@puckeditor/core` ~0.23. Node 24+ (isolated-vm).
+
+<Cards>
+  <Card title="Entry points" href="/docs/core/entry-points">`/config`, `/edge`, `/react`, `/editor`, `/testing`</Card>
+  <Card title="Adapters" href="/docs/core/adapters">Artifacts, pages, data, cache, auth, renderer</Card>
+  <Card title="Configuration" href="/docs/configuration">Every option of `defineConfig`</Card>
+  <Card title="Next.js" href="/docs/next-js">The ready-made Next.js binding</Card>
+</Cards>
+
+## `createCore(config)`
+
+```ts
+import { createCore } from '@puck-remote/core';
+import config from './puck-remote.config';
+
+const core = createCore(config);
+```
+
+Returns one **process-wide runtime per `config.id`** (memoized on `globalThis`), so every route of
+your app shares the same artifact loader, worker pool and cache. The first theme version is loaded
+lazily on first use.
+
+<TypeTable
+  type={{
+    preparePage: {
+      description: "Resolves the page's data and renders every block in the sandbox. Returns null for an unknown page, or for a non-site origin when context.request is given.",
+      type: '(slug: string, query?: Record<string, string>, context?: { locale?: string; request?: Request }) => Promise<PreparedPage | null>',
+    },
+    loadEditor: {
+      description: "Props for <EditorClient>. Throws WrongSurfaceError (answer 404) or AccessDeniedError (status 401 or 403).",
+      type: '(slug: string, request: Request) => Promise<EditorProps>',
+    },
+    handleApi: { description: "The editor API as a fetch-style handler (see HTTP API).", type: '(request: Request) => Promise<Response>' },
+    handleTheme: { description: "Serves /theme/v<N>/assets/** (GET, HEAD).", type: '(request: Request) => Promise<Response>' },
+    host: { description: "The stateful services (artifact loader, data source, HTTP client, cache). Advanced use.", type: '() => Promise<Host>' },
+    config: { description: "The resolved configuration, defaults applied.", type: 'HostConfig' },
+  }}
+/>
+
+### `PreparedPage`
+
+<TypeTable
+  type={{
+    slug: { description: "Normalized page slug.", type: 'string' },
+    version: { description: "Theme version used.", type: 'number' },
+    manifest: { description: "Manifest of that version.", type: 'Manifest' },
+    data: { description: "Page data as rendered (unknown blocks marked as missing).", type: 'PageData' },
+    rendered: { description: "Pre-rendered HTML per block instance.", type: 'Record<string, { ok: boolean; html: string; nonce: string; error?: string }>' },
+    head: { description: "Title, meta, stylesheets and scripts requested by blocks, deduped.", type: '{ title; meta; styles; scripts }' },
+    cacheable: { description: "false when a block reads URL query parameters.", type: 'boolean' },
+    uncacheableBlocks: { description: "Which blocks made the page uncacheable.", type: 'string[]' },
+    scriptNonce: { description: "CSP nonce for theme scripts, set by bindings.", type: 'string' },
+    stats: { description: "Timings, query counts, failures.", type: 'object' },
+  }}
+/>
+
+## Errors
+
+| Error | When | Answer |
+|---|---|---|
+| `ConfigError` | Invalid config, or a production guard failed | Fix the config |
+| `WrongSurfaceError` | The editor was requested on a non-editor origin | 404 |
+| `AccessDeniedError` | `status` 401 (no principal) or 403 (not allowed) | 401/403, or 404 to hide the editor |

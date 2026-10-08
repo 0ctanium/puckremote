@@ -1,5 +1,12 @@
 import defaultMdxComponents from 'fumadocs-ui/mdx';
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { File, Files, Folder } from 'fumadocs-ui/components/files';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { TypeTable } from 'fumadocs-ui/components/type-table';
 import type { MDXComponents } from 'mdx/types';
+import { DecisionIndex } from './decision-index';
+import { Mermaid } from './mermaid';
 
 /**
  * Repo-relative source reference, e.g. <Source path="packages/core/src/server/surface.ts" />.
@@ -15,5 +22,21 @@ export function Source({ path }: { path: string }) {
 }
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
-  return { ...defaultMdxComponents, Source, ...components };
+  return {
+    ...defaultMdxComponents,
+    Accordion,
+    Accordions,
+    DecisionIndex,
+    File,
+    Files,
+    Folder,
+    Mermaid,
+    Source,
+    Step,
+    Steps,
+    Tab,
+    Tabs,
+    TypeTable,
+    ...components,
+  };
 }

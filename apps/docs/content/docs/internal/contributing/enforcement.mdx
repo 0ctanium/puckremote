@@ -1,0 +1,34 @@
+---
+title: Enforcement
+description: The hooks and checks that make the rules hard to bypass.
+---
+
+Instructions alone are not enough, so the rules are also checked automatically
+([D-0095](/docs/internal/decisions#D-0095)).
+
+## Claude Code hooks (`.claude/settings.json`, scripts in `.claude/hooks/`)
+
+| Hook | Behavior |
+|---|---|
+| `PostToolUse` on `ExitPlanMode` | Writes `.claude/state/plan-approved-<session>` when a plan is approved |
+| `PreToolUse` on `Edit`/`Write`/`MultiEdit`/`NotebookEdit` | **Blocks** edits to files inside the repository without that marker |
+| `PreToolUse` on `Bash` | Blocks write-like commands without the marker (heuristic: `git commit/merge/push/rebase/reset`, `rm`, `mv`, `sed -i`, `tee`, output redirects into the repo) ([D-0100](/docs/internal/decisions#D-0100)) |
+| `Stop` | If code changed without both a docs change and an ADR change, sends the agent back with the reason (loop-safe) |
+
+The Bash rule is a heuristic: it catches accidents, not determined bypasses.
+
+Markers live in `.claude/state/` (gitignored), one per session. A session that was approved
+before the hooks were installed has no marker: approve a new plan rather than creating one by
+hand. The Stop hook judges the whole branch, meaning commits not on `main` plus the working tree
+([D-0104](/docs/internal/decisions#D-0104)).
+
+## Git pre-commit and CI: `scripts/check-docs-adr.mjs`
+
+- Changes to code (`packages/*/src`, `apps/host`, `examples`, `mock`) require a change under
+  `apps/docs/content` **and** under `.claude/` (an ADR or the index).
+- Any other change requires an ADR change.
+- `pnpm adr check` must pass.
+
+The hook is enabled by the root `prepare` script (`git config core.hooksPath .githooks`). CI runs
+the same script against the base branch and builds the docs. `SKIP_DOCS_CHECK=1` skips it: humans
+only.

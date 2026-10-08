@@ -1,0 +1,34 @@
+---
+title: Slots and nonces
+description: How nested blocks work when block output is an HTML string.
+---
+
+A block declares a field `{ type: 'slot' }` and renders `<Slot name="content" />` where nested
+blocks should go. Since the isolate returns HTML, `<Slot>` renders an **inert marker**:
+
+```html
+<div data-puck-slot="content" data-nonce="<128-bit hex nonce>"></div>
+```
+
+The host parses the HTML into React and replaces a marker with the real Puck slot **only if all**
+of these hold:
+
+1. it is a `div` with `data-puck-slot`;
+2. `data-nonce` equals the nonce the host generated for this render call;
+3. the name is a declared slot field of this block;
+4. that slot was not already swapped in this block (each slot renders at most once).
+
+Anything else stays an inert empty `div`.
+
+## Why a nonce
+
+User content (props typed by editors) is rendered by React with escaping, but a theme could still
+emit marker-shaped HTML from props. The nonce is fresh per render call, passed only in `ctx`, and
+never part of props, so content cannot predict it. A forged marker is simply left inert (tested).
+
+## Same code on both sides
+
+The public renderer and the editor canvas both use `htmlToReact` from `shared/slot-swap.tsx`, so
+markers are treated identically ([D-0080](/docs/internal/decisions#D-0080)).
+
+Deep dive: [slot swap](/docs/internal/architecture/slot-swap).

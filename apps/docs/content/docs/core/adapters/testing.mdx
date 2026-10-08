@@ -1,0 +1,22 @@
+---
+title: Contract tests
+description: Check your own adapters with the same test suites the built-in ones pass.
+---
+
+`@puck-remote/core/testing` exports vitest suites for the storage contracts.
+
+```ts title="my-store.test.ts"
+import { artifactStoreContract, cacheStoreContract, pageStoreContract } from '@puck-remote/core/testing';
+
+artifactStoreContract('s3', async () => s3ArtifactStore({ bucket: await freshBucket() }));
+pageStoreContract('postgres', async () => pgPageStore({ schema: await freshSchema() }));
+cacheStoreContract('redis', async () => redisCache({ prefix: crypto.randomUUID() }));
+```
+
+Each factory must return a **fresh, empty** store.
+
+| Suite | Checks |
+|---|---|
+| `pageStoreContract(name, make)` | Missing pages return null; JSON round-trips; overwrite; nested slugs are listed |
+| `artifactStoreContract(name, make)` | Starts empty; versions are immutable and listed in order; pointer moves and refuses missing versions; unsafe paths never resolve |
+| `cacheStoreContract(name, make)` | Misses are undefined; JSON values (null included); TTL expiry; tag invalidation only hits matching entries |

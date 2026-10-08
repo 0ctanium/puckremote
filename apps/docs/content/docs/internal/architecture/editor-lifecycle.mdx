@@ -1,0 +1,43 @@
+---
+title: Editor lifecycle
+description: From opening the editor page to saving, step by step.
+---
+
+1. **`loadEditor`** (server): classify the request (editor origin only), authorize `editor:open`,
+   load the page (or an empty page with root defaults), `stripResolved` + `rewriteMissing`, and
+   return `EditorProps`: manifest, version, slug, site, routes, `siteOrigin` (for "View page",
+   [D-0084](/docs/internal/decisions#D-0084)), initial data and an `uncacheable` flag.
+2. **`EditorClient`** (browser) builds the Puck config from the manifest with
+   `buildEditorConfig`:
+   - fields via `mapFields` (host fields are Puck custom fields owned by the host; no theme code);
+   - `resolveFields` from `visibleIf`, evaluated by `isVisible` (never evaluates strings);
+   - `resolveData` → `POST /api/blocks/resolve`, result stored in `props.__data` with
+     `readOnly.__data` ([D-0028](/docs/internal/decisions#D-0028));
+   - `render` → `RemoteBlock`, which uses `useRemoteRender`.
+3. **Rendering**: `createRemoteRenderer` queues every request issued in the same tick and sends
+   one `POST /api/blocks/render` (≤ 100 items per call). The server opens **one session** for the
+   batch, renders each item with a fresh nonce and `isEditing: true`, and returns HTML, nonce and
+   effects. The client caches results by a stable key of `(kind, name, props, data)` (LRU 500) and
+   dedupes in-flight requests. `useRemoteRender` debounces re-renders (150 ms) and keeps the last
+   HTML on screen.
+4. **Slots**: `htmlToReact` swaps nonce-valid markers for Puck's slot components, exactly like the
+   public renderer, so drag-and-drop works on nested blocks.
+5. **Styles**: `ctx.assets.style` effects pointing at the theme's assets are injected into Puck's
+   canvas iframe by the `iframe` override. Scripts are not run in the editor.
+6. **Save** (`onPublish`) → `POST /api/pages` with the CSRF header. The server restores `__missing`
+   blocks to their original type and props, strips `__data`, validates and writes.
+7. **Reload theme** → `POST /api/artifact/reload`; if the version changed, the page reloads.
+
+## resolveData details
+
+- Runs on load/insert, when a prop listed in the manifest's `propRefs` changed, or on `force`.
+- Keystrokes (`trigger: 'replace'`) are debounced per block (300 ms); superseded calls give up.
+- Failures fall back to `{ ok: false, error: 'loading' }` for each data key.
+
+<Source path="packages/core/src/core.ts" />
+<Source path="packages/core/src/editor/EditorClient.tsx" />
+<Source path="packages/core/src/editor/config.tsx" />
+<Source path="packages/core/src/editor/remote-render.ts" />
+<Source path="packages/core/src/editor/fields.ts" />
+<Source path="packages/core/src/editor/host-fields.tsx" />
+<Source path="packages/core/src/editor/visible-if.ts" />

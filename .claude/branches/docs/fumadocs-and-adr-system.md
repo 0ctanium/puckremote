@@ -44,12 +44,21 @@ Changing product behaviour.
 | D-0098 | README becomes a quick start + link; ARCHITECTURE.md becomes a pointer; content moves into the docs | user-approved-plan | accepted |
 | D-0099 | ADRs are rendered in the docs straight from .claude/ (single source, no copies) | user-approved-plan | accepted |
 | D-0100 | Hook blocks write-like Bash commands without an approved plan using a documented heuristic; SKIP_DOCS_CHECK is human-only | user-approved-plan | accepted |
-| D-0101 | Decisions is its own docs section (/decisions) with a generated index (one anchor per ID); search covers docs and ADRs | user-approved-plan | accepted |
+| D-0101 | Decisions is its own docs section (/docs/internal/decisions) with a generated index (one anchor per ID); search covers docs and ADRs | user-approved-plan | superseded by D-0108 |
 | D-0102 | Docs app dev dependencies pinned to exact versions (repo convention: only peers use ranges) | user-approved-plan | accepted |
 | D-0103 | .claude/launch.json untracked (machine paths); local docs dev-server entry added | user-approved-plan | accepted |
 | D-0104 | Stop hook judges the whole branch (commits not on main plus working tree) | user-approved-plan | accepted |
 | D-0105 | CI builds docs on ubuntu/node26 only; docs-adr job diffs origin/<base> on PRs, before on pushes, HEAD~1 when there is no previous commit | user-approved-plan | accepted |
 | D-0106 | Git hooks enabled by the root prepare script (core.hooksPath=.githooks), no-op outside a git checkout | user-approved-plan | accepted |
+| D-0107 | Docs split into five Layout Tab roots: Framework (/docs, includes @puck-remote/next), Core (with an Adapters section), CLI, SDK, Internal | user | accepted |
+| D-0108 | Decisions rendered inside the Internal root (/docs/internal/decisions) from .claude via one loader with prefixed ADR paths; search back to createFromSource | user-approved-plan | accepted |
+| D-0109 | Install docs use package-manager tabs (npm code blocks) plus a not-yet-published callout pointing to the monorepo | user | accepted |
+| D-0110 | Mermaid diagrams rendered on the server with beautiful-mermaid; fenced mermaid blocks via remarkMdxMermaid, code-block fallback on error | user | accepted |
+| D-0111 | Docs component conventions: TypeTable for options/members/props, Files for layouts (remarkMdxFiles), titled/tabbed code blocks, Steps, Cards, Callouts | user-approved-plan | accepted |
+| D-0112 | Global MDX plugins in apps/docs/source.config.ts; collections stay in lib/source.ts (macro API) | user-approved-plan | accepted |
+| D-0113 | Root icons via lucideIconsPlugin; beautiful-mermaid and lucide-react pinned to exact versions | user-approved-plan | accepted |
+| D-0114 | No docs landing page: / redirects to /docs | user-approved-plan | accepted |
+| D-0115 | Docs audience rule: Framework/Core/CLI/SDK explain usage; architecture, quality, contributing and decisions live in Internal | user-approved-plan | accepted |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -102,7 +111,28 @@ D-0069, D-0070, D-0071, D-0072, D-0073, D-0074, D-0075 (indexed under `feat/m1-f
   `{{placeholders}}`).
 - Search uses `createSearchAPI('advanced')` over both loaders, so ADRs are searchable too.
 - `/decisions` is generated from `adr-index.toml` (smol-toml), with one anchor per decision ID, so
-  docs link decisions as `/decisions#D-NNNN`.
+  docs link decisions as `/decisions#D-NNNN`. Superseded by D-0108: the index is now
+  `/docs/internal/decisions`.
+
+### Front-facing restructure (D-0107 to D-0115)
+- The owner asked for front-facing docs for new developers, organized like fumadocs.dev. The
+  roots are Framework, Core, CLI, SDK and Internal, shown as Layout Tabs (dropdown).
+  - The adapters are a section of Core, because they are part of the core config.
+  - `@puck-remote/next` is documented in Framework.
+- `loader()` accepts a record of sources. The ADR source is remounted under `internal/decisions`
+  with `update(source).page(...).meta(...)`.
+  - `.files(...)` was tried first. It widens the page type to a page/meta union and breaks
+    `page.data.body` typing.
+  - A `meta.json` from the docs source (`internal/decisions/meta.json`) orders the folder that
+    holds the ADR files of the other source.
+- `source.config.ts` adds `remarkMdxMermaid` and `remarkMdxFiles` globally. Defaults such as
+  remark-npm stay on. The macro collections pick the file up automatically.
+- beautiful-mermaid 1.1.3 supports flowchart, state, sequence, class, ER and XY charts. It renders
+  on the server with `var(--color-fd-*)` colors, so diagrams follow light and dark mode.
+- `lucide-react` was pinned at 1.52.0 (latest at install time), per D-0113.
+- YAML pitfall: a frontmatter `description` that contains `: ` must be quoted.
+- A `files` code block takes every token after the tree drawing as part of the file name.
+  Descriptions therefore go in a table next to the tree.
 
 ## Challenges & Solutions
 - WebFetch would not return Fumadocs code verbatim; the template was read from the npm tarball
@@ -114,8 +144,18 @@ D-0069, D-0070, D-0071, D-0072, D-0073, D-0074, D-0075 (indexed under `feat/m1-f
 Every future change requires a plan, an ADR entry and a docs update.
 
 ## Quality Assurance
+- After the restructure:
+  - `pnpm docs:build` gives 84 pages.
+  - The link script found 0 broken `/docs` links, 0 missing `<Source>` paths and 0 old
+    `/decisions` links.
+  - Browser checks:
+    - the dropdown lists the 5 roots, and each sidebar shows only its root;
+    - TypeTable, `files` trees, npm tabs, Steps and tabbed code blocks render;
+    - a sequence diagram renders in light mode and a flowchart in dark mode;
+    - a search for "nonce" hits both docs and ADRs;
+    - `/docs/internal/decisions` shows 7 ADRs and 115 decision rows.
 - `pnpm adr check` passes.
-- `pnpm docs:build`: 63 pages.
+- `pnpm docs:build`: 63 pages (before the restructure).
 - Browser check (port 3200): pages render; a search for "nonce" returns docs and ADR pages;
   `/decisions` lists all ADRs and every decision row.
 - Internal `/docs/...` links and `<Source>` paths were checked by a script; none are broken.

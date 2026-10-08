@@ -1,0 +1,19 @@
+{
+  "title": "Core",
+  "description": "@puck-remote/core: the engine and its adapters",
+  "root": true,
+  "icon": "Cpu",
+  "pages": [
+    "index",
+    "entry-points",
+    "---Adapters---",
+    "adapters/index",
+    "adapters/artifact-store",
+    "adapters/page-store",
+    "adapters/data-source",
+    "adapters/cache",
+    "adapters/auth",
+    "adapters/renderer",
+    "adapters/testing"
+  ]
+}

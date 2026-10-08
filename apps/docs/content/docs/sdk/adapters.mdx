@@ -1,0 +1,46 @@
+---
+title: Adapters
+description: Translate between your queries and an external HTTP API, without doing any I/O.
+---
+
+A theme adapter is a pair of **pure, synchronous** functions. The host performs the request.
+
+```ts title="adapters/events.ts"
+import { defineAdapter } from '@puck-remote/sdk';
+
+export default defineAdapter({
+  name: 'events',
+  origin: 'https://api.example.com',
+  toRequest(q) {
+    if (q.op !== 'upcoming') throw new Error(`unknown op ${q.op}`);
+    return {
+      method: 'GET',
+      path: '/v1/events',
+      params: { limit: Number(q.params.limit ?? 5) },
+      headers: { 'x-api-key': { $secret: 'EVENTS_API_KEY' } },
+    };
+  },
+  fromResponse(json) {
+    return (json as { items: { uid: string; name: string }[] }).items.map((e) => ({ id: e.uid, title: e.name }));
+  },
+});
+```
+
+```tsx title="blocks/event-list.tsx"
+data: { events: query<Event[]>('events', 'upcoming', { limit: { $prop: 'count' } }) },
+```
+
+<TypeTable
+  type={{
+    name: { description: "Referenced by query(name, …).", type: 'string', required: true },
+    origin: { description: "The only origin requests go to. The host must also allowlist it.", type: 'string', required: true },
+    toRequest: { description: "Build the HTTP request for a query.", type: '(query: { op; params }) => { method: "GET" | "POST"; path; params?; headers? }', required: true },
+    fromResponse: { description: "Turn the JSON response into the data blocks receive.", type: '(json: unknown, query) => unknown', required: true },
+  }}
+/>
+
+The host checks the request (method, origin-relative path, header names), substitutes
+`{ $secret }` headers for bound origins only, applies its HTTP rules (https, public addresses,
+redirects, size and time limits) and caches results for `http.cacheTtlMs`.
+
+What the host operator configures: [`http.allowedOrigins` and `secrets`](/docs/configuration#outbound-http-http).

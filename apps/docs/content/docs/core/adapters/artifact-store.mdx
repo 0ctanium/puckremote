@@ -1,0 +1,61 @@
+---
+title: Artifact store
+description: Where published theme versions and the active-version pointer live.
+---
+
+## `@puck-remote/artifacts-fs`
+
+The default store, on the local filesystem. Suits a single server.
+
+```npm
+npm install @puck-remote/artifacts-fs
+```
+
+```ts
+import { fsArtifactStore } from '@puck-remote/artifacts-fs';
+
+artifacts: fsArtifactStore({ dir: path.join(process.cwd(), 'artifacts') }),
+```
+
+<TypeTable type={{ dir: { description: "Directory holding v<N>/ folders and current.json.", type: 'string', required: true } }} />
+
+```files
+artifacts
+├── current.json
+├── v1
+│   ├── manifest.json
+│   ├── bundle.js
+│   └── assets
+└── v2
+```
+
+- Versions are written to a temporary directory, then renamed: a half-written version is never
+  visible. Existing versions are never overwritten.
+- `current.json` is replaced atomically (temp file + rename).
+- `watch` reports pointer changes from a directory watcher, so the host switches versions within
+  ~100 ms.
+- Reads resolve symlinks and refuse anything outside the version directory.
+
+## Writing your own
+
+For serverless or several instances, use a shared store (S3, a database…).
+
+```ts
+import type { ArtifactStore } from '@puck-remote/sdk/host';
+```
+
+<TypeTable
+  type={{
+    readPointer: { description: "Active version, or null if nothing was published.", type: '() => Promise<number | null>', required: true },
+    writePointer: { description: "Atomically switch the active version (publish and rollback).", type: '(version: number) => Promise<void>', required: true },
+    listVersions: { description: "All published versions.", type: '() => Promise<number[]>', required: true },
+    readFile: { description: "Bytes of a file of a version, or null.", type: '(version: number, path: string) => Promise<Uint8Array | null>', required: true },
+    writeVersion: { description: "Write a complete version; must not become visible until fully written.", type: '(version: number, files: Record<string, Uint8Array>) => Promise<void>', required: true },
+    watch: { description: "Optional change feed for the pointer. Without it the host polls readPointer every artifactPollMs.", type: '(onChange: () => void) => () => void' },
+  }}
+/>
+
+The store only moves bytes: the host validates the manifest and verifies every file's hash, and
+keeps serving the previous version if anything is wrong. Paths are relative POSIX paths already
+validated by the host; still refuse escapes. Check your store with
+[`artifactStoreContract`](/docs/core/adapters/testing).

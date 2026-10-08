@@ -1,0 +1,63 @@
+---
+title: Fields
+description: Field types, their options and the values they give your render function.
+---
+
+Fields are JSON. Each one becomes a prop of the block, with a typed value in `render`.
+
+```ts
+fields: {
+  heading: { type: 'text', label: 'Heading' },
+  count: { type: 'number', min: 1, max: 12 },
+  layout: { type: 'select', options: [{ label: 'List', value: 'list' }, { label: 'Grid', value: 'grid' }] },
+  columns: { type: 'number', visibleIf: { field: 'layout', eq: 'grid' } },
+  items: { type: 'array', arrayFields: { label: { type: 'text' } }, itemSummary: 'label' },
+  color: { type: 'host:color' },
+  content: { type: 'slot' },
+}
+```
+
+## Common options
+
+<TypeTable
+  type={{
+    label: { description: "Label in the editor.", type: 'string', default: 'the field name' },
+    visibleIf: { description: "Show the field only when a condition on other props holds.", type: 'VisibleIf' },
+  }}
+/>
+
+## Types
+
+<TypeTable
+  type={{
+    text: { description: "Single-line text. Option: placeholder.", type: 'string' },
+    textarea: { description: "Multi-line text. Option: placeholder.", type: 'string' },
+    number: { description: "Options: min, max, step.", type: 'number' },
+    select: { description: "Dropdown. Option: options: [{ label, value }].", type: 'the option value' },
+    radio: { description: "Radio buttons. Option: options: [{ label, value }].", type: 'the option value' },
+    array: { description: "List of items. Options: arrayFields, itemSummary (name of a sub-field used as item label), defaultItemProps, min, max.", type: 'item[]' },
+    object: { description: "Group of fields. Option: objectFields.", type: 'object' },
+    slot: { description: "Nested blocks, rendered with <Slot name />. Options: allow, disallow (block slugs). Top level only; not passed as a prop.", type: '—' },
+    'host:color': { description: "Color picker provided by the host.", type: 'string' },
+    'host:media': { description: "Image picker provided by the host.", type: '{ url: string; alt?: string }' },
+    'host:link': { description: "Link editor provided by the host.", type: '{ href: string; label?: string; newTab?: boolean }' },
+  }}
+/>
+
+Any other type fails the build, including Puck's `custom`, `external` and `richtext`, and any
+option holding a function. Custom editor UIs are provided by the host (`host:*` fields), so no
+theme code runs in the editor.
+
+## `visibleIf`
+
+A small JSON condition language, evaluated by the host:
+
+```ts
+{ field: 'layout', eq: 'grid' }
+{ field: 'size', in: ['m', 'l'] }
+{ field: 'mode', not: 'auto' }
+{ and: [{ field: 'layout', eq: 'grid' }, { field: 'count', not: 1 }] }
+{ or: [ ... ] }
+```
+
+It applies to top-level fields.

@@ -1,0 +1,34 @@
+---
+title: Manifest format
+description: The structure of manifest.json, as the host validates it.
+---
+
+```ts
+{
+  artifactVersion: string            // "<package version>+<first 12 hex of bundle sha256>"
+  sdkMajor: 1                        // anything else is rejected
+  createdAt: string
+  files: { [relPath]: sha256hex }    // every file of the version, bundle.js required
+  blocks: { [slug]: BlockMeta }      // slug: ^[a-z][a-z0-9-]*$
+  root: BlockMeta | null
+  adapters: { [name]: { origin } }   // bare origins
+  categories: { [key]: { title?, components: string[], defaultExpanded?, visible? } }
+}
+
+BlockMeta = {
+  label: string
+  category?: string
+  fields: { [name]: FieldSpec }      // names may not start with "__"
+  defaultProps: object
+  data: { [key]: QuerySpec }
+  propRefs: { [dataKey]: string[] }  // recomputed by the host
+  usesRequestParams: boolean         // recomputed by the host
+  slots: string[]                    // must be slot fields
+}
+```
+
+Cross-checks: adapter queries reference declared adapters; `slots` are slot fields; category
+components exist; file paths have no `.`/`..`/empty segments and are not absolute.
+
+Field specs are a closed union: `text`, `textarea`, `number`, `select`, `radio`, `array`,
+`object`, `slot`, `host:color`, `host:media`, `host:link`, each a strict object (unknown keys fail).

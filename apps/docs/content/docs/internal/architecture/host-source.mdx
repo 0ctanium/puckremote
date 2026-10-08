@@ -1,0 +1,31 @@
+---
+title: Host source enforcement
+description: How the core enforces each collection's policy around any DataSource.
+---
+
+`HostSource` wraps the operator's `DataSource` ([D-0036](/docs/internal/decisions#D-0036)). Whatever the backend,
+theme queries only reach it:
+
+- for **declared** collections and globals (`Object.hasOwn`, so `__proto__` and friends fail);
+- with **declared** fields in `select`, `where` and `sort` (`id` is always available, with
+  `equals`/`in`);
+- with operators from each field's `filter` allowlist (default: all; `false`: none);
+- sorting only fields without `sort: false`;
+- `limit` clamped to `[1, limits.max]` (default 10, max 100), `page ≥ 1`;
+- `depth` clamped to `[0, limits.maxDepth]` (default 0);
+- `mode` from the host only.
+
+Violations throw `QueryError('forbidden' | 'invalid-where' | 'invalid-select' | 'invalid-sort')`.
+
+## Output projection
+
+Results are projected to `select` (or all declared fields): undeclared fields never leave the
+host, even if the plugin returns them. A populated relation is kept only if depth allows it and
+its target collection is exposed, and it is projected **with the target's policy**, recursively
+([D-0038](/docs/internal/decisions#D-0038)). Otherwise it collapses to its id. Globals are projected to their
+declared fields.
+
+`findByID` falls back to `find` with `id equals` when the plugin has no `findByID`.
+
+<Source path="packages/core/src/server/query/host-source.ts" />
+<Source path="packages/sdk/src/host.ts" />

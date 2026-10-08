@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 107
+next_decision = 116
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -85,7 +85,7 @@ created = "2026-10-08"
 title = "Docs (Fumadocs), ADR decision system, agent rules and enforcement"
 description = "Fumadocs docs, decision log with provenance, agent skills, hooks/pre-commit/CI enforcement."
 tags = [ "docs", "adr", "process", "agents", "enforcement" ]
-decisions = [ "D-0092", "D-0093", "D-0094", "D-0095", "D-0096", "D-0097", "D-0098", "D-0099", "D-0100", "D-0101", "D-0102", "D-0103", "D-0104", "D-0105", "D-0106" ]
+decisions = [ "D-0092", "D-0093", "D-0094", "D-0095", "D-0096", "D-0097", "D-0098", "D-0099", "D-0100", "D-0101", "D-0102", "D-0103", "D-0104", "D-0105", "D-0106", "D-0107", "D-0108", "D-0109", "D-0110", "D-0111", "D-0112", "D-0113", "D-0114", "D-0115" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -895,8 +895,9 @@ title = "Decisions is its own docs section (/decisions) with a generated index (
 adr = "docs/fumadocs-and-adr-system"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "docs", "adr" ]
+superseded_by = "D-0108"
 
 [decisions.D-0102]
 title = "Docs app dev dependencies pinned to exact versions (repo convention: only peers use ranges)"
@@ -937,6 +938,79 @@ date = "2026-10-08"
 provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "process", "enforcement" ]
+
+[decisions.D-0107]
+title = "Docs split into five Layout Tab roots: Framework (/docs, includes @puck-remote/next), Core (with an Adapters section), CLI, SDK, Internal"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0108]
+title = "Decisions rendered inside the Internal root (/docs/internal/decisions) from .claude via one loader with prefixed ADR paths; search back to createFromSource"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs", "adr" ]
+supersedes = [ "D-0101" ]
+
+[decisions.D-0109]
+title = "Install docs use package-manager tabs (npm code blocks) plus a not-yet-published callout pointing to the monorepo"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0110]
+title = "Mermaid diagrams rendered on the server with beautiful-mermaid; fenced mermaid blocks via remarkMdxMermaid, code-block fallback on error"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0111]
+title = "Docs component conventions: TypeTable for options/members/props, Files for layouts (remarkMdxFiles), titled/tabbed code blocks, Steps, Cards, Callouts"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0112]
+title = "Global MDX plugins in apps/docs/source.config.ts; collections stay in lib/source.ts (macro API)"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0113]
+title = "Root icons via lucideIconsPlugin; beautiful-mermaid and lucide-react pinned to exact versions"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs", "packaging" ]
+
+[decisions.D-0114]
+title = "No docs landing page: / redirects to /docs"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0115]
+title = "Docs audience rule: Framework/Core/CLI/SDK explain usage; architecture, quality, contributing and decisions live in Internal"
+adr = "docs/fumadocs-and-adr-system"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs", "process" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

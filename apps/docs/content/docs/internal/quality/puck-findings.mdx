@@ -1,0 +1,29 @@
+---
+title: Puck findings
+description: What we learned about Puck 0.23 and how puck-remote works around it.
+---
+
+Read from `@puckeditor/core` 0.23.0 sources and types (the renamed `@measured/puck`).
+
+| Topic | Finding | Consequence |
+|---|---|---|
+| Config | Components have `render, label, defaultProps, fields, resolveFields, resolveData, resolvePermissions, permissions, inline, metadata` | Only `render`, `label`, `defaultProps`, `fields`, `resolveFields`, `resolveData` are produced, all host functions built from JSON |
+| Slot field | In `render`, a slot prop is a component function | The slot swap renders it with `createElement` |
+| `resolveData` | Returned props are **merged into the item's props**; `readOnly` stored on the item | Results go to `__data` and are stripped on save ([D-0028](/docs/internal/decisions#D-0028)) |
+| `resolveAllData` | Resolves node by node, recursing into slots | No global view → the host walker is used for public data ([D-0016](/docs/internal/decisions#D-0016)) |
+| Unknown types | `ServerRender` returns `null` silently | `__missing` rewrite ([D-0017](/docs/internal/decisions#D-0017)) |
+| RSC renderer | `Render({ config, data, metadata })` from `@puckeditor/core/rsc`; needs `fields` to know slot props | `metadata.rendered` carries pre-rendered HTML; `basicFields` gives the RSC config field types |
+| Rendering | Components render synchronously | Pre-render pass before `<Render>` ([D-0018](/docs/internal/decisions#D-0018)) |
+| Canvas | An iframe; component `render` runs in the parent window | Theme CSS injected via `overrides.iframe` |
+| `getItemSummary` | A function | `itemSummary: '<field>'` maps to a host function |
+| CSS | The default stylesheet imports a font from a third-party origin | `no-external.css` ([D-0085](/docs/internal/decisions#D-0085)) |
+| Automation | Select options are JSON-encoded in the DOM; drag-and-drop needs trusted pointer events | Only matters for browser tests |
+
+## isolated-vm findings (spike)
+
+- A bare context exposes `WebAssembly`, `SharedArrayBuffer`, `Atomics`, `eval`, `Function`, and a
+  no-op `console`; `fetch`, `process`, `require`, timers, `TextEncoder`, `MessageChannel` are
+  undefined.
+- Microtasks drain inside the synchronous call, under the timeout: `(async () => { while (true) await null })()`
+  is killed at the timeout, and the isolate stays usable.
+- `--no-node-snapshot` wasn't needed on Node 26.10 arm64 but is set anyway ([D-0025](/docs/internal/decisions#D-0025)).

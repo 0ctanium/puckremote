@@ -1,0 +1,159 @@
+---
+title: Build a theme
+description: Write blocks, a page frame, adapters and assets, then build and publish them.
+icon: Paintbrush
+---
+
+A theme is a small package that depends on `@puck-remote/sdk` and React, with the CLI as a dev
+dependency.
+
+```npm
+npm install @puck-remote/sdk react react-dom
+```
+
+```npm
+npm install -D @puck-remote/cli
+```
+
+## Layout
+
+```files
+my-theme
+├── package.json
+├── puck-remote-env.d.ts
+├── root.tsx
+├── blocks
+│   ├── hero.tsx
+│   └── latest-posts.tsx
+├── adapters
+│   └── events.ts
+├── config
+│   └── categories.ts
+└── assets
+    ├── theme.css
+    └── enhance.js
+```
+
+| Path | Content |
+|---|---|
+| `blocks/<slug>.tsx` | One block per file, default-exporting `defineBlock(...)`. Lowercase slug names |
+| `root.tsx` | Optional page frame, `defineRoot(...)` |
+| `adapters/*.ts` | Optional sans-IO adapters to external APIs, `defineAdapter(...)` |
+| `config/categories.ts` | Optional editor categories, `defineCategories(...)` |
+| `assets/**` | Copied as-is: CSS, client scripts, images |
+| `puck-remote-env.d.ts` | Optional: [type your host queries](/docs/guides/typing-queries) |
+
+<Steps>
+<Step>
+
+### Write a block
+
+```tsx title="blocks/latest-posts.tsx"
+import { defineBlock, find, Slot } from '@puck-remote/sdk';
+
+export default defineBlock({
+  label: 'Latest posts',
+  category: 'Content',
+  fields: {
+    heading: { type: 'text' },
+    count: { type: 'number', min: 1, max: 12 },
+    layout: { type: 'select', options: [{ label: 'List', value: 'list' }, { label: 'Grid', value: 'grid' }] },
+    columns: { type: 'number', visibleIf: { field: 'layout', eq: 'grid' } },
+    content: { type: 'slot' },
+  },
+  defaultProps: { heading: 'Latest', count: 3, layout: 'list' },
+  data: {
+    posts: find('posts', {
+      limit: { $prop: 'count' },
+      sort: '-publishedAt',
+      select: ['title', 'slug'],
+      where: { status: { equals: 'published' } },
+    }),
+  },
+  render: (props, data) => (
+    <section>
+      <h2>{props.heading}</h2>
+      {data.posts.ok ? data.posts.data.docs.map((p) => <h3 key={p.slug}>{p.title}</h3>) : <p>Unavailable</p>}
+      <Slot name="content" />
+    </section>
+  ),
+})
+```
+
+Everything except `render` must be plain JSON. `render` must be **synchronous and pure**: no
+fetch, no timers, no state. Data comes from `data`, which you
+[declare as queries](/docs/sdk/data). Always handle `ok: false`.
+
+</Step>
+<Step>
+
+### Add a page frame
+
+```tsx title="root.tsx"
+import { defineRoot, global, Slot } from '@puck-remote/sdk';
+
+export default defineRoot({
+  fields: { title: { type: 'text', label: 'Page title' } },
+  defaultProps: { title: 'Untitled page' },
+  data: { site: global('site') },
+  render: (props, data, ctx) => {
+    ctx.head.title(`${props.title} · ${ctx.site.name}`);
+    ctx.assets.style(ctx.assetUrl('theme.css'));
+    return (
+      <main>
+        <Slot name="children" />
+      </main>
+    );
+  },
+});
+```
+
+</Step>
+<Step>
+
+### Call an external API (optional)
+
+```ts title="adapters/events.ts"
+import { defineAdapter } from '@puck-remote/sdk';
+
+export default defineAdapter({
+  name: 'events',
+  origin: 'https://api.example.com',
+  toRequest: (q) => ({
+    method: 'GET',
+    path: '/v1/events',
+    params: { limit: Number(q.params.limit ?? 5) },
+    headers: { 'x-api-key': { $secret: 'EVENTS_API_KEY' } },
+  }),
+  fromResponse: (json) => (json as { items: { uid: string; name: string }[] }).items.map((e) => ({ id: e.uid, title: e.name })),
+});
+```
+
+Use it from a block with `query('events', 'upcoming', { limit: { $prop: 'count' } })`. The host
+operator must allowlist the origin and bind the secret to it ([Configuration](/docs/configuration)).
+
+</Step>
+<Step>
+
+### Build and publish
+
+```json title="package.json"
+{
+  "scripts": {
+    "build": "puck-remote build",
+    "release": "puck-remote build && puck-remote publish --artifacts ../my-app/artifacts"
+  }
+}
+```
+
+Build errors name the file and the key at fault. See the [CLI](/docs/cli).
+
+</Step>
+</Steps>
+
+## Reference
+
+- Fields and `visibleIf`: [SDK › Fields](/docs/sdk/fields)
+- Queries and parameter references: [SDK › Data](/docs/sdk/data)
+- `ctx` (assets, head, asset URLs): [SDK › Render context](/docs/sdk/context)
+- Adapters: [SDK › Adapters](/docs/sdk/adapters)

@@ -1,0 +1,48 @@
+---
+title: Query resolver
+description: Planning, dedupe, budget, execution and caching of a page's queries.
+---
+
+`resolvePageData({ instances, env, mode }, deps)` returns, per instance, a map of data key →
+`QueryResult`, plus stats.
+
+## 1. Plan
+
+For each instance, in tree order, for each data spec:
+
+- `substitute` param refs (`$prop` → JSON scalars only, `$page`, `$site`, `$query` cut to 256
+  chars; `$secret` left for the HTTP layer; unknown refs → `invalid-ref`);
+- hash `{ mode (host queries only), concrete spec }` with a stable stringify + sha256;
+- group consumers by hash. **Identical queries run once** ([D-0033](/docs/internal/decisions#D-0033)).
+
+## 2. Static budget
+
+The first `maxQueries` unique queries (tree order) are runnable; the rest degrade to `budget`
+before anything runs. Deterministic: the same page always degrades the same blocks.
+
+## 3. Execute
+
+All runnable queries run in parallel under one page deadline (`maxWallMs`, an `AbortSignal`).
+
+- Cache first: `cache.get('puck-remote:q:<hash>')`. **Errors are misses** ([D-0066](/docs/internal/decisions#D-0066)).
+- `host` → `HostSource` (policy enforcement, [host source](/docs/internal/architecture/host-source)).
+- `http` → `HttpSource.fetchJson` ([HTTP source](/docs/internal/architecture/http-source)).
+- `adapter` → in the shared render session: `__toRequest` (output validated: method, path,
+  params, headers), host HTTP against the adapter's **manifest** origin, then `__fromResponse`.
+- Cache set: host results with the collection's tags, **never in draft mode**
+  ([D-0042](/docs/internal/decisions#D-0042)); HTTP/adapter results with `http.cacheTtlMs`.
+- Errors become `{ ok: false, error: <QueryError code or 'unavailable'> }` and are logged.
+
+## 4. Response-size budget
+
+Sizes are summed in tree order; once the total passes `maxResponseBytes`, later results become
+`budget` errors.
+
+## Cache invalidation
+
+A `DataSource.subscribe` feed calls `cache.invalidateTags(tags)`. Default tags:
+`collection:<name>` and `global:<slug>`.
+
+<Source path="packages/core/src/server/query/resolver.ts" />
+<Source path="packages/core/src/server/query/params.ts" />
+<Source path="packages/core/src/server/query/cache.ts" />

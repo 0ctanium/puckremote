@@ -1,0 +1,76 @@
+---
+title: Data
+description: Declare the data a block needs; the host runs the queries.
+---
+
+Blocks never fetch. They declare **named queries** in `data`; the host validates them, dedupes
+identical queries across the page, applies a budget, caches results and passes each block a
+`QueryResult`.
+
+```tsx
+import { defineBlock, find, global, http, query } from '@puck-remote/sdk';
+
+export default defineBlock({
+  fields: { count: { type: 'number' } },
+  data: {
+    posts: find('posts', { limit: { $prop: 'count' }, sort: '-publishedAt', select: ['title', 'slug'] }),
+    site: global('site'),
+    events: query('events', 'upcoming', { limit: 5 }),
+    weather: http({ origin: 'https://api.weather.example', path: '/today', params: { city: 'paris' } }),
+  },
+  render: (props, data) => (data.posts.ok ? <ul>{data.posts.data.docs.map((p) => <li key={p.slug}>{p.title}</li>)}</ul> : null),
+});
+```
+
+## Query builders
+
+<TypeTable
+  type={{
+    find: { description: "Documents of a collection of the host's data source.", type: '(collection, { where?, limit?, sort?, select?, depth?, page? }) => QuerySpec<FindResult<Doc>>' },
+    findByID: { description: "One document by id.", type: '(collection, id, { select?, depth? }) => QuerySpec<Doc | null>' },
+    global: { description: "A global document (site settings…).", type: '(slug) => QuerySpec<Doc>' },
+    query: { description: "Call a theme adapter (see Adapters).", type: '(adapter, op, params?) => QuerySpec<T>' },
+    http: { description: "A JSON endpoint. The host must allowlist the origin.", type: "({ origin, path, method?: 'GET' | 'POST', params?, headers? }) => QuerySpec<T>" },
+    'source<S>()': { description: "find / findByID / global typed by an explicit data source type.", type: '() => { find; findByID; global }' },
+  }}
+/>
+
+`find` results are `{ docs, totalDocs, limit }`. Collections and fields only work if the host
+exposes them; `sort: '-field'` sorts descending. Typing: see
+[Typing host queries](/docs/guides/typing-queries).
+
+### `where`
+
+```ts
+where: { status: { equals: 'published' }, publishedAt: { gt: '2026-01-01' } }
+where: { or: [{ slug: { in: ['a', 'b'] } }, { title: { contains: { $query: 'q' } } }] }
+```
+
+Operators: `equals`, `in`, `contains`, `gt`, `lt`, combined with `and` / `or`. The host decides
+which operators each field allows.
+
+## Parameter references
+
+Values in a query can reference the current context:
+
+<TypeTable
+  type={{
+    '{ $prop: name }': { description: "A prop of this block instance (JSON scalars only; objects become null).", type: 'scalar' },
+    "{ $page: 'slug' | 'locale' }": { description: "The current page.", type: 'string' },
+    "{ $site: 'locale' | 'name' }": { description: "Site settings.", type: 'string' },
+    '{ $query: name }': { description: "A URL search parameter (max 256 characters). Makes every page using this block uncacheable.", type: 'string | null' },
+    '{ $secret: NAME }': { description: "In http/adapter headers only. Substituted by the host, for the origins the secret is bound to; never visible to the theme.", type: 'header value' },
+  }}
+/>
+
+## Results
+
+```ts
+type QueryResult<T> = { ok: true; data: T } | { ok: false; error: string };
+```
+
+Common error codes: `budget` (page budget exceeded), `forbidden` (not exposed by the host),
+`blocked` (HTTP rule), `timeout`, `http-status`, `too-large`, `adapter`, `secret`, and `loading`
+(editor only, before data arrives).
+
+Exact grammar: [Query spec](/docs/sdk/query-spec).

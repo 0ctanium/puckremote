@@ -1,0 +1,18 @@
+---
+title: AI agents
+description: The CLAUDE.md instructions and the skills that help agents find information and follow the rules.
+---
+
+`CLAUDE.md` at the repository root is loaded by Claude Code in every session. It holds the
+[rules](/docs/internal/contributing/rules), how to run things, and where to look.
+
+## Skills (`.claude/skills/`)
+
+| Skill | Use it when |
+|---|---|
+| `project-knowledge` | Looking for anything: which doc page, which source file, which test, which decision |
+| `plan-first` | Before any change: what counts as a decision and how to write a plan listing every choice |
+| `decision-record` | Creating an ADR, recording decisions, choosing provenance, superseding |
+| `docs-update` | Changing code: which pages to update, Fumadocs conventions, verifying the build |
+
+Agents can't skip the rules by accident: see [enforcement](/docs/internal/contributing/enforcement).

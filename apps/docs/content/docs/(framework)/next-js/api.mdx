@@ -1,0 +1,76 @@
+---
+title: API reference
+description: createPuckRemote, createProxy and withPuckRemote.
+---
+
+| Import | Exports |
+|---|---|
+| `@puck-remote/next` | `createPuckRemote`, `PuckRemotePage`, `pageMetadata`, `EditorClient`, types |
+| `@puck-remote/next/proxy` | `createProxy` |
+| `@puck-remote/next/config` | `withPuckRemote` |
+
+## `createPuckRemote(config, options?)`
+
+<TypeTable
+  type={{
+    config: { description: "Your puck-remote config (defineConfig).", type: 'PuckRemoteConfig', required: true },
+    'options.loginUrl': { description: "Where unauthenticated editor visitors are redirected, with ?next=<editor path>. Without it, denied editor requests render the 404 page.", type: 'string' },
+  }}
+/>
+
+Returns a `PuckRemote`:
+
+<TypeTable
+  type={{
+    loadPage: {
+      description: "Resolves data and renders every block for the page in the sandbox. Calls notFound() for unknown pages or a non-site origin. Memoized per request, so generateMetadata and the page share one render pass.",
+      type: '(props: PageProps, context?: { locale?: string }) => Promise<PreparedPage>',
+    },
+    generateMetadata: { description: "Title, description and meta collected from blocks (ctx.head).", type: '(props: PageProps) => Promise<Metadata>' },
+    loadEditor: {
+      description: "Editor props for <EditorClient>. Wrong origin or 403 → notFound(); 401 → redirect to loginUrl when set.",
+      type: '(props: { params }) => Promise<EditorProps>',
+    },
+    api: { description: "Route handlers for the editor API.", type: '{ GET, POST }' },
+    theme: { description: "Route handlers for theme assets.", type: '{ GET, HEAD }' },
+    core: { description: "The underlying engine (createCore).", type: 'PuckRemoteCore' },
+  }}
+/>
+
+## `<PuckRemotePage page />`
+
+Server component. Emits the theme's stylesheets (hoisted into `<head>`), the page rendered by
+Puck's RSC renderer, and theme scripts carrying the CSP nonce.
+
+<TypeTable type={{ page: { description: "The result of remote.loadPage().", type: 'PreparedPage', required: true } }} />
+
+## `<EditorClient {...props} />`
+
+Client component: the Puck editor. Pass the result of `remote.loadEditor()` unchanged.
+
+## `createProxy(config)`
+
+<TypeTable
+  type={{
+    config: {
+      description: "The same config object. Only artifacts, pages, routes, origins, allowSharedOrigin and security are read.",
+      type: 'PuckRemoteConfig',
+      required: true,
+    },
+  }}
+/>
+
+For each request the proxy:
+
+1. answers **404** if the request's origin doesn't serve that surface (site, editor, API, theme);
+2. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
+   Next;
+3. on public pages, sets `x-page-cacheable: true`, or `false` with `cache-control: no-store` and
+   `x-uncacheable-blocks` when a block reads URL query parameters.
+
+## `withPuckRemote(nextConfig?)`
+
+Returns your Next config with `isolated-vm` and `@puck-remote/core` added to
+`serverExternalPackages`.
+
+<TypeTable type={{ nextConfig: { description: "Your Next.js config.", type: 'NextConfig', default: '{}' } }} />

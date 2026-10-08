@@ -1,4 +1,5 @@
-import { loader } from 'fumadocs-core/source';
+import { loader, update } from 'fumadocs-core/source';
+import { lucideIconsPlugin } from 'fumadocs-core/source/lucide-icons';
 import { defineDocs } from 'fumadocs-mdx/macro';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
 
@@ -8,8 +9,9 @@ const docs = defineDocs({
   meta: { schema: metaSchema },
 });
 
-// ADRs are read straight from .claude/ (single source of truth, D-0099).
-// Templates are excluded: their frontmatter holds {{placeholders}}.
+// ADRs are read straight from .claude/ (single source of truth, D-0099) and mounted inside the
+// Internal root at /docs/internal/decisions (D-0108). Templates are excluded: their frontmatter
+// holds {{placeholders}}.
 const decisions = defineDocs({
   dir: '../../.claude',
   docs: {
@@ -19,12 +21,16 @@ const decisions = defineDocs({
   meta: { schema: metaSchema, files: [] },
 });
 
+export const DECISIONS_PREFIX = 'internal/decisions';
+
 export const source = loader({
   baseUrl: '/docs',
-  source: docs.toFumadocsSource(),
-});
-
-export const decisionSource = loader({
-  baseUrl: '/decisions',
-  source: decisions.toFumadocsSource(),
+  source: {
+    docs: docs.toFumadocsSource(),
+    decisions: update(decisions.toFumadocsSource())
+      .page((page) => ({ ...page, path: `${DECISIONS_PREFIX}/${page.path}` }))
+      .meta((meta) => ({ ...meta, path: `${DECISIONS_PREFIX}/${meta.path}` }))
+      .build(),
+  },
+  plugins: [lucideIconsPlugin()],
 });

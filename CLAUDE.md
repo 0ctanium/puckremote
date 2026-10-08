@@ -59,4 +59,7 @@ processes have served stale builds before.
 - `apps/host` (example app), `apps/docs` (Fumadocs), `examples/theme`, `mock/api-server`.
 - `.claude/`: decision records (`ADR-SYSTEM-GUIDE.md`, `adr-index.toml`, `branches/`, `merged/`),
   skills, hooks.
-- The docs map from code to pages: `apps/docs/content/docs/contributing/docs.mdx`.
+- Docs roots: `(framework)` (usage, Next.js), `core` (engine + adapters), `cli`, `sdk`,
+  `internal` (architecture, quality, contributing, decisions). Usage pages stay usage-only;
+  implementation details go to `internal`. Code → page map and component conventions:
+  `apps/docs/content/docs/internal/contributing/docs.mdx`.

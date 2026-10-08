@@ -1,0 +1,45 @@
+---
+title: Overview
+description: "@puck-remote/sdk: write blocks for puck-remote, and the contracts for host plugins."
+icon: Blocks
+---
+
+The SDK is the only package a theme depends on. It is bundled into the theme and runs inside the
+sandbox, so it is deliberately small. It also exports the **host contracts**
+(`@puck-remote/sdk/host`) that adapter packages implement.
+
+```npm
+npm install @puck-remote/sdk react react-dom
+```
+
+```tsx title="blocks/hello.tsx"
+import { defineBlock } from '@puck-remote/sdk';
+
+export default defineBlock({
+  label: 'Hello',
+  fields: { name: { type: 'text' } },
+  defaultProps: { name: 'world' },
+  render: (props) => <p>Hello {props.name}</p>,
+});
+```
+
+## Imports
+
+| Import | For | Content |
+|---|---|---|
+| `@puck-remote/sdk` | Themes | `defineBlock`, `defineRoot`, `defineAdapter`, `defineCategories`, `Slot`, `find`, `findByID`, `global`, `source`, `query`, `http`, types |
+| `@puck-remote/sdk/host` | Host adapters | `DataSource`, `PageStore`, `ArtifactStore`, `CacheStore`, `AuthAdapter` and their helpers |
+| `@puck-remote/sdk/constants` | Tooling | `SDK_MAJOR`, field types, operators, limits |
+| `@puck-remote/sdk/runtime`, `/shims` | The CLI | Sandbox entry points and shims (you don't import these) |
+
+`SDK_MAJOR` (currently `1`) versions the contract between themes and hosts: a host rejects
+artifacts built for another major version with an explicit message.
+
+<Cards>
+  <Card title="Blocks" href="/docs/sdk/blocks" />
+  <Card title="Fields" href="/docs/sdk/fields" />
+  <Card title="Data" href="/docs/sdk/data" />
+  <Card title="Render context" href="/docs/sdk/context" />
+  <Card title="Adapters" href="/docs/sdk/adapters" />
+  <Card title="Host contracts" href="/docs/sdk/host-contracts" />
+</Cards>

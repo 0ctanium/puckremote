@@ -6,8 +6,9 @@ Puck editor and on a server-rendered public site, running theme code only inside
 inside permission-restricted worker processes.
 
 **Documentation:** run `pnpm docs:dev` and open http://localhost:3200 (sources in
-[`apps/docs/content/docs`](apps/docs/content/docs)). It covers concepts, guides, the full
-reference, internals with source references, and every project decision.
+[`apps/docs/content/docs`](apps/docs/content/docs)). Sections: **Framework** (installation,
+concepts, Next.js, guides, configuration), **Core** (engine and adapters), **CLI**, **SDK**, and
+**Internal** (architecture, quality, contributing, every project decision).
 
 ## Quick start
 
@@ -44,7 +45,7 @@ pnpm test
 
 Every change follows a plan approved by a human, is recorded as a decision (`pnpm adr`), and
 updates the docs in the same change. Read [`CLAUDE.md`](CLAUDE.md) and the
-[Contributing section](apps/docs/content/docs/contributing/workflow.mdx) of the docs. Decisions
+[Contributing section](apps/docs/content/docs/internal/contributing/workflow.mdx) of the docs. Decisions
 live in [`.claude/`](.claude/ADR-SYSTEM-GUIDE.md).
 
 ## License

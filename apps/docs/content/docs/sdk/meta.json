@@ -1,0 +1,20 @@
+{
+  "title": "SDK",
+  "description": "@puck-remote/sdk: write blocks and host plugins",
+  "root": true,
+  "icon": "Blocks",
+  "pages": [
+    "index",
+    "---Theme API---",
+    "blocks",
+    "fields",
+    "data",
+    "context",
+    "adapters",
+    "---Host API---",
+    "host-contracts",
+    "---Formats---",
+    "manifest",
+    "query-spec"
+  ]
+}

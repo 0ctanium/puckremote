@@ -1,0 +1,148 @@
+---
+title: Configuration
+description: Every option of defineConfig, with its type and default.
+icon: Settings
+---
+
+```ts title="puck-remote.config.ts"
+import { defineConfig } from '@puck-remote/core/config';
+
+export default defineConfig({
+  artifacts, source, pages, // required adapters
+  // everything else is optional
+});
+```
+
+`defineConfig` is a typed identity function from `@puck-remote/core/config`, which never loads the
+sandbox. The proxy and your app can therefore import the config file safely. Defaults are applied
+when the engine starts, together with the [production guards](#production-guards).
+
+## Adapters
+
+See [Core › Adapters](/docs/core/adapters) for each contract and the built-in implementations.
+
+<TypeTable
+  type={{
+    artifacts: { description: "Where published theme versions and the active-version pointer live.", type: 'ArtifactStore', required: true },
+    source: { description: "Answers the find / findByID / global queries of blocks.", type: 'DataSource', required: true },
+    pages: { description: "Persists Puck page JSON.", type: 'PageStore', required: true },
+    cache: { description: "Cache for query results. Use a shared store when running several instances.", type: 'CacheStore', default: 'memoryCache()' },
+    auth: { description: "Who may open the editor, read drafts, save pages and switch theme versions. Required in production.", type: 'AuthAdapter' },
+    renderer: { description: "Where theme code runs.", type: 'RendererFactory', default: 'workerPoolRenderer()' },
+  }}
+/>
+
+## Origins and routes
+
+<TypeTable
+  type={{
+    origins: {
+      description: "Which hostnames serve the public site and which serve the editor (and its API). Required in production, and the two lists must not overlap.",
+      type: '{ site: string[]; editor: string[] }',
+    },
+    allowSharedOrigin: { description: "Allow one origin for site and editor in production. Not recommended.", type: 'boolean', default: 'false' },
+    allowedOrigins: { description: "Extra origins allowed to send mutating API requests (CSRF). Editor origins are always allowed.", type: 'string[]', default: '[]' },
+    'routes.api': { description: "Prefix of the catch-all API route.", type: 'string', default: "'/api'" },
+    'routes.theme': { description: "Prefix of the theme asset route; asset URLs given to blocks follow it.", type: 'string', default: "'/theme'" },
+    'routes.editor': { description: "Prefix of the editor pages.", type: 'string', default: "'/editor'" },
+    id: { description: "Distinguishes runtimes when one process hosts several sites.", type: 'string', default: "'default'" },
+  }}
+/>
+
+## Site
+
+<TypeTable
+  type={{
+    'site.name': { description: "Exposed to blocks as ctx.site.name and the $site ref.", type: 'string', default: "'Site'" },
+    'site.locale': { description: "Default locale (ctx.locale, $page.locale) unless a page context overrides it.", type: 'string', default: "'en'" },
+  }}
+/>
+
+## Theme versions
+
+<TypeTable
+  type={{
+    artifactPollMs: { description: "How often to check the active-version pointer when the artifact store has no change feed.", type: 'number', default: '2000' },
+  }}
+/>
+
+## Sandbox limits (`isolate`)
+
+<TypeTable
+  type={{
+    'isolate.memoryLimitMb': { description: "Heap limit of the V8 isolate.", type: 'number', default: '64' },
+    'isolate.callTimeoutMs': { description: "CPU time per render or adapter call. Loading the bundle gets 5×.", type: 'number', default: '200' },
+    'isolate.watchdogMs': { description: "Wall-clock limit per call; the worker process is killed after 2× this + 500 ms.", type: 'number', default: '1000' },
+    'isolate.maxInputBytes': { description: "Maximum size of the arguments of one call.", type: 'number', default: '1048576' },
+    'isolate.maxOutputBytes': { description: "Maximum size of the result of one call.", type: 'number', default: '524288' },
+  }}
+/>
+
+## Data budget per page (`budget`)
+
+<TypeTable
+  type={{
+    'budget.maxQueries': { description: "Unique queries per page; later ones (in page order) return error 'budget'.", type: 'number', default: '20' },
+    'budget.maxResponseBytes': { description: "Total size of query results per page.", type: 'number', default: '2097152' },
+    'budget.maxWallMs': { description: "Deadline for all queries of a page.", type: 'number', default: '3000' },
+  }}
+/>
+
+## Outbound HTTP (`http`)
+
+Applies to `http()` queries and theme adapters.
+
+<TypeTable
+  type={{
+    'http.allowedOrigins': { description: "Origins blocks and adapters may reach. A request must also match the origin the block or adapter declared.", type: 'string[]', default: '[]' },
+    'http.insecureDevOrigins': { description: "Origins exempt from the https and public-address rules. Development and tests only: never in production.", type: 'string[]', default: '[]' },
+    'http.timeoutMs': { description: "Per request.", type: 'number', default: '2000' },
+    'http.maxResponseBytes': { description: "Per response.", type: 'number', default: '524288' },
+    'http.maxRedirects': { description: "Redirects followed (same origin only).", type: 'number', default: '3' },
+    'http.cacheTtlMs': { description: "Cache lifetime of HTTP and adapter results.", type: 'number', default: '30000' },
+  }}
+/>
+
+## Secrets
+
+```ts
+secrets: {
+  EVENTS_API_KEY: { value: process.env.EVENTS_API_KEY!, origins: ['https://api.example.com'] },
+}
+```
+
+<TypeTable
+  type={{
+    'secrets.<NAME>.value': { description: "The secret. Blocks reference it as { $secret: 'NAME' } in request headers; it never reaches theme code.", type: 'string', required: true },
+    'secrets.<NAME>.origins': { description: "The only origins this secret may be sent to.", type: 'string[]', required: true },
+  }}
+/>
+
+Names match `^[A-Z][A-Z0-9_]*$`.
+
+## Security (`security`)
+
+<TypeTable
+  type={{
+    'security.csp.editor': { description: "Content Security Policy mode on the editor.", type: "'enforce' | 'report-only' | false", default: "'enforce'" },
+    'security.csp.site': { description: "CSP mode on the public site. Switch to 'enforce' once reports are clean.", type: "'enforce' | 'report-only' | false", default: "'report-only'" },
+    'security.scriptOrigins': { description: "https origins theme scripts may load from, besides the theme's own assets.", type: 'string[]', default: '[]' },
+    'security.styleOrigins': { description: "https origins theme stylesheets may load from.", type: 'string[]', default: '[]' },
+    'security.connectSrc': { description: "Where theme client scripts may connect.", type: 'string[]', default: "['https:']" },
+    'security.frameSrc': { description: "What the site may embed in iframes.", type: 'string[]', default: "['https:']" },
+    'security.frameAncestors': { description: "Who may frame the site.", type: 'string[]', default: "[\"'self'\"]" },
+  }}
+/>
+
+See [Security headers](/docs/security-headers) for the resulting policies.
+
+## Production guards
+
+With `NODE_ENV=production`, the engine refuses to start when:
+
+- `auth` is missing;
+- `origins` is missing (unless `allowSharedOrigin`);
+- an origin is both a site and an editor origin (unless `allowSharedOrigin`);
+- `origins.editor` is empty.
+
+`devAllowAll()` itself throws in production.

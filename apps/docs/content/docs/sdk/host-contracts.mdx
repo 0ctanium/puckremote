@@ -1,0 +1,39 @@
+---
+title: Host contracts
+description: The interfaces in @puck-remote/sdk/host that host adapters implement.
+---
+
+`@puck-remote/sdk/host` holds the contracts for **trusted** plugins that run on the host. They live
+in the SDK (not the engine) so adapter packages stay light.
+
+```ts
+import type { ArtifactStore, AuthAdapter, CacheStore, DataSource, PageStore } from '@puck-remote/sdk/host';
+import { defineAuth, defineCollection, defineDataSource, defineGlobal } from '@puck-remote/sdk/host';
+```
+
+| Contract | Guide |
+|---|---|
+| `DataSource`, `CollectionDef`, `GlobalDef` | [Data source](/docs/core/adapters/data-source) |
+| `PageStore` | [Page store](/docs/core/adapters/page-store) |
+| `ArtifactStore` | [Artifact store](/docs/core/adapters/artifact-store) |
+| `CacheStore` | [Cache](/docs/core/adapters/cache) |
+| `AuthAdapter`, `Principal`, `Action` | [Auth](/docs/core/adapters/auth) |
+
+## Helpers
+
+<TypeTable
+  type={{
+    defineDataSource: { description: "Typed identity for a data source; keeps literal collection and global names.", type: '(source) => source' },
+    'defineCollection<D>()': { description: "Fix a collection's document type, infer the rest.", type: '() => (def) => def' },
+    'defineGlobal<D>()': { description: "Same for globals.", type: '() => (def) => def' },
+    defineAuth: { description: "Typed identity for an auth adapter.", type: '(auth) => auth' },
+    ALL_OPERATORS: { description: "All where operators.", type: "['equals', 'in', 'contains', 'gt', 'lt']" },
+    ACTIONS: { description: "All auth actions.", type: 'Action[]' },
+  }}
+/>
+
+## Type helpers
+
+`CollectionName<S>`, `GlobalName<S>`, `DocOf<S, K>`, `GlobalDocOf<S, K>` extract names and
+document types from a data source type. The theme query builders use them, which is how
+[typed queries](/docs/guides/typing-queries) work.

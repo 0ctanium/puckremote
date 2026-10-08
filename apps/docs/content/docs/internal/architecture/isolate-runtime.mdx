@@ -1,0 +1,57 @@
+---
+title: Isolate runtime
+description: The RenderRuntime abstraction and the in-process isolated-vm implementation.
+---
+
+## RenderRuntime ([D-0076](/docs/internal/decisions#D-0076))
+
+```ts
+interface RenderRuntime { session(): Promise<RenderSession>; stats(): RuntimeStats; dispose(): void }
+interface RenderSession { call(entry, args: string[]): Promise<CallResult<string>>; release(): void }
+type RendererFactory = (artifact: { version; bundle; limits }) => RenderRuntime
+```
+
+Everything crossing the boundary is a JSON string, so a runtime can live in-process, in a worker
+process, or (later) on another machine. `call` never throws for theme-caused failures; it returns
+`{ ok: false, kind }`.
+
+## IsolateRunner (in-process)
+
+Used directly by `inProcessRenderer()`, and **inside each worker** of the worker pool, so the
+isolate rules have one implementation.
+
+- **One Isolate per artifact** (`memoryLimit`), bundle compiled once (`compileScriptSync`).
+- **`session()`**: a new Context, the compiled script run in it (timeout `5 × callTimeoutMs`),
+  then references to `__render`, `__toRequest`, `__fromResponse`. No other host object is exposed.
+- **`call()`**:
+  - checks the input size;
+  - `Reference.apply` with `timeout: callTimeoutMs`, `arguments: { copy: true }`, `result: { copy: true }`;
+  - races it against a **wall-clock watchdog** (`watchdogMs`) that disposes the isolate;
+  - checks the output type and size.
+- **Errors** are classified as `timeout`, `memory`, `disposed`, `thrown`, `oversize` or
+  `invalid-output`. A memory or disposed error kills the isolate; the next session recreates and
+  recompiles it lazily.
+
+## Why async `apply` ([D-0020](/docs/internal/decisions#D-0020))
+
+isolated-vm runs the isolate on its own thread. With `applySync`, the Node event loop would be
+blocked and the watchdog `setTimeout` could never fire. With `apply`, the code inside the isolate
+is still synchronous, but the host stays responsive.
+
+## Why so few globals ([D-0021](/docs/internal/decisions#D-0021))
+
+Found empirically in `/spike`, removing one shim at a time: React 19's
+`react-dom/server.browser` only needs `MessageChannel` (probed at init; never fires since
+`renderToString` never yields) and `TextEncoder` (instantiated by Fizz at init). Leaving timers
+and `queueMicrotask` undefined is what makes "async cannot escape a call" true.
+
+## Context sharing
+
+Blocks of one request share a context, so a block can pollute globals for later blocks in the same
+request. Across requests, contexts are fresh (test 5). This is an accepted limitation
+([D-0026](/docs/internal/decisions#D-0026)).
+
+<Source path="packages/core/src/server/runtime/types.ts" />
+<Source path="packages/core/src/server/runtime/in-process.ts" />
+<Source path="packages/core/src/server/render.ts" />
+<Source path="packages/sdk/src/shims.ts" />

@@ -1,0 +1,45 @@
+---
+title: Programmatic API
+description: Use build, publish and activate from Node, with any artifact store.
+---
+
+```ts
+import { activate, build, publish } from '@puck-remote/cli';
+
+await build({ cwd: 'my-theme', outDir: 'dist', quiet: true });
+await publish({ distDir: 'my-theme/dist', artifacts: myS3Store }); // any ArtifactStore
+await activate(myS3Store, 3);
+```
+
+## `build(options)`
+
+<TypeTable
+  type={{
+    cwd: { description: "Theme folder.", type: 'string', required: true },
+    outDir: { description: "Output folder, relative to cwd.", type: 'string', default: "'dist'" },
+    quiet: { description: "No console output.", type: 'boolean', default: 'false' },
+  }}
+/>
+
+Returns `{ manifest, outDir }`. Throws `BuildError` with a path-prefixed message.
+
+## `publish(options)`
+
+<TypeTable
+  type={{
+    distDir: { description: "A build output folder.", type: 'string', required: true },
+    artifacts: { description: "An ArtifactStore, or a directory path (file-system store).", type: 'ArtifactStore | string', required: true },
+    quiet: { description: "No console output.", type: 'boolean', default: 'false' },
+  }}
+/>
+
+Returns `{ version }`.
+
+## `activate(artifacts, version)`
+
+<TypeTable
+  type={{
+    artifacts: { description: "An ArtifactStore, or a directory path.", type: 'ArtifactStore | string', required: true },
+    version: { description: "An existing version.", type: 'number', required: true },
+  }}
+/>

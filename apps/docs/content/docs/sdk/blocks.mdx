@@ -1,0 +1,94 @@
+---
+title: Blocks and root
+description: defineBlock, defineRoot, Slot and defineCategories.
+---
+
+## `defineBlock(definition)`
+
+One block per file, `blocks/<slug>.tsx`, as the default export. The slug (lowercase letters,
+digits, dashes) is the block's type name.
+
+```tsx
+import { defineBlock, Slot } from '@puck-remote/sdk';
+
+export default defineBlock({
+  label: 'Card',
+  category: 'Layout',
+  fields: { title: { type: 'text' }, body: { type: 'slot' } },
+  defaultProps: { title: 'Card' },
+  render: (props, data, ctx) => (
+    <article>
+      <h3>{props.title}</h3>
+      <Slot name="body" />
+    </article>
+  ),
+});
+```
+
+<TypeTable
+  type={{
+    label: { description: "Name shown in the editor.", type: 'string', default: 'the slug' },
+    category: { description: "Editor category; created if it doesn't exist in config/categories.", type: 'string' },
+    fields: { description: "The block's props and their editor UI. See Fields.", type: 'Fields', required: true },
+    defaultProps: { description: "Initial props; also merged under stored props at render time.", type: 'Partial<Props>' },
+    data: { description: "Named queries the host runs for each instance. See Data.", type: 'Record<string, QuerySpec>' },
+    render: {
+      description: "Synchronous, pure render function. Runs in the sandbox, on the server, for both the site and the editor.",
+      type: '(props, data, ctx) => ReactNode',
+      required: true,
+    },
+  }}
+/>
+
+Everything except `render` must be plain JSON: it is extracted at build time into the manifest.
+`permissions`, `resolveData`, `resolveFields`, `resolvePermissions` and `inline` are rejected:
+the host owns those Puck features.
+
+### Rules for `render`
+
+- **Synchronous and pure**: no `fetch`, timers, `async`, state or effects. Event handlers never
+  reach the page (the output is HTML).
+- **Handle data failures**: each data key is `{ ok: true, data }` or `{ ok: false, error }`.
+- Limits: 200 ms of CPU and 64 MB of memory by default. A failing block is hidden on the site
+  and shown as an error in the editor; the rest of the page renders.
+
+## `<Slot name />`
+
+Renders the nested blocks of a `slot` field. Each slot can be placed once per render.
+
+## `defineRoot(definition)`
+
+The page frame, in `root.tsx`. Same options as `defineBlock` without `label` and `category`. The
+page body is `<Slot name="children" />`.
+
+```tsx title="root.tsx"
+import { defineRoot, Slot } from '@puck-remote/sdk';
+
+export default defineRoot({
+  fields: { title: { type: 'text' } },
+  render: (props, data, ctx) => {
+    ctx.head.title(props.title);
+    return <main><Slot name="children" /></main>;
+  },
+});
+```
+
+## `defineCategories(categories)`
+
+```ts title="config/categories.ts"
+import { defineCategories } from '@puck-remote/sdk';
+
+export default defineCategories({
+  content: { title: 'Content', components: ['hero', 'latest-posts'] },
+  layout: { title: 'Layout', defaultExpanded: false },
+});
+```
+
+<TypeTable
+  type={{
+    title: { description: "Category label.", type: 'string', default: 'the key' },
+    components: { description: "Block slugs, in order. Blocks also join via their category option.", type: 'string[]', default: '[]' },
+    defaultExpanded: { description: "Open in the editor sidebar.", type: 'boolean' },
+    visible: { description: "Show the category.", type: 'boolean' },
+  }}
+/>

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { parse } from 'smol-toml';
-import { decisionSource } from '@/lib/source';
+import { DECISIONS_PREFIX, source } from '@/lib/source';
 
 type Decision = {
   title: string;
@@ -23,8 +23,8 @@ export function DecisionIndex() {
     byAdr.set(d.adr, [...(byAdr.get(d.adr) ?? []), [id, d]]);
   }
   const urlOf = (file: string) => {
-    const slug = file.replace(/^\.claude\//, '').replace(/\.md$/, '').split('/');
-    return decisionSource.getPage(slug)?.url;
+    const slug = [...DECISIONS_PREFIX.split('/'), ...file.replace(/\.md$/, '').split('/')];
+    return source.getPage(slug)?.url;
   };
   return (
     <>
@@ -32,7 +32,7 @@ export function DecisionIndex() {
         Provenance: <code>user</code> (stated by the owner), <code>user-approved-plan</code>{' '}
         (proposed by an agent, approved through a plan), <code>agent-unreviewed</code> (made
         without explicit approval; status <code>needs-review</code> until a human confirms it).
-        See the <a href="/decisions/ADR-SYSTEM-GUIDE">ADR system guide</a>.
+        See the <a href="/docs/internal/decisions/ADR-SYSTEM-GUIDE">ADR system guide</a>.
       </p>
       {Object.entries(index.adrs).map(([name, adr]) => {
         const url = urlOf(adr.file);

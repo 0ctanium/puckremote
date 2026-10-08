@@ -23,22 +23,29 @@ decision is not confirmed; mention it to the human if your work depends on it.
 
 ## 2. Docs (how things work)
 
-`apps/docs/content/docs/` is the source of truth for behavior:
+`apps/docs/content/docs/` is the source of truth for behavior. It has five roots
+(sidebar dropdown):
 
-| Question | Folder |
+| Question | Root / folder |
 |---|---|
-| What is it, how to run | `index.mdx`, `getting-started.mdx` |
-| Mental model, trust model | `concepts/` |
-| How to do X (themes, Next, adapters, deploy) | `guides/` |
-| Exact options, defaults, endpoints, formats | `reference/` |
-| How it works inside, with source paths | `internals/` |
-| Workflow, rules, enforcement | `contributing/` |
+| What is it, install, run the example | `(framework)/index`, `installation`, `quick-start` |
+| Mental model, trust model | `(framework)/concepts/` |
+| Next.js setup and API | `(framework)/next-js/` |
+| How to do X (themes, typing, other frameworks, deploy) | `(framework)/guides/` |
+| Config options, HTTP API, headers, env vars | `(framework)/configuration`, `http-api`, `security-headers`, `environment` |
+| Engine API, entry points, adapters (artifacts, pages, data, cache, auth, renderer) | `core/`, `core/adapters/` |
+| CLI commands and output | `cli/` |
+| Block API, fields, queries, ctx, host contracts, formats | `sdk/` |
+| How it works inside, with source paths | `internal/architecture/` |
+| Tests, performance, Puck findings, gaps | `internal/quality/` |
+| Workflow, rules, docs conventions, enforcement | `internal/contributing/` |
+| Decisions | `.claude/` (rendered at `/docs/internal/decisions`) |
 
 ```bash
 grep -ril "<term>" apps/docs/content/docs
 ```
 
-Each internals page ends with `<Source path="…">` lines naming the implementing files.
+Each `internal/architecture` page ends with `<Source path="…">` lines naming the implementing files.
 
 ## 3. Code map
 
@@ -57,5 +64,5 @@ Each internals page ends with `<Source path="…">` lines naming the implementin
 
 ## 4. Tests
 
-The test map is `apps/docs/content/docs/internals/testing.mdx`. Suites live in
+The test map is `apps/docs/content/docs/internal/quality/testing.mdx`. Suites live in
 `packages/core/test/*` and `packages/cli/test/*`.

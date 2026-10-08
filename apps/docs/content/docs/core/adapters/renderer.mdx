@@ -1,0 +1,54 @@
+---
+title: Renderer
+description: Where and how theme code runs.
+---
+
+## `workerPoolRenderer(options?)` (default)
+
+Theme code runs in a V8 isolate inside separate Node processes started with Node's permission
+model: no file access beyond their own code, no network, no child processes, an empty
+environment, a heap cap, and a watchdog that kills stuck workers.
+
+```ts
+import { workerPoolRenderer } from '@puck-remote/core';
+
+renderer: workerPoolRenderer({ size: 4, maxCallsPerWorker: 5000 }),
+```
+
+<TypeTable
+  type={{
+    size: { description: "Maximum number of worker processes.", type: 'number', default: 'min(4, CPUs)' },
+    maxCallsPerWorker: { description: "Replace a worker after this many calls (bounds leaks).", type: 'number', default: '5000' },
+    maxOldSpaceMb: { description: "Node heap cap per worker.", type: 'number', default: '256' },
+    wrap: { description: "Wrap the worker command in an OS sandbox, e.g. bubblewrap().", type: '(command, args) => { command; args }' },
+    log: { description: "Where worker output and errors go.", type: 'Pick<Console, "error" | "warn" | "info">', default: 'console' },
+    tap: { description: "Observe every IPC message (diagnostics, tests). Must not throw.", type: "(direction: 'send' | 'receive', message) => void" },
+  }}
+/>
+
+Spawning a worker costs about 90 ms, once; each block render adds about 0.1 ms of IPC.
+
+## `bubblewrap(extraArgs?)` (Linux, experimental)
+
+```ts
+import { bubblewrap, workerPoolRenderer } from '@puck-remote/core';
+
+renderer: workerPoolRenderer({ wrap: bubblewrap() }),
+```
+
+Runs each worker in a namespace with no network, a read-only root and a private `/tmp`. Needs
+`bwrap` and unprivileged user namespaces. It also covers native-code escapes, which Node's
+permission model cannot.
+
+## `inProcessRenderer()`
+
+```ts
+import { inProcessRenderer } from '@puck-remote/core';
+
+renderer: inProcessRenderer(),
+```
+
+The isolate runs inside your server process. Use it only for tests or constrained environments:
+it loses the process-level protections.
+
+<Callout>A remote renderer service (rendering on separate machines) is planned.</Callout>

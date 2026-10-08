@@ -1,0 +1,27 @@
+---
+title: Build output
+description: What puck-remote build produces.
+---
+
+```files
+dist
+├── manifest.json
+├── bundle.js
+└── assets
+    ├── theme.css
+    └── enhance.js
+```
+
+<TypeTable
+  type={{
+    'manifest.json': { description: "Everything except code: blocks, root, fields, defaults, queries, adapters (name and origin), categories, and the sha256 of every file. See the manifest format.", type: 'JSON' },
+    'bundle.js': { description: "One minified script with the sandbox shims, React, react-dom/server, the SDK runtime and your blocks. It exposes only __render, __toRequest and __fromResponse.", type: 'JavaScript' },
+    'assets/**': { description: "Your assets folder, copied as-is. Served at /theme/v<N>/assets/** only if listed in the manifest with a matching hash.", type: 'files' },
+  }}
+/>
+
+`artifactVersion` in the manifest is your package version plus the first 12 hex characters of the
+bundle hash, e.g. `1.1.0+3fa9c2d81b04`.
+
+The host re-validates everything in the manifest with its own schema: the CLI's checks exist to
+give you early, precise errors. See [Manifest format](/docs/sdk/manifest).

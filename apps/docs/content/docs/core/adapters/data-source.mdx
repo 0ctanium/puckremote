@@ -1,0 +1,99 @@
+---
+title: Data source
+description: Answer the find, findByID and global queries of blocks from your CMS, database or API.
+---
+
+A data source declares **which collections and fields themes may reach**, and implements storage.
+The engine enforces the declared policy before and after calling you.
+
+```ts title="src/cms.ts"
+import { defineCollection, defineDataSource, defineGlobal } from '@puck-remote/sdk/host';
+
+export const myCms = () =>
+  defineDataSource({
+    name: 'my-cms',
+    collections: {
+      posts: defineCollection<Post>()({
+        fields: {
+          title: { type: 'text' },                         // all operators, sortable
+          slug: { type: 'text', filter: ['equals', 'in'] },
+          excerpt: { type: 'text', filter: false, sort: false },
+          author: { type: 'relation', to: 'authors' },     // populated docs use the authors policy
+        },
+        limits: { default: 10, max: 12, maxDepth: 1 },
+        tags: ['posts'],
+        find: async (query, ctx) => ({ docs, totalDocs }),
+        findByID: async (id, { select, depth }, ctx) => doc, // optional
+      }),
+    },
+    globals: {
+      site: defineGlobal<Site>()({ fields: { tagline: { type: 'text' } }, get: async (ctx) => site }),
+    },
+    subscribe: (onChange) => {
+      // call onChange(['posts']) when content changes, to invalidate cached results
+      return () => {};
+    },
+  });
+```
+
+## Collection policy
+
+<TypeTable
+  type={{
+    fields: { description: "Exposed fields. Anything not listed is never selectable, filterable, sortable or returned.", type: 'Record<string, CollectionField>', required: true },
+    limits: { description: "Default and maximum page size, and maximum relation depth.", type: '{ default?: number; max?: number; maxDepth?: number }', default: '{ default: 10, max: 100, maxDepth: 0 }' },
+    tags: { description: "Cache tags of results from this collection.", type: 'string[]', default: "['collection:<name>']" },
+    find: { description: "Run a validated, normalized query.", type: '(query: NormalizedFind, ctx: SourceContext) => Promise<{ docs; totalDocs }>', required: true },
+    findByID: { description: "Optional; falls back to find with id equals.", type: '(id, { select, depth }, ctx) => Promise<RawDoc | null>' },
+  }}
+/>
+
+### Field
+
+<TypeTable
+  type={{
+    type: { description: "Field kind.", type: "'text' | 'number' | 'boolean' | 'date' | 'json' | 'relation'", required: true },
+    to: { description: "For relations: the target collection, whose own policy applies to populated documents.", type: 'string' },
+    filter: { description: "Allowed where operators, or false for none.", type: "WhereOperator[] | false", default: 'all operators' },
+    sort: { description: "Whether the field is sortable.", type: 'boolean', default: 'true' },
+  }}
+/>
+
+## What you receive
+
+<TypeTable
+  type={{
+    'query.where': { description: "Validated condition tree, or null.", type: 'NormalizedWhere | null' },
+    'query.sort': { description: "Sort field and direction, or null.", type: "{ field; direction: 'asc' | 'desc' } | null" },
+    'query.limit': { description: "Already clamped to the collection limits.", type: 'number' },
+    'query.page': { description: "1-based page.", type: 'number' },
+    'query.select': { description: "Requested fields (always includes id), or null for all exposed fields.", type: 'string[] | null' },
+    'query.depth': { description: "Relation population depth, already clamped.", type: 'number' },
+    'ctx.mode': { description: "'draft' for editor requests, 'public' otherwise. Decided by the host; you decide what draft means (e.g. include unpublished documents).", type: "'public' | 'draft'" },
+    'ctx.locale': { description: "Requested locale.", type: 'string' },
+    'ctx.signal': { description: "Aborted when the page's data deadline passes.", type: 'AbortSignal' },
+  }}
+/>
+
+You don't need to filter fields in your output: the engine projects results to the declared
+fields, including populated relations. Draft results are never cached.
+
+## `@puck-remote/source-mock`
+
+An in-memory example (posts, authors, a `site` global) loaded from JSON. Useful for demos and tests.
+
+```ts
+import { mockCms } from '@puck-remote/source-mock';
+
+source: mockCms({ dataFile: path.join(process.cwd(), 'data/cms.json') }),
+```
+
+<TypeTable
+  type={{
+    dataFile: { description: "JSON file with { collections, globals }.", type: 'string' },
+    data: { description: "The same data inline (tests).", type: 'MockData' },
+  }}
+/>
+
+Themes can get typed queries from your source's type: see
+[Typing host queries](/docs/guides/typing-queries).

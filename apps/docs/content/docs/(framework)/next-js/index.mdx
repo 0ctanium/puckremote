@@ -1,0 +1,126 @@
+---
+title: Next.js setup
+description: The files a Next.js App Router app needs, and what each one does.
+icon: Triangle
+---
+
+`@puck-remote/next` adapts the framework-agnostic core to Next.js conventions (route params,
+`notFound()`, React `cache()`, the proxy). All logic stays in `@puck-remote/core`.
+
+```npm
+npm install @puck-remote/next @puck-remote/core
+```
+
+## Files
+
+```files
+my-app
+├── puck-remote.config.ts
+├── next.config.ts
+└── src
+    ├── puck-remote.ts
+    ├── proxy.ts
+    └── app
+        ├── [[...path]]
+        │   └── page.tsx
+        ├── editor
+        │   └── [[...path]]
+        │       └── page.tsx
+        ├── api
+        │   └── [[...path]]
+        │       └── route.ts
+        └── theme
+            └── [[...path]]
+                └── route.ts
+```
+
+| File | Role |
+|---|---|
+| `puck-remote.config.ts` | The only file that knows your backend: adapters, origins, limits ([Configuration](/docs/configuration)) |
+| `src/puck-remote.ts` | The app instance: `createPuckRemote(config)` |
+| `src/proxy.ts` | Per-hostname routing, security headers with a CSP nonce, cache headers |
+| `app/[[...path]]/page.tsx` | The public site (Puck RSC render) |
+| `app/editor/[[...path]]/page.tsx` | The Puck editor |
+| `app/api/[[...path]]/route.ts` | Editor API: pages, data, block rendering, artifact reload |
+| `app/theme/[[...path]]/route.ts` | Theme assets (`/theme/v<N>/assets/**`) |
+| `next.config.ts` | Keeps isolated-vm and the core external to the server bundle |
+
+## The app instance
+
+```ts title="src/puck-remote.ts"
+import { createPuckRemote } from '@puck-remote/next';
+import config from '../puck-remote.config';
+
+export const remote = createPuckRemote(config, {
+  // loginUrl: '/login', // optional: where unauthenticated editor visitors go
+});
+```
+
+## Proxy
+
+```ts title="src/proxy.ts"
+import { createProxy } from '@puck-remote/next/proxy';
+import remoteConfig from '../puck-remote.config';
+
+export const proxy = createProxy(remoteConfig);
+// Must be a literal. Every route except Next internals.
+export const config = { matcher: ['/((?!_next/|favicon\\.ico).*)'] };
+```
+
+The proxy imports only edge-safe entry points, never the isolate.
+
+## Routes
+
+```tsx title="src/app/[[...path]]/page.tsx"
+import { PuckRemotePage, type PageProps } from '@puck-remote/next';
+import { remote } from '@/puck-remote';
+
+export const dynamic = 'force-dynamic';
+export const generateMetadata = remote.generateMetadata;
+
+export default async function Page(props: PageProps) {
+  const page = await remote.loadPage(props /*, { locale } */);
+  return <PuckRemotePage page={page} />;
+}
+```
+
+```tsx title="src/app/editor/[[...path]]/page.tsx"
+import { EditorClient } from '@puck-remote/next';
+import { remote } from '@/puck-remote';
+
+export default async function Editor(props: { params: Promise<{ path?: string[] }> }) {
+  return <EditorClient {...await remote.loadEditor(props)} />;
+}
+```
+
+```ts tab="api/[[...path]]/route.ts"
+import { remote } from '@/puck-remote';
+
+export const { GET, POST } = remote.api;
+```
+
+```ts tab="theme/[[...path]]/route.ts"
+import { remote } from '@/puck-remote';
+
+export const { GET, HEAD } = remote.theme;
+```
+
+## Next config
+
+```ts title="next.config.ts"
+import { withPuckRemote } from '@puck-remote/next/config';
+
+export default withPuckRemote({
+  allowedDevOrigins: ['*.localhost'],
+});
+```
+
+The core forks render workers from its own files, so it must not be bundled.
+
+## Hostnames in development
+
+Use `localhost:<port>` for the site and `editor.localhost:<port>` for the editor; `*.localhost`
+resolves to loopback. Set `origins` accordingly (the example app reads them from
+[environment variables](/docs/environment)).
+
+Next: the [API reference](/docs/next-js/api), or [Deploying safely](/docs/guides/deploying).
