@@ -1,0 +1,21 @@
+---
+title: Known gaps
+description: Accepted limitations and what is planned about them.
+---
+
+| Gap | Mitigation / plan |
+|---|---|
+| isolated-vm is in maintenance mode; a V8 escape runs native code, unchecked by Node's permission model | `bubblewrap()` on Linux (experimental); remote renderer planned for M5 ([D-0075](/decisions#D-0075)) |
+| Blocks in one request share a context | Accepted ([D-0026](/decisions#D-0026)) |
+| Theme client scripts don't run in the editor canvas | By design ([D-0080](/decisions#D-0080)) |
+| Next marks dynamic pages `no-store`; `x-page-cacheable` is only a signal | Caching semantics in the core, applied by bindings: M3 ([D-0070](/decisions#D-0070)) |
+| No dependent (`$ref`) queries, no pagination helpers | Post-V1 ([D-0072](/decisions#D-0072)); client-side loading is the theme's job ([D-0011](/decisions#D-0011)) |
+| No publishing workflow (drafts/publish/history) | M3, in the PageStore contract ([D-0069](/decisions#D-0069)) |
+| No content migrations when block fields change | M3 ([D-0068](/decisions#D-0068)) |
+| No richtext, inline editing, extensible host fields | M4, mandatory for V1 ([D-0071](/decisions#D-0071)) |
+| No localization | Post-V1, app-defined `LocaleResolver` ([D-0073](/decisions#D-0073)) |
+| Single tenant | ([D-0009](/decisions#D-0009)) |
+| `memoryCache` and `artifacts-fs` are per machine | Plug shared stores for clusters |
+| `resolveData` stripping is our convention, not enforced by Puck | Tested (test 18) |
+| Artifacts are published by writing to the store directly; manifests are not signed | Ideas from the POC notes: an upload API that verifies hashes, signed manifests, immutable storage, pointer in the database (not decided) |
+| No multi-tenancy (per-tenant artifacts, isolates, secrets) | Not decided; the secret-to-origin binding already exists |

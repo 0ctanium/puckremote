@@ -1,0 +1,4 @@
+{
+  "title": "Internals",
+  "pages": ["public-request", "editor-lifecycle", "isolate-runtime", "worker-pool", "artifact-loader", "query-resolver", "host-source", "http-source", "slot-swap", "missing-blocks", "auth-and-csrf", "build-pipeline", "packaging", "puck-findings", "testing", "performance", "known-gaps"]
+}

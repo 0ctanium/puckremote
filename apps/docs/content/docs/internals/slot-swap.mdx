@@ -1,0 +1,26 @@
+---
+title: Slot swap
+description: Turning isolate HTML into React with real Puck slots.
+---
+
+`htmlToReact(html, { nonce, slots, allowed })` uses `html-react-parser` with a `replace` callback
+that only acts on `div` elements carrying `data-puck-slot`:
+
+- the `data-nonce` must equal the render's nonce (and be non-empty);
+- the name must be in `allowed` (the block's slot fields, plus `children` for the root) and in
+  `slots`;
+- the name must not have been swapped already.
+
+The slot value is either Puck's slot component (a function, rendered with `createElement`) or a
+React node (the root's `children`). Everything else in the HTML is parsed as-is.
+
+On the theme side, `<Slot name>` reads the nonce from module state set by `__render` for the
+duration of one render call (`sdk/src/state.ts`), so it can only produce the right nonce while the
+host is rendering that block.
+
+The nonce is 128 bits from `crypto.randomBytes`, fresh per render call. Both the public renderer
+(`puck-rsc.tsx`) and the editor (`config.tsx`) call the same function.
+
+<Source path="packages/core/src/shared/slot-swap.tsx" />
+<Source path="packages/sdk/src/state.ts" />
+<Source path="packages/core/test/rendering.test.tsx" />

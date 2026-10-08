@@ -1,0 +1,32 @@
+---
+title: Deploying safely
+description: The checklist for a production deployment.
+---
+
+1. **Two hostnames, one app.** Point e.g. `www.example.com` (site) and `admin.example.com` (editor)
+   at the same deployment and set `origins`. Production refuses to start without distinct origins
+   (`allowSharedOrigin: true` opts out) ([D-0081](/decisions#D-0081)).
+2. **Host-only auth cookies on the editor domain.** Never `Domain=.example.com`: theme scripts run
+   on the site origin, and same-site requests would carry the cookie. Ideally use a different
+   registrable domain for the editor.
+3. **Configure `auth`.** Production refuses to start without it; `devAllowAll()` throws in
+   production.
+4. **Forward the addressed host.** Behind your own reverse proxy, forward
+   `X-Forwarded-Host`/`X-Forwarded-Proto` (or preserve `Host`).
+5. **Rendering.** The default `workerPoolRenderer()` runs theme code in permission-restricted
+   worker processes (`size` defaults to min(4, CPUs); `maxCallsPerWorker` recycles them). On Linux,
+   `workerPoolRenderer({ wrap: bubblewrap() })` adds namespaces (no network, read-only root):
+   experimental, needs unprivileged user namespaces (Ubuntu 24.04: disable
+   `kernel.apparmor_restrict_unprivileged_userns`). Keep `@puck-remote/core` external to your
+   bundler.
+6. **CSP.** The editor gets an enforced CSP. The site starts **report-only**: list third-party
+   origins your themes need in `security.scriptOrigins` / `styleOrigins`, watch reports, then set
+   `security.csp.site: 'enforce'` ([D-0082](/decisions#D-0082)).
+7. **Shared stores for several instances.** Use a shared `ArtifactStore` (S3-style), `PageStore`
+   (database) and `CacheStore` (Redis-style). The defaults are per machine/process.
+8. **Outbound HTTP.** List external API origins in `http.allowedOrigins`; never set
+   `http.insecureDevOrigins` in production. Bind each secret to its origins.
+9. **Never set `SKIP_DOCS_CHECK`** in automation; it is a human escape hatch for the repository
+   checks only.
+
+See the [threat model](/docs/concepts/trust-model) and [security headers](/docs/reference/security-headers).

@@ -1,0 +1,108 @@
+---
+title: Configuration
+description: Every option of defineConfig, with its default and where it is used.
+---
+
+`defineConfig(config)` from `@puck-remote/core/config` is a typed identity function: it imports no
+isolate code, so the app config and the proxy can load it. `resolveConfig` fills in defaults and
+runs the production guards.
+
+<Source path="packages/core/src/server/config.ts" />
+
+## Plugins
+
+| Option | Type | Default | Notes |
+|---|---|---|---|
+| `artifacts` | `ArtifactStore` | **required** | e.g. `fsArtifactStore({ dir })` |
+| `source` | `DataSource` | **required** | Backs `find`/`findByID`/`global` |
+| `pages` | `PageStore` | **required** | e.g. `fsPageStore({ dir })` |
+| `cache` | `CacheStore` | `memoryCache()` | Per process; use a shared store for clusters |
+| `renderer` | `RendererFactory` | `workerPoolRenderer()` | Or `inProcessRenderer()`, `workerPoolRenderer({ wrap: bubblewrap() })` |
+| `auth` | `AuthAdapter` | none | **Required in production**; without it in dev, everything is open (warned) |
+
+## Identity and routing
+
+| Option | Default | Notes |
+|---|---|---|
+| `id` | `'default'` | Memo key of the process-wide runtime ([D-0047](/decisions#D-0047)) |
+| `routes.api` | `'/api'` | Prefix of the catch-all API route |
+| `routes.theme` | `'/theme'` | Prefix of the theme asset route; `ctx.assetUrl` follows it |
+| `routes.editor` | `'/editor'` | Prefix of the editor pages |
+| `origins` | `null` | `{ site: string[], editor: string[] }`. **Required in production** unless `allowSharedOrigin` |
+| `allowSharedOrigin` | `false` | Allows one origin for site and editor (not recommended) |
+| `allowedOrigins` | `[]` | Extra origins allowed to send mutations (CSRF); editor origins are added automatically |
+
+## Site
+
+| Option | Default |
+|---|---|
+| `site.name` | `'Site'` |
+| `site.locale` | `'en'` |
+
+## Artifacts
+
+| Option | Default | Notes |
+|---|---|---|
+| `artifactPollMs` | `2000` | Pointer polling interval when the store has no `watch` ([D-0065](/decisions#D-0065)) |
+
+## Isolate limits (`isolate`)
+
+| Option | Default | Notes |
+|---|---|---|
+| `memoryLimitMb` | `64` | isolated-vm heap limit |
+| `callTimeoutMs` | `200` | CPU timeout per call (V8-enforced); bundle init gets 5× |
+| `watchdogMs` | `1000` | Wall-clock watchdog that disposes the isolate; the worker pool kills a worker after `2 × watchdogMs + 500` |
+| `maxInputBytes` | `1048576` | Sum of call arguments |
+| `maxOutputBytes` | `524288` | Call result |
+
+## Data budget (`budget`)
+
+| Option | Default |
+|---|---|
+| `maxQueries` | `20` unique queries per page |
+| `maxResponseBytes` | `2097152` |
+| `maxWallMs` | `3000` |
+
+## Outbound HTTP (`http`)
+
+| Option | Default | Notes |
+|---|---|---|
+| `allowedOrigins` | `[]` | Origins `http()` queries and adapters may reach (must also equal the declared origin) |
+| `insecureDevOrigins` | `[]` | Exempt from https and public-IP rules. **Dev/test only** |
+| `timeoutMs` | `2000` | Per request (connect + response) |
+| `maxResponseBytes` | `524288` | Per response |
+| `maxRedirects` | `3` | Same-origin only |
+| `cacheTtlMs` | `30000` | Cache TTL for HTTP and adapter results |
+
+## Secrets
+
+```ts
+secrets: { EVENTS_API_KEY: { value: process.env.EVENTS_API_KEY!, origins: ['https://api.example.com'] } }
+```
+
+Names match `^[A-Z][A-Z0-9_]*$`. A secret is only sent to its listed origins.
+
+## Security (`security`)
+
+| Option | Default | Notes |
+|---|---|---|
+| `csp.editor` | `'enforce'` | `'enforce' \| 'report-only' \| false` |
+| `csp.site` | `'report-only'` | Switch to `'enforce'` once reports are clean |
+| `scriptOrigins` | `[]` | https origins theme scripts may load from (besides own assets) |
+| `styleOrigins` | `[]` | https origins theme stylesheets may load from |
+| `connectSrc` | `['https:']` | Site `connect-src` |
+| `frameSrc` | `['https:']` | What the site may embed |
+| `frameAncestors` | `["'self'"]` | Who may frame the site |
+
+See [security headers](/docs/reference/security-headers).
+
+## Production guards
+
+`resolveConfig` throws a `ConfigError` in production (`NODE_ENV=production`) when:
+
+- `auth` is missing;
+- `origins` is missing (unless `allowSharedOrigin`);
+- an origin is both a site and an editor origin (unless `allowSharedOrigin`);
+- `origins.editor` is empty.
+
+`devAllowAll()` itself throws in production.

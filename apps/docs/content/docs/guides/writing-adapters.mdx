@@ -1,0 +1,87 @@
+---
+title: Writing host adapters
+description: Implement DataSource, PageStore, ArtifactStore, CacheStore or AuthAdapter for your backend, and test them.
+---
+
+All contracts are in `@puck-remote/sdk/host`, so adapter packages never depend on the heavy core.
+Full signatures are in the [SDK reference](/docs/reference/sdk#host-contracts).
+
+## DataSource
+
+```ts
+import { defineCollection, defineDataSource, defineGlobal } from '@puck-remote/sdk/host'
+
+export const myCms = () =>
+  defineDataSource({
+    name: 'my-cms',
+    collections: {
+      posts: defineCollection<Post>()({
+        fields: {
+          title: { type: 'text' },                      // all operators, sortable
+          slug: { type: 'text', filter: ['equals', 'in'] },
+          excerpt: { type: 'text', filter: false, sort: false },
+          author: { type: 'relation', to: 'authors' },  // populated docs use the authors policy
+        },
+        limits: { default: 10, max: 12, maxDepth: 1 },
+        tags: ['posts'],
+        find: async (query, ctx) => ({ docs, totalDocs }),
+        findByID: async (id, { select, depth }, ctx) => doc, // optional; falls back to find
+      }),
+    },
+    globals: { site: defineGlobal<Site>()({ fields: { tagline: { type: 'text' } }, get: async (ctx) => site }) },
+    subscribe: (onChange) => { /* call onChange(['posts']) on writes */ return () => {} },
+  })
+```
+
+What your plugin receives and must do:
+
+- a `NormalizedFind`: validated `where` tree, `sort`, clamped `limit`, `page`, `select` (always
+  includes `id`), clamped `depth`;
+- `ctx.mode`: `public` or `draft`, decided by the host. **You** define what draft means (e.g.
+  include unpublished documents);
+- `ctx.signal`: abort when the page budget expires.
+
+The core projects your output to declared fields; you don't need to filter fields yourself.
+
+## PageStore
+
+`get(slug)`, `put(slug, data)`, `list()`. Slugs are validated by the host
+(`a-z0-9-` segments, up to 5 levels). The host validates pages and strips `__data` before `put`.
+
+## ArtifactStore
+
+`readPointer`, `writePointer` (atomic), `listVersions`, `readFile(version, path)`,
+`writeVersion(version, files)` (invisible until complete), optional `watch(onChange)`. Paths are
+POSIX, relative and pre-validated; still refuse escapes (symlinks). The host verifies hashes, so a
+store only moves bytes.
+
+## CacheStore
+
+`get`, `set(key, value, { ttlMs?, tags? })`, `invalidateTags(tags)`. Values are JSON. Errors are
+treated as misses by the core, never as page failures ([D-0066](/decisions#D-0066)).
+
+## AuthAdapter
+
+```ts
+import { defineAuth } from '@puck-remote/sdk/host'
+
+export const myAuth = defineAuth({
+  async authenticate(request) { /* read a session cookie or bearer token */ return { id: 'u1', name: 'Ada' } },
+  authorize(principal, action, resource) { return action !== 'artifact:activate' },
+})
+```
+
+Actions: `editor:open`, `page:read-draft`, `page:write`, `page:publish`, `artifact:publish`,
+`artifact:activate`. Unauthenticated → 401, refused → 403 (the Next binding shows 404 for the
+editor page, or redirects to `loginUrl` on 401). Exceptions count as refusals.
+
+## Contract test suites
+
+```ts
+import { artifactStoreContract, cacheStoreContract, pageStoreContract } from '@puck-remote/core/testing'
+
+artifactStoreContract('s3', async () => s3ArtifactStore({ bucket: await freshBucket() }))
+```
+
+Each `make()` must return a fresh, empty store. The built-in adapters run the same suites
+(`packages/core/test/adapters.test.ts`).

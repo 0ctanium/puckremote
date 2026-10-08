@@ -1,0 +1,56 @@
+---
+title: Blocks and the isolate
+description: What a block is, what its render function may do, and the environment it runs in.
+---
+
+A **block** is a file `blocks/<slug>.tsx` that default-exports `defineBlock({...})`. Everything
+except `render` must be plain JSON: it is extracted at build time into the manifest and validated
+again by the host. The page frame is `root.tsx` with `defineRoot`, rendering the page body via
+`<Slot name="children" />`.
+
+## The render contract
+
+`render(props, data, ctx)` must be **synchronous and pure**. It returns React elements; the
+runtime turns them into an HTML string with `renderToString`.
+
+- `props`: the editor-provided props, merged over `defaultProps`. Slot fields are omitted.
+- `data`: one `QueryResult` per declared query: `{ ok: true, data }` or `{ ok: false, error }`.
+  The type forces the failure case to be handled.
+- `ctx`: request context (`isEditing`, `locale`, `nonce`, `page.slug`, `site.name`), `assetUrl()`,
+  and the recorded effects `head.title/meta`, `assets.script/style`.
+
+**Effects** are the only channel out of the isolate besides the HTML: at most 64 per render and
+2 KB per string. The host merges and dedupes them and hoists them into `<head>`.
+
+## The environment
+
+The bundle runs in a bare V8 context with two shims only ([D-0021](/decisions#D-0021)):
+
+- a no-op `MessageChannel` (React's scheduler probes it at init);
+- a UTF-8 `TextEncoder` (Fizz instantiates it at init).
+
+There is no `setTimeout`, `queueMicrotask`, `fetch`, `process`, `require` or `console`. Async code
+cannot escape a call: V8 drains microtasks before the call returns, under the same timeout.
+
+| Limit (default) | Value | Config key |
+|---|---|---|
+| Isolate memory | 64 MB | `isolate.memoryLimitMb` |
+| CPU time per call | 200 ms | `isolate.callTimeoutMs` |
+| Wall-clock watchdog | 1000 ms | `isolate.watchdogMs` |
+| Input per call | 1 MB | `isolate.maxInputBytes` |
+| Output per call | 512 KB | `isolate.maxOutputBytes` |
+
+## Isolate lifecycle
+
+- One compiled script per artifact version (per worker).
+- **A fresh context per page request** (and per editor RPC). Blocks in one request share it.
+- A memory blow-up or watchdog disposes the isolate; it is recreated lazily, and the rest of the
+  page still renders (later blocks get a fresh context).
+
+## Failures
+
+A failed block renders `<div hidden data-block-error="…">` publicly and a red box in the editor. A
+block type missing from the current artifact becomes a `__missing` placeholder
+([missing blocks](/docs/internals/missing-blocks)).
+
+See [isolate runtime internals](/docs/internals/isolate-runtime).

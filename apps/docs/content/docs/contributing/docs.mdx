@@ -1,0 +1,50 @@
+---
+title: Docs conventions
+description: How this documentation is organized and how to keep it in sync with the code.
+---
+
+The site is a Fumadocs app in `apps/docs` ([D-0092](/decisions#D-0092)).
+
+```bash
+pnpm docs:dev
+```
+
+```bash
+pnpm docs:build
+```
+
+## Layout
+
+| Path | Content |
+|---|---|
+| `apps/docs/content/docs/**.mdx` | Pages; each folder has a `meta.json` giving order and title |
+| `apps/docs/lib/source.ts` | Two collections: docs and decisions (`../../.claude`) |
+| `apps/docs/components/mdx.tsx` | MDX components, including `<Source path="…" />` |
+| `apps/docs/components/decision-index.tsx` | The `/decisions` index, generated from `adr-index.toml` |
+
+## Which page documents which code
+
+| Code | Pages |
+|---|---|
+| `packages/sdk/src` | Reference › SDK, Guides › Theme development, Concepts › Declarative data |
+| `packages/cli/src` | Reference › CLI, Internals › Build pipeline |
+| `packages/core/src/server/config.ts` | Reference › Configuration |
+| `packages/core/src/core.ts` | Reference › Core API, Reference › HTTP API |
+| `packages/core/src/server/runtime/*` | Internals › Isolate runtime, Worker pool; Reference › Worker protocol |
+| `packages/core/src/server/query/*` | Internals › Query resolver, Host source, HTTP source |
+| `packages/core/src/server/surface.ts`, `auth.ts` | Concepts › Surfaces; Internals › Auth and CSRF; Reference › Security headers |
+| `packages/core/src/server/artifact-loader.ts` | Concepts › Artifacts; Internals › Artifact loader |
+| `packages/core/src/server/public-render.ts`, `page-tree.ts`, `puck-rsc.tsx` | Internals › Public request, Missing blocks |
+| `packages/core/src/editor/*` | Concepts › Editor; Internals › Editor lifecycle |
+| `packages/next/src` | Reference › Next bindings; Guides › Next integration |
+| `packages/*-fs`, `source-mock` | Concepts › Adapters; Guides › Writing adapters |
+| `apps/host` | Guides › Next integration; Reference › Environment |
+| tests | Internals › Testing |
+
+## Writing rules
+
+- Explain **why**, not only what; link the decision (`[D-0080](/decisions#D-0080)`).
+- End internals pages with `<Source path="repo/relative/path" />` for each file involved.
+- Keep defaults and limits in sync with the code (the config reference is checked by hand).
+- In MDX, put anything with braces or angle brackets in backticks.
+- One shell command per `bash` block.

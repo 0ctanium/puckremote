@@ -1,0 +1,4 @@
+{
+  "title": "Reference",
+  "pages": ["config", "sdk", "cli", "core-api", "next", "http-api", "manifest", "query-spec", "security-headers", "worker-protocol", "environment"]
+}

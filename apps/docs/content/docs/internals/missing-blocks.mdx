@@ -1,0 +1,27 @@
+---
+title: Missing blocks and failures
+description: What happens when a page references a block the current theme doesn't have, or a block fails.
+---
+
+Puck's server renderer silently renders nothing for unknown component types. puck-remote makes it
+explicit ([D-0017](/decisions#D-0017)):
+
+- **Load** (public and editor): `rewriteMissing` turns every unknown `type` into
+  `{ type: '__missing', props: { id, originalType, originalProps } }`. Items without an id get
+  `auto-<type>-<n>`.
+- **Public render**: `<div hidden data-missing-block="<type>">`. Known blocks nested inside an
+  unknown block are not rendered (their parent can't place them).
+- **Editor**: a visible "Missing block" box explaining the type is not in theme vN; it can't be
+  inserted from the palette (hidden category).
+- **Save**: `restoreMissing` puts the original type and props back, so content survives a theme
+  downgrade and comes back when the block returns.
+
+## Block failures
+
+- Public: `<div hidden data-block-error="<name>">`; the error is logged server-side; other blocks
+  render normally (test 2 at page level).
+- Editor: a red box with the error kind.
+- Stale props (removed or missing fields) do not crash: `defaultProps` are merged under the props.
+
+<Source path="packages/core/src/server/public-render.ts" />
+<Source path="packages/core/src/server/page-tree.ts" />

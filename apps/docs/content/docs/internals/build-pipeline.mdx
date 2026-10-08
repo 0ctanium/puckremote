@@ -1,0 +1,31 @@
+---
+title: Build pipeline (CLI)
+description: How puck-remote build turns a theme repo into an artifact.
+---
+
+`build({ cwd, outDir })` runs on the developer's machine, which is trusted by the developer but
+**not by the host**.
+
+1. **List sources**: `blocks/*.{tsx,ts,jsx,js}` (lowercase slug names), `root.*`, `adapters/*`,
+   `config/categories.*`.
+2. **Metadata build**: esbuild bundles a generated entry importing every definition (platform
+   node, ESM), writes it to a temp file and `import`s it **in Node**. React and react-dom are
+   resolved from the theme repo (`single-react` plugin) so there is exactly one copy.
+3. **Validate and serialize** (`validate.ts`): each definition is deep-copied to JSON, failing
+   with a path on functions (other than `render`/`toRequest`/`fromResponse`), class instances,
+   Dates, Maps, symbols, `undefined`, non-finite numbers; on unknown field types; on forbidden
+   keys; on bad refs; on unknown adapters. `propRefs`, `usesRequestParams` and `slots` are derived.
+   Categories are checked and blocks' `category` values merged in.
+4. **Isolate bundle**: esbuild bundles a second entry that calls `install({ blocks, root,
+   adapters })` from `@puck-remote/sdk/runtime`, as a minified **IIFE** (`platform: 'neutral'`,
+   `conditions: ['browser']`, `target: es2022`, `NODE_ENV=production`), with `ISOLATE_SHIMS` as a
+   banner. It exposes only `__render`, `__toRequest`, `__fromResponse`.
+5. **Assets**: `assets/` copied as-is.
+6. **Manifest**: sha256 of every file, `artifactVersion` = package version + bundle hash prefix,
+   `sdkMajor: 1`.
+
+The validation here exists for good error messages; the host's zod schema is the real gate.
+
+<Source path="packages/cli/src/build.ts" />
+<Source path="packages/cli/src/validate.ts" />
+<Source path="packages/cli/test/build.test.ts" />

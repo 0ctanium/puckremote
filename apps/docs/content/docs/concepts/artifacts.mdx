@@ -1,0 +1,53 @@
+---
+title: Artifacts and versions
+description: What a published theme version contains, how it is verified, activated and rolled back.
+---
+
+An **artifact** is one immutable, published version of a theme:
+
+```
+v<N>/
+  manifest.json   metadata: blocks, root, fields, queries, adapters, categories, sha256 of every file
+  bundle.js       one IIFE: isolate shims + React + react-dom/server + SDK runtime + theme code
+  assets/**       CSS, client scripts, images…
+current.json      {"version": N}: the active version pointer
+```
+
+## Lifecycle
+
+1. `puck-remote build` produces `dist/` on the developer's machine ([build pipeline](/docs/internals/build-pipeline)).
+2. `puck-remote publish` writes the next version number through an `ArtifactStore` (never reusing
+   a number, even after a rollback) and moves the pointer.
+3. The host notices the pointer change (store `watch`, or polling every `artifactPollMs`, default
+   2000 ms, [D-0065](/decisions#D-0065)).
+4. The [artifact loader](/docs/internals/artifact-loader) validates the manifest with zod,
+   recomputes derived data, verifies every file hash, creates a new render runtime, swaps it in,
+   and disposes the previous one after a 30 s grace period.
+5. **Any failure keeps the last good version serving.**
+
+Rollback is just `puck-remote activate <N>`.
+
+## Why the host re-validates everything
+
+The CLI runs on an untrusted machine. The host therefore has its **own** manifest schema
+(`manifest-schema.ts`): closed field types, the `visibleIf` grammar and the query language. It
+recomputes `propRefs` and `usesRequestParams` instead of trusting the values the CLI wrote.
+
+`sdkMajor` versions the wire contract between the SDK and the host. The host only accepts
+`sdkMajor: 1` and rejects older artifacts with an explicit message.
+
+## Storage
+
+Artifacts live behind the `ArtifactStore` contract ([D-0058](/decisions#D-0058)). The default
+`@puck-remote/artifacts-fs` suits a single server; serverless and multi-instance deployments need
+a shared store (S3-style). See [writing adapters](/docs/guides/writing-adapters).
+
+## Serving assets
+
+`/theme/v<N>/assets/**` serves a file only if it is listed in that version's manifest **and** its
+hash still matches, with `immutable` caching and `nosniff`. The bundle itself is never served
+([D-0080](/decisions#D-0080)).
+
+<Source path="packages/core/src/server/artifact-loader.ts" />
+<Source path="packages/core/src/server/static-files.ts" />
+<Source path="packages/artifacts-fs/src/index.ts" />

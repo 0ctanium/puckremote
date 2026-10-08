@@ -15,7 +15,9 @@
     "changeset": "changeset",
     "release": "pnpm build && pnpm lint:pkg && changeset publish",
     "version-packages": "changeset version && pnpm install --lockfile-only",
-    "adr": "node .claude/adr-helper.mjs"
+    "adr": "node .claude/adr-helper.mjs",
+    "docs:dev": "pnpm --filter docs dev",
+    "docs:build": "pnpm --filter docs build"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "0.18.5",

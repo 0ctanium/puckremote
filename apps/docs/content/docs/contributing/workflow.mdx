@@ -1,0 +1,56 @@
+---
+title: Workflow
+description: How every change to puck-remote is made, by humans and AI agents alike.
+---
+
+```
+plan (human approves) → branch + ADR → record decisions → implement + docs → checks → human merges → archive ADR
+```
+
+1. **Plan.** Describe the change and **list every choice it involves** (names, defaults, file
+   layout, dependencies, wording, test strategy). A human approves the plan. AI agents use plan
+   mode; see [rules](/docs/contributing/rules).
+2. **Branch and ADR.** One branch per unit of work, named `<type>/<slug>` with type `feat`,
+   `chore`, `docs` or `fix` ([D-0097](/decisions#D-0097)):
+
+   ```bash
+   git checkout -b feat/my-change
+   ```
+
+   ```bash
+   pnpm adr new feat/my-change --title "My change" --tags data,editor
+   ```
+
+3. **Record decisions** as they are approved:
+
+   ```bash
+   pnpm adr decision feat/my-change --title "Cache adapter results for 30 s" --provenance user-approved-plan --tags cache
+   ```
+
+   Then write the options, rationale and trade-offs in the ADR's Decision Record section.
+4. **Implement and update the docs in the same change** ([docs conventions](/docs/contributing/docs)).
+5. **Check**:
+
+   ```bash
+   pnpm adr check
+   ```
+
+   ```bash
+   pnpm test
+   ```
+
+   ```bash
+   pnpm typecheck
+   ```
+
+   ```bash
+   pnpm docs:build
+   ```
+
+   The pre-commit hook and CI run `scripts/check-docs-adr.mjs` ([enforcement](/docs/contributing/enforcement)).
+6. **Merge.** A human merges to `main`; agents never merge.
+7. **Archive** the ADR after the merge:
+
+   ```bash
+   pnpm adr archive feat/my-change
+   ```

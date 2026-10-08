@@ -1,0 +1,42 @@
+---
+title: Worker IPC protocol
+description: The JSON messages between the host and render worker processes.
+---
+
+Everything is JSON over Node IPC. Secrets never cross: `$secret` values are substituted on the
+host after `__toRequest` returns (tested with the IPC tap).
+
+## Host → worker
+
+| Message | Meaning |
+|---|---|
+| `{ t: 'load', id, version, bundle, limits }` | Compile a version's bundle (once per worker and version) |
+| `{ t: 'open', id, version, sid }` | Open a session: a fresh isolate context |
+| `{ t: 'call', id, sid, entry, args }` | Call `__render`, `__toRequest` or `__fromResponse` with string args |
+| `{ t: 'release', sid }` | Release a session (no reply) |
+
+## Worker → host
+
+| Message | Meaning |
+|---|---|
+| `{ t: 'ready' }` | Sent once at startup |
+| `{ t: 'ok', id }` | `load`/`open` succeeded |
+| `{ t: 'error', id, error }` | A request failed |
+| `{ t: 'result', id, result }` | `CallResult`: `{ ok: true, value }` or `{ ok: false, error, kind }` |
+
+`kind` is one of `timeout`, `memory`, `thrown`, `oversize`, `invalid-output`, `disposed`.
+
+## Isolate entry points
+
+| Entry | Args | Returns |
+|---|---|---|
+| `__render` | `kind`, `name`, `propsJson`, `dataJson`, `ctxJson` | `{ html, effects }` JSON |
+| `__toRequest` | `adapterName`, `queryJson` | Request JSON |
+| `__fromResponse` | `adapterName`, `responseJson`, `queryJson` | Result JSON |
+
+The worker exits when the IPC channel closes. A future remote renderer can speak the same
+protocol over another transport ([D-0075](/decisions#D-0075)).
+
+<Source path="packages/core/src/server/runtime/render-worker.ts" />
+<Source path="packages/core/src/server/runtime/worker-pool.ts" />
+<Source path="packages/sdk/src/runtime.ts" />

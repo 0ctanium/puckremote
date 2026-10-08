@@ -72,10 +72,21 @@ D-0069, D-0070, D-0071, D-0072, D-0073, D-0074, D-0075 (indexed under `feat/m1-f
 `CLAUDE.md`, `scripts/check-docs-adr.mjs`, `.githooks/`, CI steps.
 
 ## Investigation Notes
-(to be completed during implementation)
+- Fumadocs 16 setup was taken from the official `create-fumadocs-app` template
+  (`+next+fuma-docs-mdx`): `defineDocs` from `fumadocs-mdx/macro`, `loader` from
+  `fumadocs-core/source`, `createMDX()` in `next.config.mjs`. The macro's `dir` accepts a path
+  outside the app (`../../.claude`), which lets the ADRs render without copies (D-0099).
+- The decisions collection uses `files` patterns to exclude `templates/` (their frontmatter holds
+  `{{placeholders}}`).
+- Search uses `createSearchAPI('advanced')` over both loaders, so ADRs are searchable too.
+- `/decisions` is generated from `adr-index.toml` (smol-toml), with one anchor per decision ID, so
+  docs link decisions as `/decisions#D-NNNN`.
 
 ## Challenges & Solutions
-(to be completed during implementation)
+- WebFetch would not return Fumadocs code verbatim; the template was read from the npm tarball
+  instead.
+- Docs dev dependencies were pinned to exact versions to follow the repository's existing
+  convention (only peer dependencies use ranges).
 
 ## Impact Assessment
 Every future change requires a plan, an ADR entry and a docs update.

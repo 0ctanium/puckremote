@@ -1,0 +1,88 @@
+---
+title: SDK (@puck-remote/sdk)
+description: The theme API and the host contracts.
+---
+
+The SDK is the only package themes depend on. It is bundled into the untrusted isolate code, and it
+versions the wire contract (`SDK_MAJOR = 1`). It stays separate from the engine
+([D-0043](/decisions#D-0043)).
+
+| Entry | Content |
+|---|---|
+| `@puck-remote/sdk` | `defineBlock`, `defineRoot`, `defineAdapter`, `defineCategories`, `Slot`, `find`, `findByID`, `global`, `source`, `query`, `http`, `Register`, all theme types |
+| `@puck-remote/sdk/host` | Host plugin contracts (trusted): `DataSource`, `PageStore`, `ArtifactStore`, `CacheStore`, `AuthAdapter`, helpers |
+| `@puck-remote/sdk/runtime` | `install(registry)`: the isolate entry points (used by the CLI build) |
+| `@puck-remote/sdk/shims` | `ISOLATE_SHIMS` source (used by the CLI build) |
+| `@puck-remote/sdk/constants` | `SDK_MAJOR`, `FIELD_TYPES`, `WHERE_OPERATORS`, `FORBIDDEN_DEFINITION_KEYS`, `EFFECT_LIMITS` |
+| `@puck-remote/sdk/types` | Types only |
+
+## Theme API
+
+| Function | Purpose |
+|---|---|
+| `defineBlock({ label?, category?, fields, defaultProps?, data?, render })` | A block |
+| `defineRoot({ fields, defaultProps?, data?, render })` | The page frame |
+| `defineAdapter({ name, origin, toRequest, fromResponse })` | A sans-IO adapter |
+| `defineCategories({ key: { title?, components, defaultExpanded?, visible? } })` | Editor categories |
+| `<Slot name />` | Slot marker carrying the render nonce |
+| `find`, `findByID`, `global` | Host queries typed by the registered source |
+| `source<S>()` | Host queries typed by an explicit source type |
+| `query(adapter, op, params)` | Adapter query |
+| `http({ origin, path, method?, params?, headers? })` | Generic JSON query |
+
+Types: `QueryResult<T>`, `QuerySpec<T>`, `FindResult<D>`, `RenderCtx`, `Fields`, `PropsOf<F>`,
+`MediaValue`, `LinkValue`, `VisibleIf`, `ParamRef`, `SecretRef`.
+
+See [theme development](/docs/guides/theme-development) for usage.
+
+## Host contracts
+
+```ts
+interface DataSource {
+  name: string
+  collections: Record<string, CollectionDef>
+  globals: Record<string, GlobalDef>
+  subscribe?(onChange: (tags: string[]) => void): () => void
+}
+interface CollectionDef<D> {
+  fields: { [K in keyof D]?: CollectionField }       // { type, to?, filter?, sort? }
+  limits?: { default?: number; max?: number; maxDepth?: number }
+  tags?: string[]
+  find(query: NormalizedFind, ctx: SourceContext): Promise<{ docs: RawDoc[]; totalDocs: number }>
+  findByID?(id: string, query: { select; depth }, ctx: SourceContext): Promise<RawDoc | null>
+}
+interface GlobalDef<D> { fields; tags?; get(ctx: SourceContext): Promise<RawDoc | null> }
+interface SourceContext { mode: 'public' | 'draft'; locale: string; signal: AbortSignal }
+
+interface PageStore { get(slug); put(slug, data); list() }
+
+interface ArtifactStore {
+  readPointer(): Promise<number | null>
+  writePointer(version: number): Promise<void>
+  listVersions(): Promise<number[]>
+  readFile(version: number, path: string): Promise<Uint8Array | null>
+  writeVersion(version: number, files: Record<string, Uint8Array>): Promise<void>
+  watch?(onChange: () => void): () => void
+}
+
+interface CacheStore {
+  get(key: string): Promise<unknown | undefined>
+  set(key: string, value: unknown, options: { ttlMs?: number; tags?: string[] }): Promise<void>
+  invalidateTags(tags: string[]): Promise<void>
+}
+
+interface AuthAdapter {
+  authenticate(request: Request): Promise<Principal | null>
+  authorize(principal: Principal, action: Action, resource?: { slug?: string }): boolean | Promise<boolean>
+}
+type Action = 'editor:open' | 'page:read-draft' | 'page:write' | 'page:publish' | 'artifact:publish' | 'artifact:activate'
+```
+
+Helpers: `defineDataSource`, `defineCollection<D>()`, `defineGlobal<D>()`, `defineAuth`,
+`ALL_OPERATORS`, `ACTIONS`, and the type helpers `CollectionName`, `GlobalName`, `DocOf`,
+`GlobalDocOf`. `CollectionField.type` is one of `text`, `number`, `boolean`, `date`, `json`,
+`relation`.
+
+<Source path="packages/sdk/src/index.ts" />
+<Source path="packages/sdk/src/host.ts" />
+<Source path="packages/sdk/src/types.ts" />

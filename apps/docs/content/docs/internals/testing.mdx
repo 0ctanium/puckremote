@@ -1,0 +1,56 @@
+---
+title: Testing strategy and test map
+description: What each test suite proves and where it lives.
+---
+
+Tests use vitest 5. `pnpm test` builds the packages first (the worker pool forks the built
+`render-worker.js`), then runs every package's suite one at a time. The vitest console is
+suppressed; debug with `process.stderr.write`. Sandbox suites run against **both** runtimes
+(in-process and worker pool).
+
+| # | Test | Where |
+|---|---|---|
+| 1–6 | Sandbox: no ambient capabilities; `while(true)`; await and timer loops; OOM then recreate; no cross-request pollution; size caps and thrown errors | `packages/core/test/sandbox.test.ts` |
+| 7 | SSRF: private/loopback/link-local literals, DNS to private, rebinding (pinned lookup), redirects, allowlist, size cap | `data.test.ts` |
+| 8 | Secrets never in isolate inputs or logs; origin-bound | `data.test.ts` |
+| 9 | Dedupe: identical queries → one outbound request | `data.test.ts` |
+| 10 | Budget: count, bytes, wall time; tree-order degradation | `data.test.ts` |
+| 11 | `/blocks/resolve` ignores client-supplied spec/data/query/mode | `data.test.ts` |
+| 12 | Drafts only in editor mode; no cache bleed | `data.test.ts` |
+| 13 | Data source policy: undeclared names, operators, sort, clamps, projection, change-feed invalidation | `data.test.ts`, types in `examples/theme/type-tests.ts` |
+| 14 | Forged slot markers are not swapped | `rendering.test.tsx` |
+| 15 | hero → card → latest-posts nested, with data and head effects | `rendering.test.tsx` |
+| 16 | Parity: `/blocks/render` vs public render, per block and whole page | `editor.test.tsx` |
+| 17 | Missing blocks; stale props; page-level infinite loop | `rendering.test.tsx` |
+| 18 | `resolveData` output is stripped on save | `editor.test.tsx` |
+| 19 | Tampered bundle, manifest or asset rejected; previous version keeps serving | `artifacts.test.ts` |
+| 20 | Publish increments; atomic pointer; hot swap disposes old runtime; rollback | `artifacts.test.ts` |
+| 21 | Build rejects functions, custom/external fields, forbidden keys, non-JSON, bad refs | `packages/cli/test/build.test.ts` |
+| — | `handleApi`/`handleTheme` routing, prefixes, 404/405, memoized runtime | `routes.test.ts` |
+| A7 | No developer code outside the isolate: static scan, bundle-sink allowlist, realm check, import boundaries | `no-dev-code.test.ts` |
+| M1 | Auth 401/403, `editor:open`, CSRF header/Origin/Sec-Fetch-Site, built-in adapters, production guards, polling | `auth.test.ts` |
+| M1 | Contract suites against the built-in adapters | `adapters.test.ts` |
+| M2 | Worker permissions (fs, network, child processes, threads, env), watchdog kill, crash, recycling, no secrets over IPC, bubblewrap (Linux) | `worker.test.ts` |
+| M2 | Surfaces per origin, production guard, `requestOrigin` | `surface.test.ts` |
+| M2 | CSP per surface, dev relaxations, nonces, effects allowlist, render RPC auth and limits | `headers.test.ts` |
+
+Fixtures: `packages/core/test/fixtures/evil` is a hostile theme; `helpers.ts` builds artifacts and
+starts the mock API on a random port ([D-0032](/decisions#D-0032)).
+
+## Before committing
+
+```bash
+pnpm test
+```
+
+```bash
+pnpm typecheck
+```
+
+```bash
+pnpm lint:pkg
+```
+
+```bash
+pnpm docs:build
+```

@@ -1,0 +1,5 @@
+{
+  "title": "puck-remote",
+  "root": true,
+  "pages": ["index", "getting-started", "concepts", "guides", "reference", "internals", "contributing"]
+}

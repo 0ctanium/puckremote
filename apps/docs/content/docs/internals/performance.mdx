@@ -1,0 +1,26 @@
+---
+title: Performance
+description: Measured costs of the isolate and the worker pool.
+---
+
+Measured on an M1 Max, arm64 Node 26.10, 222 KB bundle, with
+`pnpm --filter @puck-remote/core bench` (needs a published artifact and the mock API).
+
+| Runtime | First session (cold) | Session (warm, median) | Block render median / p95 | `preparePage('home')`, 8 blocks, warm data |
+|---|---|---|---|---|
+| in-process | 5.4 ms | 1.5 ms | 0.08 / 0.16 ms | 3.8 ms |
+| worker pool (default) | 91 ms (spawns a worker, once) | 1.4 ms | 0.16 / 0.28 ms | 4.3 ms |
+
+- The process sandbox costs about **0.1 ms per block** over IPC.
+- Spawning a worker costs about **90 ms**, once per worker, until it is recycled.
+- Cold data (4 unique queries including mock HTTP) adds about 55 ms the first time.
+
+## Spike numbers (603 KB bundle)
+
+| Step | Cost |
+|---|---|
+| `compileScript` (once per artifact) | ~17–50 ms |
+| New context + running the bundle (per request) | ~4–6 ms warm, ~10–25 ms first |
+| `renderToString` of a small tree | ~0.5–2 ms warm, ~8 ms first |
+
+<Source path="packages/core/scripts/bench.ts" />

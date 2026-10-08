@@ -1,0 +1,36 @@
+---
+title: Surfaces and origins
+description: One app, several hostnames; each request belongs to a surface that only some origins serve.
+---
+
+The browser's security boundary is the **origin**. Theme scripts run on the public site; if the
+editor shared that origin, a theme script could act with an editor's session. So puck-remote
+separates them by origin, not by app ([D-0079](/decisions#D-0079)): point two DNS names at the
+same deployment.
+
+| Surface | Paths (default `routes`) | Served on |
+|---|---|---|
+| `site` | everything else | `origins.site` |
+| `editor` | `/editor/**` | `origins.editor` |
+| `api` | `/api/**` | `origins.editor` |
+| `theme` | `/theme/**` | both (the canvas loads theme CSS) |
+
+A request on the wrong origin gets **404**, so the editor's existence isn't revealed
+([D-0081](/decisions#D-0081)).
+
+## Rules
+
+- In production, `origins` is required and site and editor origins must be distinct;
+  `allowSharedOrigin: true` opts out (not recommended). Without `origins` (development), every
+  surface answers everywhere.
+- The request's origin comes from `X-Forwarded-Host`/`X-Forwarded-Proto`, then `Host`, because
+  Next builds `request.url` from its bound host ([D-0083](/decisions#D-0083)). Behind your own
+  reverse proxy, forward these headers.
+- Auth cookies must be **host-only** on the editor domain, never `Domain=.example.com`.
+- Editor origins are automatically added to the CSRF `allowedOrigins`.
+
+The proxy (`createProxy`) applies this classification on every request, and the core checks it
+again in `handleApi`, `handleTheme`, `preparePage` and `loadEditor` (defense in depth).
+
+<Source path="packages/core/src/server/surface.ts" />
+<Source path="packages/next/src/proxy.ts" />
