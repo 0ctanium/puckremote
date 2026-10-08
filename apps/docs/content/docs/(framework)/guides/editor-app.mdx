@@ -1,0 +1,56 @@
+---
+title: The editor app
+description: Build and host the static, credential-free editor on its own site.
+---
+
+The editor is a static app (`apps/editor` in the repository): Puck, the puck-remote bridge and an
+import map. It needs no server code, only the right headers.
+
+## What it contains
+
+```files
+dist
+├── index.html
+├── app.js
+├── app.css
+└── vendor
+    ├── react.js
+    ├── react-jsx-runtime.js
+    ├── react-dom.js
+    ├── react-dom-client.js
+    └── puck-remote-sdk.js
+```
+
+`app.js` mounts the bridge (`startEditorBridge` from `@puck-remote/editor/bridge`). The theme's
+`bundle.browser.js` imports `react`, `react/jsx-runtime`, `react-dom`, `react-dom/client` and
+`@puck-remote/sdk` by name; the import map in `index.html` points them at the `vendor/` files,
+which re-export the editor's own copies, so the theme and Puck share one React
+([D-0200](/docs/internal/decisions#D-0200)).
+
+## Build and serve
+
+```bash
+PUCK_REMOTE_ADMIN_ORIGINS=https://admin.example.com pnpm --filter editor build
+```
+
+`PUCK_REMOTE_ADMIN_ORIGINS` lists the admin origins allowed to embed the editor; the bridge only
+talks to them. Host `dist/` on **another site** than your app (for example
+`https://editor.example.net`), with these headers on every response:
+
+| Header | Value |
+|---|---|
+| `content-security-policy` | `frame-ancestors <admin origins>`, `script-src 'self' '<import map hash>' <admin origins>`, and the rest listed in [Security headers](/docs/security-headers#editor-app) |
+| `referrer-policy` | `no-referrer` |
+| `x-content-type-options` | `nosniff` |
+
+The build writes the import map's hash to `dist/csp.json`. `apps/editor/serve.mjs` is a minimal
+server that sends all of this; use it as a reference for your CDN's header rules.
+
+## Configure your app
+
+```ts title="puck-remote.config.ts"
+origins: { admin: ['https://admin.example.com'], editor: 'https://editor.example.net' },
+```
+
+and point `<PuckEditorFrame editorUrl="https://editor.example.net/" editorOrigin="https://editor.example.net" … />`
+at it. The editor must never set or receive cookies: it needs none.

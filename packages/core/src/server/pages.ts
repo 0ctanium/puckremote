@@ -1,8 +1,19 @@
-import type { PageMeta, PageRevision, PageStore, WriteResult } from '@puck-remote/sdk/host'
+/**
+ * Pages live inside the theme artifact (pages/<slug>.json, listed in manifest.files), like a
+ * Shopify theme's templates. Reading verifies the page's hash; writing produces a new artifact
+ * (same files, new page, rewritten manifest) and never moves the pointer.
+ */
+import { createHash } from 'node:crypto'
+import type { ArtifactId, ArtifactStore } from '@puck-remote/sdk/host'
 import { z } from 'zod'
-import { mapItems, RESERVED_DATA_PROP, type PageData, type PuckItem } from './page-tree.ts'
+import { isArtifactId } from './artifact-loader.ts'
+import { pagePath, pageSlugs, type Manifest } from './manifest-schema.ts'
+import { mapItems, RESERVED_DATA_PROP, restoreMissing, type PageData, type PuckItem } from './page-tree.ts'
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}(\/[a-z0-9][a-z0-9-]{0,63}){0,4}$/
+
+/** Page JSON size cap. */
+export const MAX_PAGE_BYTES = 2 * 1024 * 1024
 
 export function normalizeSlug(parts: string[] | string | undefined): string | null {
   const slug = (Array.isArray(parts) ? parts.join('/') : (parts ?? '')).replace(/^\/+|\/+$/g, '') || 'home'
@@ -15,38 +26,29 @@ const pageSchema = z.object({
   zones: z.record(z.string(), z.array(z.unknown())).optional(),
 })
 
-/** Version of the page format the core writes (stored on every revision, D-0068). */
-export const PAGE_SCHEMA_VERSION = 1
+const sha256 = (b: Uint8Array) => createHash('sha256').update(b).digest('hex')
+const decoder = new TextDecoder('utf-8', { fatal: true })
+const encoder = new TextEncoder()
 
-/** Upgrades from older page formats: key N turns format N-1 into N. Empty while only v1 exists. */
-const PAGE_UPGRADES: Record<number, (data: unknown) => unknown> = {}
-
-export class PageFormatError extends Error {
-  constructor(slug: string, version: number) {
-    super(`page ${slug} uses page format ${version}; this version of puck-remote reads up to ${PAGE_SCHEMA_VERSION}`)
-    this.name = 'PageFormatError'
+export class PageError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'PageError'
   }
 }
 
-/** Upgrade (if needed) and validate a stored revision's data. */
-export function pageFromRevision(slug: string, rev: PageRevision): PageData {
-  if (!Number.isInteger(rev.schemaVersion) || rev.schemaVersion < 1 || rev.schemaVersion > PAGE_SCHEMA_VERSION) throw new PageFormatError(slug, rev.schemaVersion)
-  let data = rev.data
-  for (let v = rev.schemaVersion + 1; v <= PAGE_SCHEMA_VERSION; v++) data = PAGE_UPGRADES[v](data)
-  return pageSchema.parse(data) as PageData
+/** A page of an artifact, hash-verified and validated, or null when the artifact has no such page. */
+export async function readPage(store: ArtifactStore, id: ArtifactId, manifest: Pick<Manifest, 'files'>, slug: string): Promise<PageData | null> {
+  const file = pagePath(slug)
+  const expected = Object.hasOwn(manifest.files, file) ? manifest.files[file] : null
+  if (!expected) return null
+  const bytes = await store.readFile(id, file)
+  if (!bytes) throw new PageError(`page ${slug} is missing from artifact ${id}`)
+  if (sha256(bytes) !== expected) throw new PageError(`page ${slug}: hash mismatch in artifact ${id}`)
+  return pageSchema.parse(JSON.parse(decoder.decode(bytes))) as PageData
 }
 
-/** The published page, or null (missing or unpublished). */
-export async function readPublished(store: PageStore, slug: string): Promise<PageData | null> {
-  const rev = await store.getPublished(slug)
-  return rev ? pageFromRevision(slug, rev) : null
-}
-
-/** The latest draft and the page's meta, or null if the page doesn't exist. */
-export async function readDraft(store: PageStore, slug: string): Promise<{ meta: PageMeta; data: PageData } | null> {
-  const [meta, rev] = await Promise.all([store.meta(slug), store.getDraft(slug)])
-  return meta && rev ? { meta, data: pageFromRevision(slug, rev) } : null
-}
+export { pageSlugs }
 
 const stripItem = (item: PuckItem): PuckItem => {
   const { [RESERVED_DATA_PROP]: _drop, ...props } = item.props
@@ -73,12 +75,40 @@ export function stripResolved(data: PageData): PageData {
   return { ...mapped, root }
 }
 
-/** Validate and clean editor data for storage (resolved data stripped). Throws on invalid data. */
+/** Validate and clean editor data for storage (resolved data stripped, missing blocks restored). Throws on invalid data. */
 export function cleanPage(data: unknown): PageData {
-  return stripResolved(pageSchema.parse(data) as PageData)
+  return stripResolved(restoreMissing(pageSchema.parse(data) as PageData))
 }
 
-/** Persist cleaned page data as a new draft revision. */
-export function saveDraft(store: PageStore, slug: string, data: PageData, opts: { baseRevision: string | null; author?: string }): Promise<WriteResult> {
-  return store.saveDraft(slug, { data, schemaVersion: PAGE_SCHEMA_VERSION }, opts)
+/**
+ * Write a page into a copy of the `base` artifact and return the new artifact's id. The pointer
+ * is not moved: making the result current is the caller's decision (a "publish" plugin).
+ */
+export async function writePage(store: ArtifactStore, base: ArtifactId, slug: string, data: unknown): Promise<{ id: ArtifactId }> {
+  if (!normalizeSlug(slug) || normalizeSlug(slug) !== slug) throw new PageError(`invalid slug ${slug}`)
+  if (!isArtifactId(base)) throw new PageError('invalid base artifact id')
+  let page: PageData
+  try {
+    page = cleanPage(data)
+  } catch {
+    throw new PageError('invalid page data')
+  }
+  const pageBytes = encoder.encode(JSON.stringify(page, null, 2) + '\n')
+  if (pageBytes.byteLength > MAX_PAGE_BYTES) throw new PageError(`page ${slug} is larger than ${MAX_PAGE_BYTES} bytes`)
+
+  // The raw manifest (not the loader's parsed copy, which carries recomputed analysis).
+  const manifestBytes = await store.readFile(base, 'manifest.json')
+  if (!manifestBytes) throw new PageError(`artifact ${base} does not exist`)
+  const manifest = JSON.parse(decoder.decode(manifestBytes)) as { files: Record<string, string> }
+  const files: Record<string, Uint8Array> = {}
+  for (const [rel, expected] of Object.entries(manifest.files)) {
+    const bytes = await store.readFile(base, rel)
+    if (!bytes || sha256(bytes) !== expected) throw new PageError(`artifact ${base}: ${rel} is missing or corrupted`)
+    files[rel] = bytes
+  }
+  const file = pagePath(slug)
+  files[file] = pageBytes
+  manifest.files = Object.fromEntries(Object.entries({ ...manifest.files, [file]: sha256(pageBytes) }).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+  files['manifest.json'] = encoder.encode(JSON.stringify(manifest, null, 2))
+  return { id: await store.writeArtifact(files) }
 }

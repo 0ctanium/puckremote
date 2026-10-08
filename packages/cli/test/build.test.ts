@@ -1,10 +1,10 @@
 /**
  * Test 21: the build rejects anything that is not declarative JSON (plus a happy path).
  */
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { build, BuildError } from '../src/index.ts'
+import { BROWSER_EXTERNALS, build, BuildError, publish, pull } from '../src/index.ts'
 
 // Fixtures must live under this package so `@puck-remote/sdk` and `react` resolve.
 const ROOT = path.join(import.meta.dirname, '.fixtures')
@@ -91,52 +91,59 @@ describe('21. build validation', () => {
   })
 })
 
-describe('content migrations: versions and baseline', () => {
-  const v = (version: number, fields: string, migrations = '') =>
-    block(`defineBlock({ version: ${version}, ${migrations ? `migrations: { ${migrations} },` : ''} fields: { ${fields} }, render: () => null })`)
-  const step = (n: number) => `${n}: (p) => p`
+describe('pages and the browser bundle', () => {
+  const page = (content: unknown[]) => JSON.stringify({ root: { props: {} }, content })
+  const slotted = block(`defineBlock({ fields: { title: { type: 'text' }, s: { type: 'slot' } }, render: (p) => <div>{p.title}<Slot name="s" /></div> })`)
 
-  it('requires every migration step and rejects extra or invalid ones', async () => {
-    await expectBuildError({ 'blocks/a.tsx': v(3, `t: { type: 'text' }`, step(2)) }, /migrations\.3: missing migration from version 2 to 3/)
-    await expectBuildError({ 'blocks/a.tsx': v(2, `t: { type: 'text' }`, `${step(2)}, ${step(3)}`) }, /migrations\.3: unexpected key/)
-    await expectBuildError({ 'blocks/a.tsx': v(1, `t: { type: 'text' }`, step(1)) }, /migrations\.1: unexpected key/)
-    await expectBuildError({ 'blocks/a.tsx': v(0, `t: { type: 'text' }`) }, /version: must be an integer >= 1/)
-    await expectBuildError({ 'blocks/a.tsx': block(`defineBlock({ version: 2, migrations: { 2: 'x' }, fields: {}, render: () => null } as any)`) }, /missing migration from version 1 to 2/)
-    const { manifest } = await build({ cwd: await theme({ 'blocks/a.tsx': v(3, `t: { type: 'text' }`, `${step(2)}, ${step(3)}`), 'blocks/b.tsx': block(ok) }), quiet: true })
-    expect(manifest.blocks.a.version).toBe(3)
-    expect(manifest.blocks.b.version).toBe(1)
+  it('ships theme pages in the artifact, listed in manifest.files', async () => {
+    const dir = await theme({
+      'blocks/a.tsx': slotted,
+      'pages/home.json': page([{ type: 'a', props: { id: '1', s: [{ type: 'a', props: { id: '2' } }] } }]),
+      'pages/blog/post-1.json': page([]),
+    })
+    const { manifest, outDir } = await build({ cwd: dir, quiet: true })
+    expect(Object.keys(manifest.files)).toEqual(expect.arrayContaining(['pages/home.json', 'pages/blog/post-1.json', 'bundle.browser.js']))
+    expect(JSON.parse(await readFile(path.join(outDir, 'pages', 'home.json'), 'utf8')).content[0].type).toBe('a')
   })
 
-  it('--baseline: changed fields need a version bump; versions never go down; labels are free', async () => {
-    const base = await build({ cwd: await theme({ 'blocks/a.tsx': v(1, `t: { type: 'text', label: 'Title' }, s: { type: 'select', options: [{ label: 'A', value: 'a' }] }`) }), quiet: true })
-    const baseline = path.join(base.outDir, 'manifest.json')
-    const attempt = async (src: string) => build({ cwd: await theme({ 'blocks/a.tsx': src }), quiet: true, baseline }).then(() => null, (e) => e)
-
-    // Label-only change: fine.
-    expect(await attempt(v(1, `t: { type: 'text', label: 'Heading' }, s: { type: 'select', options: [{ label: 'Option A', value: 'a' }] }`))).toBeNull()
-    // Renamed field, changed type, changed option value: need a bump.
-    for (const fields of [`title: { type: 'text' }, s: { type: 'select', options: [{ label: 'A', value: 'a' }] }`, `t: { type: 'textarea' }, s: { type: 'select', options: [{ label: 'A', value: 'a' }] }`, `t: { type: 'text' }, s: { type: 'select', options: [{ label: 'A', value: 'b' }] }`]) {
-      const err = await attempt(v(1, fields))
-      expect(err).toBeInstanceOf(BuildError)
-      expect(err.message).toBe('block "a": fields changed without a version bump (still v1); bump "version" and add a migration')
-    }
-    expect(await attempt(v(2, `title: { type: 'text' }`, step(2)))).toBeNull()
-    const down = await build({ cwd: await theme({ 'blocks/a.tsx': v(2, `title: { type: 'text' }`, step(2)) }), quiet: true })
-    const err = await build({ cwd: await theme({ 'blocks/a.tsx': v(1, `title: { type: 'text' }`) }), quiet: true, baseline: path.join(down.outDir, 'manifest.json') }).catch((e) => e)
-    expect(err.message).toBe('block "a": version went down (2 → 1)')
-  })
-
-  it('publish compares with the active artifact and refuses unless forced', async () => {
-    const { publish } = await import('../src/index.ts')
-    const artifacts = path.join(await theme({}), 'artifacts')
-    const one = await build({ cwd: await theme({ 'blocks/a.tsx': v(1, `t: { type: 'text' }`) }), quiet: true })
-    await publish({ distDir: one.outDir, artifacts, quiet: true })
-    const changed = await build({ cwd: await theme({ 'blocks/a.tsx': v(1, `u: { type: 'text' }`) }), quiet: true })
-    await expect(publish({ distDir: changed.outDir, artifacts, quiet: true })).rejects.toThrow(
-      'block "a": fields changed without a version bump (still v1); bump "version" and add a migration (compared with the active artifact v1; use --force to publish anyway)',
+  it('fails on a page using a block the theme does not have (also inside slots)', async () => {
+    await expectBuildError({ 'blocks/a.tsx': slotted, 'pages/home.json': page([{ type: 'gone', props: { id: '1' } }]) }, /pages\/home.json content\[0\]: unknown block "gone"/)
+    await expectBuildError(
+      { 'blocks/a.tsx': slotted, 'pages/home.json': page([{ type: 'a', props: { id: '1', s: [{ type: 'gone', props: {} }] } }]) },
+      /content\[0\]\.props\.s\[0\]: unknown block "gone"/,
     )
-    expect((await publish({ distDir: changed.outDir, artifacts, quiet: true, force: true })).version).toBe(2)
-    const bumped = await build({ cwd: await theme({ 'blocks/a.tsx': v(2, `w: { type: 'text' }`, step(2)) }), quiet: true })
-    expect((await publish({ distDir: bumped.outDir, artifacts, quiet: true })).version).toBe(3)
+  })
+
+  it('fails on invalid page files', async () => {
+    await expectBuildError({ 'blocks/a.tsx': slotted, 'pages/Home.json': page([]) }, /pages\/<slug>\.json/)
+    await expectBuildError({ 'blocks/a.tsx': slotted, 'pages/home.json': '{ nope' }, /invalid JSON/)
+    await expectBuildError({ 'blocks/a.tsx': slotted, 'pages/home.json': '{"content": []}' }, /must be Puck data/)
+  })
+
+  it('the browser bundle is ESM that leaves React and the SDK to the editor', async () => {
+    const dir = await theme({ 'blocks/a.tsx': slotted })
+    const { outDir } = await build({ cwd: dir, quiet: true })
+    const src = await readFile(path.join(outDir, 'bundle.browser.js'), 'utf8')
+    const imports = [...src.matchAll(/from\s*"([^"]+)"/g)].map((m) => m[1])
+    expect(imports.length).toBeGreaterThan(0)
+    for (const i of imports) expect(BROWSER_EXTERNALS as readonly string[]).toContain(i)
+    expect(src).toMatch(/export\s*\{[^}]*as default/)
   })
 })
+
+describe('pull', () => {
+  it('downloads the current artifact pages into the theme repo', async () => {
+    const dir = await theme({ 'blocks/a.tsx': simpleBlock(), 'pages/home.json': JSON.stringify({ root: { props: {} }, content: [] }) })
+    const { outDir } = await build({ cwd: dir, quiet: true })
+    const store = path.join(dir, '.artifacts')
+    const { id } = await publish({ distDir: outDir, artifacts: store, quiet: true })
+    const target = await theme({})
+    expect(await pull({ cwd: target, artifacts: store, quiet: true })).toEqual({ id, pages: ['pages/home.json'] })
+    expect(JSON.parse(await readFile(path.join(target, 'pages', 'home.json'), 'utf8'))).toEqual({ root: { props: {} }, content: [] })
+    await expect(pull({ cwd: target, artifacts: path.join(dir, '.empty'), quiet: true })).rejects.toThrow(/nothing published/)
+  })
+})
+
+function simpleBlock() {
+  return block(`defineBlock({ fields: { title: { type: 'text' } }, render: (p) => <div>{p.title}</div> })`)
+}

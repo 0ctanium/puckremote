@@ -40,20 +40,20 @@ experience and ops (M5).
 | D-0053 | puck-remote is a self-hosted library usable by anyone, including on distributed systems | user | accepted |
 | D-0054 | Payload is the first real backend | user | accepted |
 | D-0055 | Split V1 into milestones M1–M5, each with its own approved plan | user-approved-plan | accepted |
-| D-0056 | AuthAdapter contract based on the standard Request (authenticate + authorize per action); auth required in production; devAllowAll for dev | user-approved-plan | accepted |
-| D-0057 | CSRF: mutations need the x-puck-remote header and an own/allowlisted Origin (Sec-Fetch-Site honored) | user-approved-plan | accepted |
-| D-0058 | Pluggable ArtifactStore; default fs adapter; change detection via store watch or polling | user | accepted |
-| D-0059 | Pluggable CacheStore; default in-memory (globalThis) implementation | user | accepted |
+| D-0056 | AuthAdapter contract based on the standard Request (authenticate + authorize per action); auth required in production; devAllowAll for dev | user-approved-plan | superseded by D-0187 |
+| D-0057 | CSRF: mutations need the x-puck-remote header and an own/allowlisted Origin (Sec-Fetch-Site honored) | user-approved-plan | superseded by D-0187 |
+| D-0058 | Pluggable ArtifactStore; default fs adapter; change detection via store watch or polling | user | superseded by D-0197 |
+| D-0059 | Pluggable CacheStore; default in-memory (globalThis) implementation | user | superseded by D-0187 |
 | D-0060 | Packages built with tsdown (ESM + d.ts), peer dependencies, CI matrix (Linux x64/arm64, macOS arm64 × Node 24/26) | user | accepted |
 | D-0061 | License: MIT | user-approved-plan | accepted |
 | D-0062 | @puck-remote/source export condition: workspace tests/typecheck use sources, apps use dist | user-approved-plan | accepted |
 | D-0063 | Changesets with all @puck-remote/* packages in one fixed version group | agent-unreviewed | needs-review |
-| D-0064 | Built-in auth helpers: devAllowAll (throws in production) and sharedSecretAuth (bearer or cookie) | user-approved-plan | accepted |
+| D-0064 | Built-in auth helpers: devAllowAll (throws in production) and sharedSecretAuth (bearer or cookie) | user-approved-plan | superseded by D-0187 |
 | D-0065 | Artifact pointer polling default 2000 ms when the store has no change feed | user-approved-plan | accepted |
-| D-0066 | memoryCache keeps at most 10 000 entries (oldest evicted); shared-cache errors are treated as misses | agent-unreviewed | needs-review |
+| D-0066 | memoryCache keeps at most 10 000 entries (oldest evicted); shared-cache errors are treated as misses | agent-unreviewed | superseded by D-0187 |
 | D-0067 | Adapter contract test suites exported from @puck-remote/core/testing | user-approved-plan | accepted |
-| D-0068 | Content migrations: block version + migrations run in the isolate, items carry props.__v, build fails on field changes without a bump (planned M3) | user-approved-plan | accepted |
-| D-0069 | Publishing workflow (drafts, publish, history, conflicts, preview links) lives in the PageStore contract (planned M3) | user | accepted |
+| D-0068 | Content migrations: block version + migrations run in the isolate, items carry props.__v, build fails on field changes without a bump (planned M3) | user-approved-plan | superseded by D-0188 |
+| D-0069 | Publishing workflow (drafts, publish, history, conflicts, preview links) lives in the PageStore contract (planned M3) | user | superseded by D-0188 |
 | D-0070 | Caching semantics (tags, invalidation events) in the core; bindings apply them (Next revalidateTag, CDN headers) (planned M3) | user-approved-plan | superseded by D-0149 |
 | D-0071 | Richtext, inline editing and extensible, typed host fields are mandatory for V1 (planned M4) | user | accepted |
 | D-0072 | Dependent ($ref) queries are post-V1; depth covers nested relations | user-approved-plan | accepted |

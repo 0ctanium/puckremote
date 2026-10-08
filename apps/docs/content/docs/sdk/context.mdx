@@ -17,13 +17,13 @@ render: (props, data, ctx) => {
   type={{
     isEditing: { description: "true when rendered for the editor canvas.", type: 'boolean' },
     locale: { description: "Page locale.", type: 'string' },
-    nonce: { description: "Per-render nonce (used by Slot).", type: 'string' },
+    nonce: { description: "Per-render nonce (used by Slot on the site; empty in the editor).", type: 'string' },
     'page.slug': { description: "Current page slug.", type: 'string' },
     'site.name': { description: "Site name from the host config.", type: 'string' },
-    assetUrl: { description: "URL of a file in your assets folder, for this theme version. Rejects .., ?, # and schemes.", type: '(path: string) => string' },
+    assetUrl: { description: "URL of a file in your assets folder, for this artifact. Rejects .., ?, # and schemes.", type: '(path: string) => string' },
     'assets.style': { description: "Add a stylesheet (site and editor canvas).", type: '(url: string) => void' },
     'assets.script': { description: "Add a script (public site only, never in the editor).", type: '(url: string, { defer?, async?, module? }) => void' },
-    'head.title': { description: "Page title; the first call on a page wins.", type: '(title: string) => void' },
+    'head.title': { description: "Page title; the first call on a page wins (ignored in the editor).", type: '(title: string) => void' },
     'head.meta': { description: "A <meta name content> tag; first value per name wins.", type: '(name: string, content: string) => void' },
   }}
 />

@@ -1,4 +1,4 @@
-import { createElement, type ReactElement } from 'react'
+import { createContext, createElement, Fragment, useContext, type ComponentType, type ReactElement, type ReactNode } from 'react'
 import type { AnyDataSource, CollectionName, DocOf, GlobalDocOf, GlobalName } from './host.ts'
 import { renderState } from './state.ts'
 import type {
@@ -39,10 +39,23 @@ export function defineCategories<const C extends Categories>(c: C): C {
 }
 
 /**
- * Placeholder for a Puck slot. Renders an inert marker that the host swaps for the real
- * slot only when `data-nonce` matches the per-render nonce it generated.
+ * Slot content provided by the editor (Puck's slot renderers), keyed by slot name. Set by the
+ * editor bridge around each block; absent in the sandbox. Not for theme code.
  */
-export function Slot({ name }: { name: string }): ReactElement {
+export const SlotContext = createContext<Record<string, ComponentType | ReactNode> | null>(null)
+
+/**
+ * A Puck slot. In the editor it renders Puck's slot (real drag and drop). In the sandbox it
+ * renders an inert marker that the host swaps for the real slot only when `data-nonce` matches
+ * the per-render nonce it generated.
+ */
+export function Slot({ name }: { name: string }): ReactElement | null {
+  const slots = useContext(SlotContext)
+  if (slots) {
+    const content = Object.hasOwn(slots, name) ? slots[name] : null
+    if (typeof content === 'function') return createElement(content as ComponentType)
+    return createElement(Fragment, null, content as ReactNode)
+  }
   return createElement('div', { 'data-puck-slot': name, 'data-nonce': renderState.nonce ?? '' })
 }
 

@@ -7,17 +7,18 @@ description: Use the framework-agnostic core directly from any server that speak
 `@puck-remote/core` instead.
 
 ```npm
-npm install @puck-remote/core
+npm install @puck-remote/core @puck-remote/editor
 ```
 
 | You need | Use |
 |---|---|
-| Public page | `core.preparePage(slug, query, { request, locale })` then render `<PuckRemotePage page />` (RSC-safe) |
+| Public page | `core.preparePage(slug, query, { locale })` then render `<PuckRemotePage page />` (RSC-safe) |
 | Page metadata | `pageMetadata(page)` |
-| Editor page | `core.loadEditor(slug, request)` then render `<EditorClient {...props} />` (client) |
-| Editor API | `core.handleApi(request)`: a fetch-style `Request → Response` handler |
-| Theme assets | `core.handleTheme(request)` |
-| Middleware | `@puck-remote/core/edge`: `classifyRequest`, `securityHeaders`, `cspNonce`, `pageCacheability` |
+| Admin page | `core.editorPayload(slug)` then render `<PuckEditorFrame payload … />` (client) |
+| Editor data RPC | `core.resolveBlockData(slug, block, props)` in your own authenticated route |
+| Saving pages | `core.writePage(slug, data, { base })`, then `config.artifacts.writePointer(id)` to go live |
+| Theme files | `core.handleTheme(request)` |
+| Middleware | `@puck-remote/core/edge`: `securityHeaders`, `cspNonce`, `requestOrigin`, `pageCacheability` |
 
 ```ts title="server.ts"
 import { createCore } from '@puck-remote/core';
@@ -27,9 +28,8 @@ const core = createCore(config);
 
 export async function handle(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
-  if (pathname.startsWith('/api/')) return core.handleApi(request);
   if (pathname.startsWith('/theme/')) return core.handleTheme(request);
-  // pages: core.preparePage(...) / core.loadEditor(...) inside your renderer
+  // pages: core.preparePage(...) / core.editorPayload(...) inside your renderer
   return new Response('Not found', { status: 404 });
 }
 ```
@@ -37,11 +37,11 @@ export async function handle(request: Request): Promise<Response> {
 Keep `@puck-remote/core` external to your bundler: it forks render workers from its own files.
 Rules to respect in your binding:
 
-- `preparePage` returns `null` for unknown pages or a non-site origin: answer 404.
-- `loadEditor` throws `WrongSurfaceError` (answer 404) or `AccessDeniedError` with `status` 401
-  or 403.
-- Pass the real request so origin checks work; behind a proxy, forward `X-Forwarded-Host` and
-  `X-Forwarded-Proto`.
+- `preparePage` returns `null` for unknown pages: answer 404.
+- Never serve public pages on an admin origin, nor admin pages elsewhere
+  (`requestOrigin(request)` against `config.origins.admin`).
+- Accept RPC and publish calls only from admin origins, with your session.
+- Behind a proxy, forward `X-Forwarded-Host` and `X-Forwarded-Proto`.
 
 See the [Core reference](/docs/core) and how the Next binding does it in
 [Next.js API](/docs/next-js/api).

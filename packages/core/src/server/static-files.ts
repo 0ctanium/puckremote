@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { ArtifactStore } from '@puck-remote/sdk/host'
 import path from 'node:path'
+import { isArtifactId, shortId } from './artifact-loader.ts'
 
 const TYPES: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
@@ -25,16 +26,18 @@ export function contentType(file: string): string {
   return TYPES[path.extname(file).toLowerCase()] ?? 'application/octet-stream'
 }
 
+/** Files of an artifact that browsers may load: theme assets and the editor's browser bundle. */
+export const isPublicFile = (rel: string) => rel === 'bundle.browser.js' || rel.startsWith('assets/')
+
 /**
- * Serve a file from a published artifact, only if it is listed in that version's manifest and
- * its hash still matches. Guards against traversal, symlink escapes and tampering after publish.
+ * Serve a file from an artifact, only if it is public, listed in that artifact's manifest and its
+ * hash still matches. Guards against traversal, symlink escapes and tampering after publish.
  */
-export async function readArtifactFile(artifacts: ArtifactStore, versionParam: string, rel: string): Promise<{ body: Uint8Array; type: string } | null> {
-  const m = /^v([1-9]\d{0,6})$/.exec(versionParam)
-  if (!m) return null
+export async function readArtifactFile(artifacts: ArtifactStore, id: string, rel: string): Promise<{ body: Uint8Array; type: string } | null> {
+  if (!isArtifactId(id)) return null
   if (!rel || rel.startsWith('/') || rel.includes('\\') || rel.split('/').some((s) => s === '..' || s === '.' || s === '' || s.includes('\0'))) return null
-  const version = Number(m[1])
-  const manifestBytes = await artifacts.readFile(version, 'manifest.json').catch(() => null)
+  if (!isPublicFile(rel)) return null
+  const manifestBytes = await artifacts.readFile(id, 'manifest.json').catch(() => null)
   if (!manifestBytes) return null
   let expected: string | undefined
   try {
@@ -43,10 +46,10 @@ export async function readArtifactFile(artifacts: ArtifactStore, versionParam: s
     return null
   }
   if (typeof expected !== 'string') return null
-  const body = await artifacts.readFile(version, rel).catch(() => null)
+  const body = await artifacts.readFile(id, rel).catch(() => null)
   if (!body) return null
   if (createHash('sha256').update(body).digest('hex') !== expected) {
-    console.error(`[assets] hash mismatch for v${m[1]}/${rel}; refusing to serve`)
+    console.error(`[assets] hash mismatch for ${shortId(id)}/${rel}; refusing to serve`)
     return null
   }
   return { body, type: contentType(rel) }

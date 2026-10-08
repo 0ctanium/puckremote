@@ -1,0 +1,40 @@
+---
+title: Origins
+description: Public site, admin pages and editor on separate origins, and what each side checks.
+---
+
+The browser's security boundary is the **origin**. Three kinds of pages are involved:
+
+| Who | Example | Runs | Holds |
+|---|---|---|---|
+| Public site | `https://www.example.com` | Theme client scripts | Nothing sensitive |
+| Admin pages (your app) | `https://admin.example.com` | `<PuckEditorFrame>`, your publish UI | The admin session |
+| Editor app (static) | `https://editor.example.net` | Puck and theme components | Nothing: no cookies, no secrets |
+
+Configure the last two in the core ([D-0207](/docs/internal/decisions#D-0207)):
+
+```ts title="puck-remote.config.ts"
+origins: { admin: ['https://admin.example.com'], editor: 'https://editor.example.net' }
+```
+
+## Checks
+
+- The config is refused if the editor origin is also an admin origin.
+- `<PuckEditorFrame>` only loads on an admin origin; the bridge only accepts `init` on the editor
+  origin, from an admin origin; both check `event.origin` **and** `event.source`, and always post
+  with an explicit target origin.
+- The editor app answers with `frame-ancestors <admin origins>`; admin pages answer with
+  `frame-src <editor origin>` and `frame-ancestors 'none'`.
+- The Next bindings answer 404 for public pages on an admin origin (theme scripts never run next
+  to the admin session) and for admin pages elsewhere.
+- The theme route allows CORS for the editor origin only.
+
+## Rules
+
+- Put the editor on a **different site** in production, not a subdomain of your app, so it can
+  never receive your cookies.
+- Keep admin cookies host-only on the admin hostname, never `Domain=.example.com`: the public site
+  runs theme scripts.
+- The request's origin comes from `X-Forwarded-Host`/`X-Forwarded-Proto`, then `Host`, because
+  Next builds `request.url` from its bound host ([D-0083](/docs/internal/decisions#D-0083)). Behind your own
+  reverse proxy, forward these headers.

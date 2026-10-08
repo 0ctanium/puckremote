@@ -6,6 +6,6 @@ export default withPuckRemote({
   turbopack: { root: path.resolve(import.meta.dirname, '../..') },
   outputFileTracingRoot: path.resolve(import.meta.dirname, '../..'),
   reactStrictMode: true,
-  // The editor runs on editor.localhost in development (separate origin from the site).
+  // The admin pages run on admin.localhost in development (separate origin from the site).
   allowedDevOrigins: ['*.localhost'],
 })

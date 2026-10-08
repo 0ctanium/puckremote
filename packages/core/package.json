@@ -1,7 +1,7 @@
 {
   "name": "@puck-remote/core",
   "version": "0.1.0",
-  "description": "Framework-agnostic host engine: artifacts, isolate, data, Puck rendering, editor.",
+  "description": "Framework-agnostic host engine: remote theme artifacts (code + pages), sandboxed rendering, data.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -32,11 +32,6 @@
       "@puck-remote/source": "./src/react/index.ts",
       "types": "./dist/react.d.ts",
       "default": "./dist/react.js"
-    },
-    "./editor": {
-      "@puck-remote/source": "./src/editor/index.ts",
-      "types": "./dist/editor.d.ts",
-      "default": "./dist/editor.js"
     },
     "./testing": {
       "@puck-remote/source": "./src/testing/index.ts",
@@ -78,7 +73,6 @@
   },
   "devDependencies": {
     "@puck-remote/cli": "workspace:*",
-    "@puck-remote/pages-fs": "workspace:*",
     "@puck-remote/source-mock": "workspace:*",
     "@types/node": "26.6.4",
     "@types/react": "19.3.0",

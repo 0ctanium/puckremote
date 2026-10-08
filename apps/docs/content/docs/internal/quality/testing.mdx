@@ -15,30 +15,25 @@ suppressed; debug with `process.stderr.write`. Sandbox suites run against **both
 | 8 | Secrets never in isolate inputs or logs; origin-bound | `data.test.ts` |
 | 9 | Dedupe: identical queries → one outbound request | `data.test.ts` |
 | 10 | Budget: count, bytes, wall time; tree-order degradation | `data.test.ts` |
-| 11 | `/blocks/resolve` ignores client-supplied spec/data/query/mode | `data.test.ts` |
-| 12 | Drafts only in editor mode; no cache bleed | `data.test.ts` |
-| 13 | Data source policy: undeclared names, operators, sort, clamps, projection, change-feed invalidation | `data.test.ts`, types in `examples/theme/type-tests.ts` |
+| 11 | Editor block data ignores caller-supplied spec/data/query/mode | `data.test.ts` |
+| 12 | Drafts only in editor (draft) mode | `data.test.ts` |
+| 13 | Data source policy: undeclared names, operators, sort, clamps, projection | `data.test.ts`, types in `examples/theme/type-tests.ts` |
 | 14 | Forged slot markers are not swapped | `rendering.test.tsx` |
 | 15 | hero → card → latest-posts nested, with data and head effects | `rendering.test.tsx` |
-| 16 | Parity: `/blocks/render` vs public render, per block and whole page | `editor.test.tsx` |
+| 16 | Parity: the editor config (theme browser bundle, Puck slots) renders the same HTML as the public isolate render | `editor.test.tsx` |
 | 17 | Missing blocks; stale props; page-level infinite loop | `rendering.test.tsx` |
-| 18 | `resolveData` output is stripped on save | `editor.test.tsx` |
-| 19 | Tampered bundle, manifest or asset rejected; previous version keeps serving | `artifacts.test.ts` |
-| 20 | Publish increments; atomic pointer; hot swap disposes old runtime; rollback | `artifacts.test.ts` |
+| 18 | `resolveData` output is stripped by `writePage` | `editor.test.tsx` |
+| 19 | Tampered bundle, page, manifest or asset rejected; previous artifact keeps serving; non-public files never served | `artifacts.test.ts` |
+| 20 | Publish by id (identical content dedupes); atomic pointer; hot swap disposes old runtime; rollback | `artifacts.test.ts` |
 | 21 | Build rejects functions, custom/external fields, forbidden keys, non-JSON, bad refs | `packages/cli/test/build.test.ts` |
-| — | `handleApi`/`handleTheme` routing, prefixes, 404/405, memoized runtime | `routes.test.ts` |
+| — | Entry points: theme route (assets, browser bundle, CORS, 404/405), `readPage`, `writePage` (new id, pointer untouched, cleaning, invalid input), `editorPayload`, `resolveBlockData`, origins config, a counter-id store end to end | `routes.test.ts` |
 | A7 | No developer code outside the isolate: static scan, bundle-sink allowlist, realm check, import boundaries | `no-dev-code.test.ts` |
-| M1 | Auth 401/403, `editor:open`, CSRF header/Origin/Sec-Fetch-Site, built-in adapters, production guards, polling | `auth.test.ts` |
-| M1 | Contract suites against the built-in adapters | `adapters.test.ts` |
+| M1 | Contract suite against `artifacts-fs` and a counter-id store; content-hash ids | `adapters.test.ts` |
 | M2 | Worker permissions (fs, network, child processes, threads, env), watchdog kill, crash, recycling, no secrets over IPC, bubblewrap (Linux) | `worker.test.ts` |
-| M2 | Surfaces per origin, production guard, `requestOrigin` | `surface.test.ts` |
-| M2 | CSP per surface, dev relaxations, nonces, effects allowlist, render RPC auth and limits | `headers.test.ts` |
-| M3a | Publishing workflow over HTTP: drafts vs published, 409 conflicts on save/publish/restore, history paging and limits, restore, unpublish, delete | `routes.test.ts` |
-| M3a | `page:publish` / `page:delete` enforced; the slug reaches `authorize` on every page and block route; 401 before validation | `auth.test.ts` |
-| M3a | `pageStoreContract` (drafts, conflicts, publish, history, concurrency) and `pages-fs` retention | `adapters.test.ts` |
-| M3a | Migrations on both runtimes: chain, host-owned keys, slots, per-block failure, newer `__v`; public render; editor load and save stamping; SDK major 1 rejected | `migrations.test.ts` |
-| M3a | Build: `version`/`migrations` validation, `--baseline` shape check; `publish` refuses unbumped changes unless forced | `packages/cli/test/build.test.ts` |
-| M3a | Preview links: draft + draft data via token; other slug, tampered, expired, foreign secret, feature off → 404; config validation | `routes.test.ts` |
+| M2 | `requestOrigin` | `surface.test.ts` |
+| M2 | CSP for site and admin (frames only the editor), dev relaxations, nonces, effects allowlist | `headers.test.ts` |
+| — | Build: pages shipped and listed in the manifest, unknown blocks (slots included) and invalid page files rejected, browser bundle imports only the editor's externals; `pull` | `packages/cli/test/build.test.ts` |
+| — | Editor protocol: message schemas and version, `measure`, rate limiter, frame origin checks, `ready`→`init`, origin **and** source checks, change validation, allow-listed RPCs with size and rate limits, uploads, bridge `init` checks | `packages/editor/test/protocol.test.ts` |
 
 Fixtures: `packages/core/test/fixtures/evil` is a hostile theme; `helpers.ts` builds artifacts and
 starts the mock API on a random port ([D-0032](/docs/internal/decisions#D-0032)).

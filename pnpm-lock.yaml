@@ -240,6 +240,43 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
+  apps/editor:
+    dependencies:
+      '@puck-remote/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
+      '@puck-remote/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@puckeditor/core':
+        specifier: 0.23.0
+        version: 0.23.0(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@puck-remote/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@types/node':
+        specifier: 26.6.4
+        version: 26.6.4
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
   apps/host:
     dependencies:
       '@puck-remote/artifacts-fs':
@@ -248,12 +285,12 @@ importers:
       '@puck-remote/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@puck-remote/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
       '@puck-remote/next':
         specifier: workspace:*
         version: link:../../packages/next
-      '@puck-remote/pages-fs':
-        specifier: workspace:*
-        version: link:../../packages/pages-fs
       '@puck-remote/source-mock':
         specifier: workspace:*
         version: link:../../packages/source-mock
@@ -384,9 +421,6 @@ importers:
       '@puck-remote/cli':
         specifier: workspace:*
         version: link:../cli
-      '@puck-remote/pages-fs':
-        specifier: workspace:*
-        version: link:../pages-fs
       '@puck-remote/source-mock':
         specifier: workspace:*
         version: link:../source-mock
@@ -421,6 +455,43 @@ importers:
         specifier: 5.0.3
         version: 5.0.3(@types/node@26.6.4)(happy-dom@20.14.5)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/editor:
+    dependencies:
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@puck-remote/core':
+        specifier: workspace:*
+        version: link:../core
+      '@puck-remote/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+      '@puckeditor/core':
+        specifier: 0.23.0
+        version: 0.23.0(@floating-ui/dom@1.8.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
+      '@types/node':
+        specifier: 26.6.4
+        version: 26.6.4
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.3
+        version: 5.0.3(@types/node@26.6.4)(happy-dom@20.14.5)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/next:
     dependencies:
       '@puck-remote/core':
@@ -445,22 +516,6 @@ importers:
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
-
-  packages/pages-fs:
-    dependencies:
-      '@puck-remote/sdk':
-        specifier: workspace:*
-        version: link:../sdk
-    devDependencies:
-      '@types/node':
-        specifier: 26.6.4
-        version: 26.6.4
-      '@types/react':
-        specifier: 19.3.0
-        version: 19.3.0
       typescript:
         specifier: 7.0.2
         version: 7.0.2

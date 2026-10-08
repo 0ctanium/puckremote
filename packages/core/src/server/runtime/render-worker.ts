@@ -12,13 +12,13 @@ import { IsolateRunner } from './in-process.ts'
 import type { CallResult, Entry, IsolateLimits, RenderSession } from './types.ts'
 
 type Msg =
-  | { t: 'load'; id: number; version: number; bundle: string; limits: IsolateLimits }
-  | { t: 'open'; id: number; version: number; sid: number }
+  | { t: 'load'; id: number; version: string; bundle: string; limits: IsolateLimits }
+  | { t: 'open'; id: number; version: string; sid: number }
   | { t: 'call'; id: number; sid: number; entry: Entry; args: string[] }
   | { t: 'release'; sid: number }
 
 const log = { error: (...a: unknown[]) => console.error('[render-worker]', ...a), warn: (...a: unknown[]) => console.error('[render-worker]', ...a) }
-const runtimes = new Map<number, IsolateRunner>()
+const runtimes = new Map<string, IsolateRunner>()
 const sessions = new Map<number, RenderSession>()
 
 const send = (m: unknown) => process.send?.(m)

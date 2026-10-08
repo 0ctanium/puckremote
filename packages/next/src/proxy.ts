@@ -1,27 +1,27 @@
 /**
  * Next.js proxy (middleware) factory. For every request:
- *  - 404 when the request's origin doesn't serve its surface (editor/API only on editor origins,
- *    public pages only on site origins);
- *  - security headers per surface (CSP with a per-request nonce, framing, sniffing…);
- *  - cache headers for public pages (pages using URL query params are never cacheable; preview
- *    links are no-store and noindex).
+ *  - security headers: admin origins get the admin policy (no framing, only the editor origin
+ *    may be framed); every other origin gets the public-site policy (CSP with a per-request nonce);
+ *  - cache headers for public pages (pages using URL query params are never cacheable).
  * Imports only @puck-remote/core/edge (no isolate, no workers).
  *
  *   // src/proxy.ts
  *   export const proxy = createProxy(remoteConfig)
  *   export const config = { matcher: ['/((?!_next/|favicon\\.ico).*)'] }
  */
-import { classifyRequest, cspNonce, normalizeSlug, pageCacheability, PREVIEW_PARAM, resolveSurfaces, securityHeaders } from '@puck-remote/core/edge'
+import { cspNonce, normalizeOrigin, normalizeSlug, pageCacheability, requestOrigin, securityHeaders, DEFAULT_SECURITY, type SecurityPolicy } from '@puck-remote/core/edge'
 import type { PuckRemoteConfig } from '@puck-remote/core/config'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export function createProxy(config: Pick<PuckRemoteConfig, 'artifacts' | 'pages' | 'routes' | 'origins' | 'allowSharedOrigin' | 'security'>) {
-  const surfaces = resolveSurfaces(config)
+export function createProxy(config: Pick<PuckRemoteConfig, 'artifacts' | 'origins' | 'security'>) {
+  const admin = (config.origins?.admin ?? []).map(normalizeOrigin)
+  const editorOrigin = config.origins ? normalizeOrigin(config.origins.editor) : undefined
+  const s = config.security ?? {}
+  const policy = { ...DEFAULT_SECURITY, ...s, csp: { ...DEFAULT_SECURITY.csp, ...s.csp } } as SecurityPolicy
   return async function proxy(req: NextRequest) {
-    const where = classifyRequest(req, surfaces)
-    if (!where.allowed) return new NextResponse('Not found', { status: 404, headers: { 'cache-control': 'no-store' } })
+    const surface = admin.includes(requestOrigin(req)) ? 'admin' : 'site'
     const nonce = cspNonce()
-    const headers = securityHeaders(where.surface, { nonce, dev: process.env.NODE_ENV !== 'production', policy: surfaces.security })
+    const headers = securityHeaders(surface, { nonce, dev: process.env.NODE_ENV !== 'production', policy, editorOrigin })
     const csp = headers['content-security-policy'] ?? headers['content-security-policy-report-only']
     // Next reads the nonce from the request's CSP header (and pages from x-nonce) for its scripts.
     const requestHeaders = new Headers(req.headers)
@@ -29,13 +29,7 @@ export function createProxy(config: Pick<PuckRemoteConfig, 'artifacts' | 'pages'
     if (csp) requestHeaders.set('content-security-policy', csp)
     const res = NextResponse.next({ request: { headers: requestHeaders } })
     for (const [k, v] of Object.entries(headers)) res.headers.set(k, v)
-    if (where.surface !== 'site') return res
-    // Preview links show drafts: never cache, never index (the core verifies the token itself).
-    if (req.nextUrl.searchParams.has(PREVIEW_PARAM)) {
-      res.headers.set('cache-control', 'private, no-store')
-      res.headers.set('x-robots-tag', 'noindex')
-      return res
-    }
+    if (surface !== 'site') return res
     const slug = normalizeSlug(req.nextUrl.pathname)
     if (!slug) return res
     const c = await pageCacheability(config, slug).catch(() => null)

@@ -33,16 +33,16 @@ export default defineBlock({
     defaultProps: { description: "Initial props; also merged under stored props at render time.", type: 'Partial<Props>' },
     data: { description: "Named queries the host runs for each instance. See Data.", type: 'Record<string, QuerySpec>' },
     render: {
-      description: "Synchronous, pure render function. Runs in the sandbox, on the server, for both the site and the editor.",
+      description: "Synchronous, pure render function. Runs in the sandbox on the server for the site, and as a client component in the editor.",
       type: '(props, data, ctx) => ReactNode',
       required: true,
     },
-    version: { description: "Version of the block's fields. See Content migrations.", type: 'integer >= 1', default: '1' },
-    migrations: { description: "Upgrades for props saved with older versions. See Content migrations.", type: 'Record<number, (props) => props>' },
   }}
 />
 
-Everything except `render` and `migrations` must be plain JSON: it is extracted at build time into the manifest.
+Everything except `render` must be plain JSON: it is extracted at build time into the manifest.
+Pages ship with the theme, so there are no content migrations: change a block's fields and the
+pages that use it together ([Pages and publishing](/docs/guides/publishing)).
 `permissions`, `resolveData`, `resolveFields`, `resolvePermissions` and `inline` are rejected:
 the host owns those Puck features.
 
@@ -56,7 +56,9 @@ the host owns those Puck features.
 
 ## `<Slot name />`
 
-Renders the nested blocks of a `slot` field. Each slot can be placed once per render.
+Renders the nested blocks of a `slot` field. Each slot can be placed once per render. In the
+editor it renders Puck's own slot (drag and drop); on the site, a marker the host swaps for the
+server-rendered children.
 
 ## `defineRoot(definition)`
 

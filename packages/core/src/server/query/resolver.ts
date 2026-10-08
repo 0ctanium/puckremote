@@ -7,7 +7,6 @@ import type { HostConfig } from '../config.ts'
 import type { RenderSession } from '../runtime/types.ts'
 import type { Manifest, QuerySpec } from '../manifest-schema.ts'
 import type { Instance } from '../page-tree.ts'
-import type { CacheStore } from '@puck-remote/sdk/host'
 import type { HttpSource } from './http-source.ts'
 import { hashSpec, QueryError, substitute, type ParamEnv } from './params.ts'
 import type { Mode } from '@puck-remote/sdk/host'
@@ -21,7 +20,6 @@ export interface ResolveDeps {
   /** The operator's data source, wrapped in host-side policy enforcement. */
   source: HostSource
   http: HttpSource
-  cache: CacheStore
   /** Lazily provides an isolate context for adapter translators (shared with the render pass). */
   session: () => Promise<RenderSession>
   log?: Pick<Console, 'info' | 'warn' | 'error'>
@@ -38,7 +36,6 @@ export interface ResolveStats {
   planned: number
   unique: number
   executed: number
-  cacheHits: number
   budgetDropped: number
   responseBytes: number
   ms: number
@@ -93,23 +90,13 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
     deadline.addEventListener('abort', () => reject(new QueryError('budget', 'page wall-time budget exceeded')), { once: true })
   })
   overDeadline.catch(() => {})
-  let cacheHits = 0
   let executed = 0
   const outcomes = new Map<string, { result: QueryResult; bytes: number }>()
   await Promise.all(
     runnable.map(async (p) => {
       try {
-        // A shared CacheStore failing must not take pages down: treat errors as misses.
-        const cached = await deps.cache.get(cacheKey(p.hash)).catch(() => undefined)
-        let data: unknown
-        if (cached !== undefined) {
-          cacheHits++
-          data = cached
-        } else {
-          executed++
-          data = await Promise.race([execute(p.spec, input.mode, input.env.page.locale, deps, deadline), overDeadline])
-          await cacheSet(p, data, input.mode, deps).catch(() => {})
-        }
+        executed++
+        const data = await Promise.race([execute(p.spec, input.mode, input.env.page.locale, deps, deadline), overDeadline])
         const bytes = Buffer.byteLength(JSON.stringify(data) ?? '')
         outcomes.set(p.hash, { result: { ok: true, data }, bytes })
       } catch (e) {
@@ -139,19 +126,7 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
   }
   return {
     byInstance,
-    stats: { planned, unique: ordered.length, executed, cacheHits, budgetDropped, responseBytes, ms: performance.now() - t0 },
-  }
-}
-
-const cacheKey = (hash: string) => `puck-remote:q:${hash}`
-
-async function cacheSet(p: Planned, data: unknown, mode: Mode, deps: ResolveDeps) {
-  const spec = p.spec
-  if (spec.source === 'host') {
-    if (mode === 'draft') return // never cache draft reads
-    await deps.cache.set(cacheKey(p.hash), data, { tags: deps.source.tagsFor(spec) })
-  } else {
-    await deps.cache.set(cacheKey(p.hash), data, { ttlMs: deps.config.http.cacheTtlMs })
+    stats: { planned, unique: ordered.length, executed, budgetDropped, responseBytes, ms: performance.now() - t0 },
   }
 }
 

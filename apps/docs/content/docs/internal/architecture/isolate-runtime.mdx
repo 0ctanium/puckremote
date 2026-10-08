@@ -8,7 +8,7 @@ description: The RenderRuntime abstraction and the in-process isolated-vm implem
 ```ts
 interface RenderRuntime { session(): Promise<RenderSession>; stats(): RuntimeStats; dispose(): void }
 interface RenderSession { call(entry, args: string[]): Promise<CallResult<string>>; release(): void }
-type RendererFactory = (artifact: { version; bundle; limits }) => RenderRuntime
+type RendererFactory = (artifact: { id; bundle; limits }) => RenderRuntime
 ```
 
 Everything crossing the boundary is a JSON string, so a runtime can live in-process, in a worker
@@ -22,7 +22,7 @@ isolate rules have one implementation.
 
 - **One Isolate per artifact** (`memoryLimit`), bundle compiled once (`compileScriptSync`).
 - **`session()`**: a new Context, the compiled script run in it (timeout `5 × callTimeoutMs`),
-  then references to `__render`, `__toRequest`, `__fromResponse`, `__migrate`. No other host object is exposed.
+  then references to `__render`, `__toRequest`, `__fromResponse`. No other host object is exposed.
 - **`call()`**:
   - checks the input size;
   - `Reference.apply` with `timeout: callTimeoutMs`, `arguments: { copy: true }`, `result: { copy: true }`;

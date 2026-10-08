@@ -2,7 +2,7 @@ import { build } from '@puck-remote/cli'
 import { readFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { devAllowAll, resolveConfig, type HostConfig } from '../src/server/config.ts'
+import { resolveConfig, type HostConfig } from '../src/server/config.ts'
 import { IsolateRunner } from '../src/server/runtime/in-process.ts'
 import type { CtxInput } from '../src/server/render.ts'
 
@@ -28,15 +28,12 @@ export function buildTheme(dir: string) {
 
 export const buildEvil = () => buildTheme(path.join(FIXTURES, 'evil'))
 export const buildExample = () => buildTheme(path.join(REPO_ROOT, 'examples', 'theme'))
-export const buildMigrations = () => buildTheme(path.join(FIXTURES, 'migrations'))
 
 export function testConfig(overrides: Partial<HostConfig> = {}): HostConfig {
   const base = resolveConfig({
     artifacts: fsArtifactStore({ dir: path.join(REPO_ROOT, 'artifacts') }),
     source: mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') }),
-    pages: fsPageStore({ dir: path.join(REPO_ROOT, 'data', 'pages') }),
     site: { name: 'POC Site', locale: 'en' },
-    auth: devAllowAll(),
   })
   return { ...base, isolate: { ...base.isolate, callTimeoutMs: 150, watchdogMs: 1500 }, ...overrides }
 }
@@ -54,7 +51,7 @@ export function ctx(overrides: Partial<CtxInput> = {}): CtxInput {
     nonce: 'n0nce0000000000000000000000000000',
     page: { slug: 'home' },
     site: { name: 'Test' },
-    assetBase: '/theme/v1/assets/',
+    assetBase: '/theme/test/assets/',
     ...overrides,
   }
 }
@@ -64,10 +61,8 @@ export function ctx(overrides: Partial<CtxInput> = {}): CtxInput {
 // ---------------------------------------------------------------------------
 import { startMockApi } from 'mock-api'
 import { fsArtifactStore } from '@puck-remote/artifacts-fs'
-import { memoryCache } from '../src/server/query/cache.ts'
 import { HttpSource, type Resolver } from '../src/server/query/http-source.ts'
 import { mockCms } from '@puck-remote/source-mock'
-import { fsPageStore } from '@puck-remote/pages-fs'
 import { HostSource } from '../src/server/query/host-source.ts'
 import type { RenderRuntime, RenderSession } from '../src/server/runtime/types.ts'
 
@@ -85,7 +80,6 @@ export function dataConfig(mockOrigin: string, overrides: Partial<HostConfig> = 
       ...base.http,
       allowedOrigins: [mockOrigin, 'https://api.example.test', 'https://evil.test', 'https://10.0.0.1', 'https://[::1]', 'https://169.254.169.254'],
       insecureDevOrigins: [mockOrigin],
-      cacheTtlMs: 30_000,
     },
     secrets: {
       EVENTS_API_KEY: { value: SECRET_VALUE, origins: [mockOrigin] },
@@ -129,14 +123,11 @@ export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; 
   const http = new HttpSource({ config: config.http, secrets: config.secrets, resolver: opts.resolver })
   // A fresh source per harness so content edits in one test don't leak into another.
   const cms = mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') })
-  const cache = memoryCache()
-  cms.subscribe((tags) => void cache.invalidateTags(tags))
   const deps = {
     manifest: m,
     config,
     source: new HostSource(cms),
     http,
-    cache,
     session: () => (session ??= runner.session().then((s) => recordingSession(s, rec))),
     log: rec.log,
     site: config.site,
@@ -161,38 +152,43 @@ export const env = (query: Record<string, string> = {}) => ({
 })
 
 // ---------------------------------------------------------------------------
-// Full-host harness (artifacts + pages in a temp dir)
+// Full-host harness (an artifact with pages in a temp dir)
 // ---------------------------------------------------------------------------
 import { publish } from '@puck-remote/cli'
-import { mkdtemp } from 'node:fs/promises'
-import type { PageStore } from '@puck-remote/sdk/host'
+import { cp, mkdtemp, mkdir, readFile as readF, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { createHost } from '../src/server/host.ts'
 
-/** Create and publish pages through the store (revision 1, published). */
-export async function seedPages(pages: PageStore, entries: Record<string, unknown>) {
-  for (const [slug, data] of Object.entries(entries)) {
-    const r = await pages.saveDraft(slug, { data, schemaVersion: 1 }, { baseRevision: null })
-    if (!r.ok) throw new Error(`seed ${slug}: conflict`)
-    await pages.publish(slug, { revision: r.meta.draftRevision })
+const sha = (b: string | Uint8Array) => createHash('sha256').update(b).digest('hex')
+
+/** Copy a built theme and replace its pages (pages/<slug>.json, listed in manifest.files). */
+export async function withPages(distDir: string, pages: Record<string, unknown>): Promise<string> {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'puck-remote-dist-'))
+  await cp(distDir, dir, { recursive: true })
+  const manifest = JSON.parse(await readF(path.join(dir, 'manifest.json'), 'utf8'))
+  for (const f of Object.keys(manifest.files)) if (f.startsWith('pages/')) delete manifest.files[f]
+  for (const [slug, data] of Object.entries(pages)) {
+    const body = JSON.stringify(data)
+    await mkdir(path.dirname(path.join(dir, 'pages', `${slug}.json`)), { recursive: true })
+    await writeFile(path.join(dir, 'pages', `${slug}.json`), body)
+    manifest.files[`pages/${slug}.json`] = sha(body)
   }
+  await writeFile(path.join(dir, 'manifest.json'), JSON.stringify(manifest))
+  return dir
 }
 
-export async function testHost(opts: { theme: 'example' | 'evil' | 'migrations'; pages: Record<string, unknown>; mockOrigin?: string; config?: Partial<HostConfig> }) {
+export async function testHost(opts: { theme: 'example' | 'evil'; pages: Record<string, unknown>; mockOrigin?: string; config?: Partial<HostConfig> }) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'puck-remote-host-'))
   const artifactsDir = path.join(dir, 'artifacts')
-  const pagesDir = path.join(dir, 'pages')
-  const pages = fsPageStore({ dir: pagesDir })
-  await seedPages(pages, opts.pages)
-  const built = opts.theme === 'evil' ? await buildEvil() : opts.theme === 'migrations' ? await buildMigrations() : await buildExample()
+  const built = opts.theme === 'evil' ? await buildEvil() : await buildExample()
   const artifacts = fsArtifactStore({ dir: artifactsDir })
-  await publish({ distDir: built.outDir, artifacts, quiet: true })
+  await publish({ distDir: await withPages(built.outDir, opts.pages), artifacts, quiet: true })
   const mock = opts.mockOrigin ?? 'http://localhost:4010'
   const base = dataConfig(mock)
   const config: HostConfig = {
     ...base,
     artifacts,
     source: mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') }),
-    pages,
     ...opts.config,
   }
   const host = createHost(config)
@@ -201,5 +197,34 @@ export async function testHost(opts: { theme: 'example' | 'evil' | 'migrations';
   const r = await host.store.reload()
   if (!r.ok) throw new Error(r.error)
   if (opts.mockOrigin) host.store.get().manifest.adapters.events && (host.store.get().manifest.adapters.events.origin = opts.mockOrigin)
-  return { host, dir, artifactsDir, pagesDir, close: async () => { host.store.close(); await host.http.close() } }
+  return { host, dir, artifactsDir, close: async () => { host.store.close(); await host.http.close() } }
+}
+
+/** An in-memory ArtifactStore with counter ids ("a1", "a2"…): the core must not assume hashes. */
+export function counterStore(): import('@puck-remote/sdk/host').ArtifactStore {
+  const artifacts = new Map<string, Record<string, Uint8Array>>()
+  let pointer: string | null = null
+  const safe = (p: string) => !!p && !p.startsWith('/') && !p.includes('\\') && !p.includes('\0') && !p.split('/').some((s) => s === '..' || s === '.' || s === '')
+  return {
+    async readPointer() {
+      return pointer
+    },
+    async writePointer(id) {
+      if (!artifacts.has(id)) throw new Error(`no artifact ${id}`)
+      pointer = id
+    },
+    async list() {
+      return [...artifacts.keys()]
+    },
+    async readFile(id, p) {
+      if (!safe(p)) return null
+      return artifacts.get(id)?.[p] ?? null
+    },
+    async writeArtifact(files) {
+      for (const p of Object.keys(files)) if (!safe(p)) throw new Error(`unsafe path ${p}`)
+      const id = `a${artifacts.size + 1}`
+      artifacts.set(id, { ...files })
+      return id
+    },
+  }
 }

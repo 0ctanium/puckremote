@@ -1,6 +1,6 @@
 ---
 title: Commands
-description: puck-remote build, publish and activate.
+description: puck-remote build, publish, pull and activate.
 ---
 
 ## `puck-remote build`
@@ -13,17 +13,17 @@ puck-remote build --cwd . --out dist
   type={{
     '--cwd': { description: "Theme folder.", type: 'path', default: 'current directory' },
     '--out': { description: "Output folder, relative to --cwd. Emptied first.", type: 'path', default: 'dist' },
-    '--baseline': { description: "A previous manifest.json: fail if a block's fields changed without a version bump, or a version went down.", type: 'path' },
   }}
 />
 
-Validates every definition and fails with the file and key at fault, for example
+Validates every definition and page, and fails with the file and key at fault, for example
 `✖ build failed: blocks/hero.fields.title: function values are not allowed here`. What is
 rejected: functions other than `render` / `toRequest` / `fromResponse`, non-JSON values (class
 instances, Dates, Maps, symbols, `undefined`, non-finite numbers), unknown field types,
 `permissions` / `resolve*` / `inline` keys, unknown adapters, invalid parameter references, block
-names that are not lowercase slugs or start with `__`, and invalid `version` / `migrations` (see
-[Content migrations](/docs/sdk/migrations)).
+names that are not lowercase slugs or start with `__`, page files that are not
+`pages/<slug>.json` Puck data, and pages using a block the theme doesn't have, e.g.
+`✖ build failed: pages/home.json content[4]: unknown block "old-banner"`.
 
 ## `puck-remote publish`
 
@@ -36,36 +36,49 @@ puck-remote publish --artifacts ../my-app/artifacts
     '--artifacts': { description: "Artifact directory (a file-system artifact store).", type: 'path', default: '$PUCK_REMOTE_ARTIFACTS_DIR', required: true },
     '--cwd': { description: "Theme folder.", type: 'path', default: 'current directory' },
     '--out': { description: "The build output to publish.", type: 'path', default: 'dist' },
-    '--force': { description: "Publish even if blocks changed without a version bump compared with the active version.", type: 'boolean', default: 'false' },
   }}
 />
 
-Writes the build output as **the next version number** (highest existing + 1, never reused, even
-after a rollback) and makes it active. Running hosts switch to it automatically.
+Stores the build output (code **and pages**) as an artifact and makes it current; running hosts
+switch to it automatically. It prints the artifact id. Pages edited in the editor since your last
+`pull` are replaced by the repo's: pull first.
 
-Before writing, it compares the blocks with the **active** version, like `build --baseline`, and
-refuses with e.g. `block "quote": fields changed without a version bump (still v1); bump "version"
-and add a migration (compared with the active artifact v6; use --force to publish anyway)`.
-
-## `puck-remote activate`
+## `puck-remote pull`
 
 ```bash
-puck-remote activate 3 --artifacts ../my-app/artifacts
+puck-remote pull --artifacts ../my-app/artifacts
 ```
 
 <TypeTable
   type={{
-    '<version>': { description: "An existing version number.", type: 'number', required: true },
+    '--artifacts': { description: "Artifact directory.", type: 'path', default: '$PUCK_REMOTE_ARTIFACTS_DIR', required: true },
+    '--cwd': { description: "Theme folder: pages are written to <cwd>/pages/<slug>.json.", type: 'path', default: 'current directory' },
+    '--artifact': { description: "An artifact id.", type: 'string', default: 'the current artifact' },
+  }}
+/>
+
+Downloads an artifact's pages into the theme repo, like `shopify theme pull`
+([D-0199](/docs/internal/decisions#D-0199)). Existing files are overwritten; other files are left alone.
+
+## `puck-remote activate`
+
+```bash
+puck-remote activate <id> --artifacts ../my-app/artifacts
+```
+
+<TypeTable
+  type={{
+    '<id>': { description: "An existing artifact id.", type: 'string', required: true },
     '--artifacts': { description: "Artifact directory.", type: 'path', default: '$PUCK_REMOTE_ARTIFACTS_DIR', required: true },
   }}
 />
 
-Moves the active-version pointer. This is how you roll back.
+Moves the current-artifact pointer. This is how you roll back.
 
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | `0` | Success |
-| `1` | Build or publish error |
+| `1` | Build, publish or pull error |
 | `2` | Unknown command or bad usage |

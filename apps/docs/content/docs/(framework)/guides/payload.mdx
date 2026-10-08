@@ -1,22 +1,20 @@
 ---
 title: Payload (planned)
-description: How the first real backend will plug in (milestone M3).
+description: How the first real backend will plug in.
 ---
 
-<Callout type="warn">Planned for M3. Nothing here is implemented yet, and the details will be decided in the M3 plan.</Callout>
+<Callout type="warn">Planned. Nothing here is implemented yet, and the details will be decided in its own plan.</Callout>
 
-Payload is the first real backend ([D-0054](/docs/internal/decisions#D-0054)). The design constraints already
-decided:
+Payload is the first real backend ([D-0054](/docs/internal/decisions#D-0054)). What already follows from
+the current design:
 
 - A `@puck-remote/source-payload` **DataSource** translates `NormalizedFind` to the Payload Local
-  API with `overrideAccess: false`, a public (or draft-preview) user, and
-  `draft: ctx.mode === 'draft'`. It emits `afterChange` hooks through `subscribe` for cache
-  invalidation. The core does not change.
-- A **PageStore** backed by a Payload collection replaces `pages-fs`. The publishing workflow
-  (drafts, publish, history, conflicts, preview links) lives in the PageStore contract
-  ([D-0069](/docs/internal/decisions#D-0069)).
-- An **AuthAdapter** reads Payload sessions from the standard `Request`
-  ([D-0056](/docs/internal/decisions#D-0056)).
-- Caching semantics (tags, invalidation events) stay in the core; bindings apply them
-  ([D-0070](/docs/internal/decisions#D-0070)).
-- Content migrations run in the isolate ([D-0068](/docs/internal/decisions#D-0068)).
+  API with `overrideAccess: false`, a public user, and `draft: ctx.mode === 'draft'`. The core does
+  not change.
+- Pages are part of theme artifacts ([D-0188](/docs/internal/decisions#D-0188)), so a Payload-backed
+  **ArtifactStore** would store artifacts (code and pages) and the current pointer; there is no
+  page store.
+- Payload sessions authenticate the app's admin pages and RPC handlers; the core has no auth
+  ([D-0187](/docs/internal/decisions#D-0187)).
+- Drafts or history would be a publishing plugin on `writePage` and the pointer
+  ([D-0190](/docs/internal/decisions#D-0190)).

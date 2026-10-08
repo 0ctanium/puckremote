@@ -34,18 +34,18 @@ A remote renderer (only its interface lands here; the implementation is planned 
 | D-0076 | RenderRuntime abstraction (session/call/release) behind every isolate use | user-approved-plan | accepted |
 | D-0077 | Default renderer: worker pool of forked processes with --permission, fs allowlist, no network/child processes/workers, empty env, heap cap, watchdog SIGKILL, respawn and recycling | user-approved-plan | accepted |
 | D-0078 | Optional OS sandbox wrapper (bubblewrap preset, Linux, experimental) | user-approved-plan | accepted |
-| D-0079 | Separate origin, not separate app: one app answers site and editor hostnames | user-approved-plan | accepted |
-| D-0080 | Editor renders blocks on the server (batched /blocks/render RPC); the theme bundle is never served to browsers | user-approved-plan | accepted |
-| D-0081 | Production requires distinct site and editor origins (allowSharedOrigin opts out); wrong surface → 404 | user-approved-plan | accepted |
-| D-0082 | CSP: editor enforced (nonce + strict-dynamic, no framing); site report-only by default; theme script/style origins allowlisted | user-approved-plan | accepted |
+| D-0079 | Separate origin, not separate app: one app answers site and editor hostnames | user-approved-plan | superseded by D-0204 |
+| D-0080 | Editor renders blocks on the server (batched /blocks/render RPC); the theme bundle is never served to browsers | user-approved-plan | superseded by D-0192 |
+| D-0081 | Production requires distinct site and editor origins (allowSharedOrigin opts out); wrong surface → 404 | user-approved-plan | superseded by D-0204 |
+| D-0082 | CSP: editor enforced (nonce + strict-dynamic, no framing); site report-only by default; theme script/style origins allowlisted | user-approved-plan | superseded by D-0204 |
 | D-0083 | Request origin derived from X-Forwarded-Host/Proto then Host (Next builds request.url from its bound host) | agent-unreviewed | needs-review |
-| D-0084 | Editor receives siteOrigin so "View page" opens the public origin | agent-unreviewed | needs-review |
+| D-0084 | Editor receives siteOrigin so "View page" opens the public origin | agent-unreviewed | superseded by D-0192 |
 | D-0085 | Editor imports Puck no-external.css (default CSS loads a font from rsms.me, blocked by CSP) | agent-unreviewed | needs-review |
 | D-0086 | Worker pool exposes an IPC tap option for diagnostics/tests | agent-unreviewed | needs-review |
 | D-0087 | Worker fs allowlist: worker dist, node_modules dirs on isolated-vm resolution path, real paths of isolated-vm and node-gyp-build (both spellings) | agent-unreviewed | needs-review |
 | D-0088 | API POST bodies capped at 2 MB | agent-unreviewed | needs-review |
-| D-0089 | Editor render RPC accepts data from the authorized editor (isolate treats it as untrusted) | user-approved-plan | accepted |
-| D-0090 | Dev hostnames: site on localhost/site.localhost, editor on editor.localhost (allowedDevOrigins *.localhost) | user-approved-plan | accepted |
+| D-0089 | Editor render RPC accepts data from the authorized editor (isolate treats it as untrusted) | user-approved-plan | superseded by D-0192 |
+| D-0090 | Dev hostnames: site on localhost/site.localhost, editor on editor.localhost (allowedDevOrigins *.localhost) | user-approved-plan | superseded by D-0201 |
 | D-0091 | @puck-remote/core stays external in Next (serverExternalPackages) because it forks workers from its own files | user-approved-plan | accepted |
 <!-- decisions:end -->
 

@@ -57,7 +57,6 @@ function matches(doc: RawDoc, w: NormalizedWhere | null): boolean {
 
 export function mockCms(opts: { dataFile?: string; data?: MockData }) {
   const data: MockData = opts.data ? structuredClone(opts.data) : JSON.parse(readFileSync(opts.dataFile!, 'utf8'))
-  const listeners = new Set<(tags: string[]) => void>()
   const all = (c: string) => data.collections[c] ?? []
   // Visibility is a storage concern: drafts exist only for the editor (mode set by the host).
   const visible = (doc: RawDoc, ctx: SourceContext) => ctx.mode === 'draft' || doc._status !== 'draft'
@@ -97,7 +96,6 @@ export function mockCms(opts: { dataFile?: string; data?: MockData }) {
           author: { type: 'relation', to: 'authors', filter: ['equals', 'in'] },
         },
         limits: { default: 10, max: 12, maxDepth: 1 },
-        tags: ['posts'],
         find: findIn('posts'),
         findByID: byId('posts'),
       }),
@@ -105,7 +103,6 @@ export function mockCms(opts: { dataFile?: string; data?: MockData }) {
         // `email` exists in storage but is not exposed: never selectable or returned.
         fields: { name: { type: 'text' }, bio: { type: 'text', filter: false, sort: false } },
         limits: { default: 10, max: 50 },
-        tags: ['authors'],
         find: findIn('authors'),
         findByID: byId('authors'),
       }),
@@ -113,13 +110,8 @@ export function mockCms(opts: { dataFile?: string; data?: MockData }) {
     globals: {
       site: defineGlobal<Site>()({
         fields: { tagline: { type: 'text' }, footer: { type: 'text' } },
-        tags: ['global:site'],
         get: async () => data.globals.site ?? null,
       }),
-    },
-    subscribe(onChange: (tags: string[]) => void) {
-      listeners.add(onChange)
-      return () => listeners.delete(onChange)
     },
     /** Test/demo helper standing in for "content changed in the CMS". */
     admin: {
@@ -128,7 +120,6 @@ export function mockCms(opts: { dataFile?: string; data?: MockData }) {
         const i = list.findIndex((d) => d.id === doc.id)
         if (i >= 0) list[i] = doc
         else list.push(doc)
-        listeners.forEach((l) => l([collection]))
       },
     },
   })

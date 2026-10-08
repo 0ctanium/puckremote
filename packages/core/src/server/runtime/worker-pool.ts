@@ -128,7 +128,7 @@ class Worker {
   calls = 0
   private nextId = 1
   private pending = new Map<number, { resolve: (r: Reply) => void; reject: (e: Error) => void }>()
-  private loaded = new Set<number>()
+  private loaded = new Set<string>()
 
   private readonly tap: WorkerPoolOptions['tap']
 
@@ -188,7 +188,7 @@ class Worker {
     })
   }
 
-  async load(version: number, bundle: string, limits: IsolateLimits) {
+  async load(version: string, bundle: string, limits: IsolateLimits) {
     if (this.loaded.has(version)) return
     const r = await this.request({ t: 'load', version, bundle, limits })
     if (r.t === 'error') throw new Error(r.error)
@@ -260,7 +260,7 @@ class WorkerPoolRuntime implements RenderRuntime {
   readonly log: Pick<Console, 'error' | 'warn' | 'info'>
 
   constructor(
-    private readonly version: number,
+    private readonly version: string,
     private readonly bundle: string,
     readonly limits: IsolateLimits,
     private readonly opts: WorkerPoolOptions,
@@ -350,7 +350,7 @@ class WorkerPoolRuntime implements RenderRuntime {
 
 /** Run theme code in sandboxed worker processes (default). */
 export function workerPoolRenderer(opts: WorkerPoolOptions = {}): RendererFactory {
-  return ({ version, bundle, limits }) => new WorkerPoolRuntime(version, bundle, limits, opts)
+  return ({ id, bundle, limits }) => new WorkerPoolRuntime(id, bundle, limits, opts)
 }
 
 export type { WorkerPoolRuntime }

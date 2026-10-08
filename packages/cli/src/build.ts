@@ -7,7 +7,10 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { SDK_MAJOR } from '@puck-remote/sdk/constants'
 import { ISOLATE_SHIMS } from '@puck-remote/sdk/shims'
-import { BuildError, toJson, validateAdapter, validateDefinition, type BlockMeta } from './validate.ts'
+import { BuildError, toJson, validateAdapter, validateDefinition, validatePage, type BlockMeta } from './validate.ts'
+
+/** Imports the browser bundle leaves to the editor's import map. */
+export const BROWSER_EXTERNALS = ['react', 'react/jsx-runtime', 'react-dom', 'react-dom/client', '@puck-remote/sdk'] as const
 
 export interface Manifest {
   artifactVersion: string
@@ -25,49 +28,6 @@ export interface BuildOptions {
   outDir?: string
   /** Suppress console output (tests). */
   quiet?: boolean
-  /**
-   * Path to a previous manifest.json. The build fails if a block's fields changed without a
-   * version bump (saved content would no longer match), or if a version went down.
-   */
-  baseline?: string
-}
-
-type Shape = Record<string, unknown>
-
-/** What saved content depends on: field names, types, nesting and option values (not labels). */
-function fieldShape(fields: Record<string, unknown>): Shape {
-  const out: Shape = {}
-  for (const name of Object.keys(fields).sort()) {
-    const f = fields[name] as { type: string; arrayFields?: Record<string, unknown>; objectFields?: Record<string, unknown>; options?: { value: unknown }[] }
-    out[name] = {
-      type: f.type,
-      ...(f.arrayFields ? { arrayFields: fieldShape(f.arrayFields) } : {}),
-      ...(f.objectFields ? { objectFields: fieldShape(f.objectFields) } : {}),
-      ...((f.type === 'select' || f.type === 'radio') && f.options ? { options: f.options.map((o) => o.value) } : {}),
-    }
-  }
-  return out
-}
-
-type Versioned = { fields: Record<string, unknown>; version?: number }
-
-/**
- * Compare block versions and field shapes with a baseline manifest (older manifests have no
- * versions: 1). Blocks only on one side are fine. Returns the first problem, or null.
- */
-export function checkBaseline(next: { blocks: Record<string, Versioned>; root: Versioned | null }, base: { blocks?: Record<string, Versioned>; root?: Versioned | null }): string | null {
-  const pairs: [string, Versioned, Versioned | null | undefined][] = Object.entries(next.blocks).map(([n, b]) => [n, b, base.blocks?.[n]])
-  if (next.root) pairs.push(['root', next.root, base.root])
-  for (const [name, now, before] of pairs) {
-    if (!before) continue
-    const a = before.version ?? 1
-    const b = now.version ?? 1
-    if (b < a) return `block "${name}": version went down (${a} → ${b})`
-    if (b === a && JSON.stringify(fieldShape(now.fields)) !== JSON.stringify(fieldShape(before.fields))) {
-      return `block "${name}": fields changed without a version bump (still v${a}); bump "version" and add a migration`
-    }
-  }
-  return null
 }
 
 interface Sources {
@@ -185,12 +145,6 @@ export default { blocks, adapterList, adapterFiles, rootDef, categoriesDef };`
   }
   const root = mod.rootDef ? validateDefinition(mod.rootDef, 'root', 'root', adapterNames) : null
 
-  if (opts.baseline) {
-    const base = JSON.parse(await readFile(path.resolve(cwd, opts.baseline), 'utf8'))
-    const problem = checkBaseline({ blocks, root }, base)
-    if (problem) throw new BuildError(problem)
-  }
-
   const categories = toJson(mod.categoriesDef, 'config/categories') as Manifest['categories']
   for (const [key, c] of Object.entries(categories)) {
     c.components ??= []
@@ -224,8 +178,33 @@ install({ blocks, root: rootDef, adapters });`
   const bundle = isolateBuild.outputFiles![0].text
   await writeFile(path.join(outDir, 'bundle.js'), bundle)
 
-  // 3. Assets.
+  // 3. Browser bundle for the editor: the same definitions as ESM; React and the SDK come from the
+  // editor (import map), so the theme and Puck share one React.
+  const browserEntry = `${registrySource(sources)}
+export default { blocks, root: rootDef };`
+  const browserBuild = await esbuild({
+    ...common,
+    plugins: [],
+    stdin: { contents: browserEntry, resolveDir: cwd, loader: 'tsx', sourcefile: 'puck-remote-browser-entry.tsx' },
+    format: 'esm',
+    platform: 'browser',
+    target: 'es2022',
+    minify: true,
+    external: [...BROWSER_EXTERNALS],
+  })
+  await writeFile(path.join(outDir, 'bundle.browser.js'), browserBuild.outputFiles![0].text)
+
+  // 4. Assets.
   if (existsSync(path.join(cwd, 'assets'))) await cp(path.join(cwd, 'assets'), path.join(outDir, 'assets'), { recursive: true })
+
+  // 5. Pages (Shopify-like: content ships with the theme).
+  const pageFiles = await listFiles(path.join(cwd, 'pages'))
+  for (const rel of pageFiles) {
+    const file = `pages/${rel}`
+    const page = validatePage(file, await readFile(path.join(cwd, file), 'utf8'), blocks, root)
+    await mkdir(path.dirname(path.join(outDir, file)), { recursive: true })
+    await writeFile(path.join(outDir, file), JSON.stringify(page, null, 2) + '\n')
+  }
 
   const files: Record<string, string> = {}
   for (const rel of await listFiles(outDir)) files[rel] = sha256(await readFile(path.join(outDir, rel)))
@@ -242,6 +221,6 @@ install({ blocks, root: rootDef, adapters });`
     categories,
   }
   await writeFile(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
-  log(`${Object.keys(blocks).length} blocks, ${Object.keys(adapters).length} adapters, bundle ${(bundle.length / 1024).toFixed(0)} KB → ${path.relative(process.cwd(), outDir) || outDir}`)
+  log(`${Object.keys(blocks).length} blocks, ${Object.keys(adapters).length} adapters, ${pageFiles.length} pages, bundle ${(bundle.length / 1024).toFixed(0)} KB → ${path.relative(process.cwd(), outDir) || outDir}`)
   return { manifest, outDir }
 }

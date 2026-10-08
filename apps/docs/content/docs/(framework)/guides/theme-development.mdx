@@ -29,9 +29,11 @@ my-theme
 │   └── events.ts
 ├── config
 │   └── categories.ts
-└── assets
-    ├── theme.css
-    └── enhance.js
+├── assets
+│   ├── theme.css
+│   └── enhance.js
+└── pages
+    └── home.json
 ```
 
 | Path | Content |
@@ -41,6 +43,7 @@ my-theme
 | `adapters/*.ts` | Optional sans-IO adapters to external APIs, `defineAdapter(...)` |
 | `config/categories.ts` | Optional editor categories, `defineCategories(...)` |
 | `assets/**` | Copied as-is: CSS, client scripts, images |
+| `pages/<slug>.json` | The theme's pages (Puck data), shipped with the code; see [Pages and publishing](/docs/guides/publishing) |
 | `puck-remote-env.d.ts` | Optional: [type your host queries](/docs/guides/typing-queries) |
 
 <Steps>
@@ -82,7 +85,9 @@ export default defineBlock({
 
 Everything except `render` must be plain JSON. `render` must be **synchronous and pure**: no
 fetch, no timers, no state. Data comes from `data`, which you
-[declare as queries](/docs/sdk/data). Always handle `ok: false`.
+[declare as queries](/docs/sdk/data). Always handle `ok: false`. The same `render` runs in the
+server sandbox for the public site and as a client component in the editor, so it must give the
+same output in both.
 
 </Step>
 <Step>
@@ -141,12 +146,14 @@ operator must allowlist the origin and bind the secret to it ([Configuration](/d
 {
   "scripts": {
     "build": "puck-remote build",
-    "release": "puck-remote build && puck-remote publish --artifacts ../my-app/artifacts"
+    "release": "puck-remote build && puck-remote publish --artifacts ../my-app/artifacts",
+    "pull": "puck-remote pull --artifacts ../my-app/artifacts"
   }
 }
 ```
 
-Build errors name the file and the key at fault. See the [CLI](/docs/cli).
+Run `pull` before changing blocks: it brings the pages edited in the editor into `pages/`, so the
+next publish keeps them. Build errors name the file and the key at fault. See the [CLI](/docs/cli).
 
 </Step>
 </Steps>

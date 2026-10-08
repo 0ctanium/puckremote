@@ -46,12 +46,12 @@ const PER_ROOT: Record<keyof typeof ROOTS, Rule[]> = {
   // Engine + bindings: only the trusted contracts from the SDK; never a concrete plugin.
   core: [
     [/from\s+['"]@puck-remote\/sdk(\/(?!host['"])[^'"]*)?['"]/, 'imports the theme-facing SDK (only @puck-remote/sdk/host allowed)'],
-    [/from\s+['"]@puck-remote\/(source-|pages-|next)[^'"]*['"]/, 'imports a plugin or framework binding'],
+    [/from\s+['"]@puck-remote\/(source-|artifacts-|next|editor)[^'"]*['"]/, 'imports a plugin, framework binding or the editor'],
     [/from\s+['"]next(\/[^'"]*)?['"]/, 'imports next (core must stay framework-agnostic)'],
   ],
   next: [
     [/from\s+['"]@puck-remote\/sdk[^'"]*['"]/, 'imports the SDK directly'],
-    [/from\s+['"]@puck-remote\/(source-|pages-)[^'"]*['"]/, 'imports a concrete plugin'],
+    [/from\s+['"]@puck-remote\/(source-|artifacts-)[^'"]*['"]/, 'imports a concrete plugin'],
     [/(from|import)\s+['"]isolated-vm['"]/, 'imports isolated-vm (only the core may)'],
   ],
   // The app wires plugins (puck-remote.config.ts only) and uses the bindings; no SDK, no engine internals.
@@ -62,20 +62,21 @@ const PER_ROOT: Record<keyof typeof ROOTS, Rule[]> = {
   ],
 }
 
-// Where the bundle may legitimately flow: compiled in an isolate, in-process or in a sandboxed
-// worker. It is never served to browsers (the editor renders blocks through the server).
+// Where the isolate bundle may legitimately flow: compiled in an isolate, in-process or in a
+// sandboxed worker. It is never served to browsers (the editor app loads bundle.browser.js, on
+// its own credential-free origin).
 const BUNDLE_SINKS: Record<string, RegExp> = {
   'packages/core/src/server/runtime/in-process.ts': /compileScriptSync\(this\.bundle/,
   // Worker pool: the bundle goes over IPC to a sandboxed worker, which compiles it in an isolate.
   'packages/core/src/server/runtime/worker-pool.ts': /request\(\{ t: 'load', version, bundle, limits \}\)/,
   'packages/core/src/server/runtime/render-worker.ts': /new IsolateRunner\(m\.bundle, m\.limits/,
-  'packages/core/src/server/host.ts': /renderer\(\{ version, bundle, limits/,
-  'packages/core/src/core.ts': /readArtifactFile\(config\.artifacts, version, rel\)/, // served as bytes
+  'packages/core/src/server/host.ts': /renderer\(\{ id, bundle, limits/,
 }
 const BUNDLE_READERS = new Set([
   'packages/core/src/server/artifact-loader.ts', // reads + hash-verifies bytes, never evaluates
   'packages/core/src/server/static-files.ts', // generic byte server
   'packages/core/src/server/manifest-schema.ts', // asserts bundle.js is listed in files
+  'packages/core/src/server/pages.ts', // copies every file's bytes into a new artifact, never evaluates
 ])
 
 const strip = (src: string) => src.replace(/\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm, '')
@@ -95,7 +96,7 @@ describe('acceptance 7: no developer code outside the isolate', () => {
             if (rel === 'packages/core/src/server/runtime/worker-pool.ts' && what === 'createRequire') continue
             if (re.test(src)) violations.push(`${rel}: ${what}`)
           }
-          if (root === 'app' && rel !== 'apps/host/puck-remote.config.ts' && /from\s+['"]@puck-remote\/(source-|pages-)/.test(src)) {
+          if (root === 'app' && rel !== 'apps/host/puck-remote.config.ts' && /from\s+['"]@puck-remote\/(source-|artifacts-)/.test(src)) {
             violations.push(`${rel}: concrete plugins may only be wired in puck-remote.config.ts`)
           }
         }
@@ -110,7 +111,7 @@ describe('acceptance 7: no developer code outside the isolate', () => {
       const rel = path.relative(REPO, f)
       const src = strip(await readFile(f, 'utf8'))
       if (!/bundle\.js|\.bundle\b|\bbundle\)|themeBundleUrl|compileScript/.test(src) || BUNDLE_READERS.has(rel)) continue
-      if (rel.startsWith('apps/host/') || rel === 'packages/core/src/editor/index.ts' || rel === 'packages/next/src/index.ts') {
+      if (rel.startsWith('apps/host/') || rel === 'packages/next/src/index.ts') {
         // The app and the barrels only reference the bundle loader by name, never the file.
         expect(src, rel).not.toMatch(/bundle\.js|compileScript/)
         continue

@@ -14,7 +14,7 @@ graph LR
   Dev[Theme developer] -->|puck-remote build + publish| Store[(Artifact store)]
   Store --> Host[Your app + @puck-remote/core]
   Host -->|sandboxed render| Site[Public site]
-  Host -->|server-rendered canvas| Editor[Puck editor]
+  Host -->|postMessage| Editor[Puck editor, own site]
   Data[(Your CMS / DB / APIs)] -->|declarative queries| Host
 ```
 
@@ -23,13 +23,15 @@ graph LR
 - **Untrusted themes, safely.** Blocks render in `isolated-vm` inside permission-restricted
   worker processes. No filesystem, network, secrets or timers reach theme code.
 - **Data without trust.** Blocks *describe* their queries as JSON. Your server validates, dedupes,
-  budgets, caches and runs them against the data source you plug in.
-- **Real Puck.** The editor and the server-rendered site are standard Puck, built from the
-  theme's JSON metadata. Slots, nested blocks and drag-and-drop work as usual.
-- **Hot theme updates.** Publish a new version and the host verifies and swaps it without a
-  rebuild or restart. Rollback is one command.
-- **Framework-agnostic, adapters everywhere.** The engine works on standard `Request` and
-  `Response`; storage, cache, auth and data are adapters. Next.js bindings are included.
+  budgets and runs them against the data source you plug in.
+- **Real Puck.** The editor is the full Puck editor with the theme's real components, in an
+  iframe on its own credential-free site; the public site is server-rendered Puck. Slots, nested
+  blocks and drag-and-drop work as usual.
+- **Themes like Shopify's.** Pages ship inside the theme, so code and content are versioned
+  together: no content migrations. Publish and the host verifies and swaps it without a rebuild or
+  restart. Rollback is one command.
+- **Small core.** The engine loads remote components and renders them. Auth, publishing
+  workflows and storage belong to your app and its plugins. Next.js bindings are included.
 
 ## Packages
 
@@ -38,13 +40,16 @@ graph LR
     Install puck-remote in a Next.js app and render your first page.
   </Card>
   <Card title="@puck-remote/core" href="/docs/core">
-    The engine: configuration, rendering, editor, HTTP handlers and adapters.
+    The engine: configuration, rendering, pages in artifacts, editor payload and adapters.
   </Card>
   <Card title="@puck-remote/cli" href="/docs/cli">
-    Build a theme into a versioned artifact, publish it, roll back.
+    Build a theme (code and pages) into an artifact, publish it, pull editor changes, roll back.
   </Card>
   <Card title="@puck-remote/sdk" href="/docs/sdk">
     `defineBlock`, fields, queries and the contracts for host plugins.
+  </Card>
+  <Card title="@puck-remote/editor" href="/docs/concepts/editor">
+    The editor protocol, `<PuckEditorFrame>` for your admin page and the iframe bridge.
   </Card>
 </Cards>
 

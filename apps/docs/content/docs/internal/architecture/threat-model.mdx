@@ -11,12 +11,14 @@ may be actively hostile.
 
 | Actor | Trusted? | Runs where |
 |---|---|---|
-| Theme code (`render`, adapter `toRequest`/`fromResponse`) | **No** | isolated-vm isolate, inside a permission-restricted worker process |
-| Theme metadata (fields, defaults, queries, categories) | **No**, validated as data | Read from `manifest.json`, re-validated by the host with zod |
-| Theme client scripts (`ctx.assets.script`) | **No** | The visitor's browser, on the **site** origin only |
-| Host plugins (`DataSource`, `PageStore`, `ArtifactStore`, `CacheStore`, `AuthAdapter`) | Yes, chosen by the operator | Node, in the host process |
+| Theme code on the server (`render`, adapter `toRequest`/`fromResponse`) | **No** | isolated-vm isolate, inside a permission-restricted worker process |
+| Theme code in the editor (`render` from `bundle.browser.js`) | **No** | The editor app's origin, another site: no cookies, no secrets |
+| Theme metadata and pages | **No**, validated as data | Read from the artifact, hash-checked and re-validated by the host with zod |
+| Theme client scripts (`ctx.assets.script`) | **No** | The visitor's browser, on the public site only |
+| The editor app (Puck + bridge) | Holds no authority | The editor origin; can only send typed messages to the admin page |
+| Host plugins (`DataSource`, `ArtifactStore`), the app's admin pages, RPC handlers and publish plugin | Yes, chosen by the operator | Node and the admin origin |
 | The CLI on the developer's machine | Not by the host | The developer's machine; its output is re-checked |
-| Editors | Authenticated and authorized per action | Their browser, on the **editor** origin |
+| Editors | Authenticated by the app | Their browser: the admin page on the admin origin, the editor in the iframe |
 
 ## What a hostile theme cannot do
 
@@ -32,15 +34,19 @@ may be actively hostile.
   addresses, with manual same-origin redirects ([HTTP source](/docs/internal/architecture/http-source)).
 - **Hang or crash the host.** CPU timeouts, a memory cap, a wall-clock watchdog, and a host-side
   SIGKILL of the worker process ([worker pool](/docs/internal/architecture/worker-pool)).
-- **Run JavaScript in the editor.** The editor canvas is rendered on the server; the bundle is
-  never served to browsers ([D-0080](/docs/internal/decisions#D-0080)).
-- **Use an admin session from the public site.** Site and editor live on distinct origins,
-  enforced per request ([surfaces](/docs/concepts/surfaces-and-origins)).
+- **Use an admin session from the editor.** Theme components do run in the editor
+  ([D-0192](/docs/internal/decisions#D-0192)), but on a separate, credential-free site that only admin
+  origins may frame. They can only send protocol messages: `change` (data the admin decides to
+  publish or not) and RPCs the admin page allow-listed, size- and rate-limited, run with the
+  host's session ([editor protocol](/docs/internal/architecture/editor-protocol)). They cannot publish.
+- **Use an admin session from the public site.** Public pages are refused on admin origins, and
+  admin cookies are host-only ([origins](/docs/concepts/origins)).
+- **Point the editor at other code.** The bridge only imports a bundle URL on an admin origin;
+  the theme route serves only hash-verified files of a stored artifact.
 - **Forge slots.** Slot markers need a per-render nonce user content cannot know
   ([slots](/docs/concepts/slots)).
-- **Rewrite page structure through migrations.** Migrations run in the isolate like `render` and
-  only see field values; the host keeps each item's `id`, its slot content and every `__` key
-  ([migrations](/docs/sdk/migrations)).
+- **Ship pages that bypass validation.** Pages are hash-checked like code and re-validated on
+  read; `writePage` validates and strips resolved data before storing.
 
 ## Layers
 
@@ -52,12 +58,12 @@ Each layer assumes the previous one can fail.
 | Worker processes (`--permission`, fs allowlist, empty env, heap cap, SIGKILL watchdog, recycling) | JS-level isolate escapes reaching secrets, files, network; crashes taking the host down | default |
 | OS sandbox wrapper (`bubblewrap()`, Linux) | Native-code escapes | opt-in, experimental |
 | Remote renderer | Native-code escapes, at infrastructure level | planned (M5) |
-| Server-rendered editor | Theme JS in the editor origin | on |
-| Separate site and editor origins | Theme scripts using admin sessions | required in production |
-| CSRF (custom header + `Origin` allowlist) | Cross-site requests to the editor API | on |
-| CSP and security headers | Script injection, framing, sniffing, unlisted third-party scripts | editor enforced, site report-only by default |
-| Drafts only on the editor origin; public site reads published revisions | Unpublished content leaking to visitors | on |
-| Signed, expiring preview links (HMAC-SHA256 over slug, revision, expiry) | Drafts shown outside the editor beyond what was shared | when `preview` is configured |
+| Credential-free editor on its own site, `frame-ancestors` admin only | Theme JS in the editor using sessions | on when `origins` is configured |
+| Typed protocol: origin **and** source checks, explicit target origins, allow-listed RPCs, size and rate limits | A framed or hostile editor driving the host | on |
+| Admin origins distinct from the editor; public pages refused on admin origins | Theme scripts using admin sessions | on (config check, bindings) |
+| Origin check on the RPC route | Cross-site requests to RPCs and publishing | on (`createEditorRpcRoute`) |
+| CSP and security headers | Script injection, framing, sniffing, unlisted third-party scripts | admin enforced, site report-only by default |
+| Draft data only through the editor's RPC; public renders use `public` mode | Unpublished content leaking to visitors | on |
 
 ## Known limits
 
@@ -65,9 +71,12 @@ Each layer assumes the previous one can fail.
   model does not constrain. Use the bubblewrap wrapper or (later) a remote renderer.
 - Blocks within one request share a context and can influence each other.
 - Theme client scripts don't run in the editor canvas (by design).
-- A preview link is a bearer token: whoever has it sees that draft revision, with draft data,
-  until it expires. Theme client scripts on the preview page can read it from the URL (it only
-  grants that same view). `referrer-policy: same-origin` keeps it out of third-party `Referer`
-  headers. Revocation means rotating `preview.secret`.
+- Theme code in the editor sees the page being edited and the draft data RPCs return for it, and
+  can send `change` messages with arbitrary (validated) page data. What gets published is still
+  the admin's action, through the host UI.
+- Authorization is entirely the app's: a handler of `createEditorRpcRoute` or a publish action that
+  forgets its session check is open to anyone on the admin origin.
+- The editor origin's isolation depends on it being another **site**; a subdomain of the app's
+  registrable domain could receive `Domain=` cookies.
 
 See [known gaps](/docs/internal/quality/known-gaps) for the full list.

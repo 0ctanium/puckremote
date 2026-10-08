@@ -1,55 +1,55 @@
 ---
 title: Editor lifecycle
-description: From opening the editor page to saving, step by step.
+description: From opening the admin page to publishing, step by step.
 ---
 
-1. **`loadEditor`** (server): classify the request (editor origin only), authorize `editor:open`,
-   load the page (or an empty page with root defaults), `stripResolved` + `rewriteMissing`, and
-   return `EditorProps`: manifest, version, slug, site, routes, `siteOrigin` (for "View page",
-   [D-0084](/docs/internal/decisions#D-0084)), initial data and an `uncacheable` flag.
-2. **`EditorClient`** (browser) builds the Puck config from the manifest with
-   `buildEditorConfig`:
-   - fields via `mapFields` (host fields are Puck custom fields owned by the host; no theme code);
+1. **Admin page** (server, your app): checks your session, then `remote.loadEditor(props)`
+   (404 outside admin origins) → `core.editorPayload(slug)`: reads the page from the current
+   artifact (or an empty page with root defaults), `stripResolved` + `rewriteMissing`, and returns
+   the payload: artifact id, manifest, data, absolute `bundleUrl` / `assetBase` on the first admin
+   origin, `origins`, `site` ([D-0208](/docs/internal/decisions#D-0208)).
+2. **`<PuckEditorFrame>`** (admin page, browser) runs `frameProblem`: it must run on an admin
+   origin, and `editorUrl`, `editorOrigin` and `payload.origins.editor` must agree. Only then does
+   it render the iframe (`sandbox="allow-scripts allow-same-origin allow-forms allow-popups"`,
+   `referrerPolicy="no-referrer"`) and listen for messages through `hostMessageHandler`.
+3. **Bridge** (editor app): `startEditorBridge` posts `ready` to each allowed parent origin (only
+   the real parent receives it), then waits for `init` from `window.parent` on an allowed origin.
+   `initProblem` checks it runs on `payload.origins.editor`, that the sender is an admin origin
+   and that the theme URLs are on an admin origin.
+4. **Theme**: the bridge imports `bundle.browser.js` (its bare imports resolve through the editor's
+   import map to the editor's own React and SDK) and calls `buildEditorConfig(manifest, theme,
+   deps)`:
+   - fields via `mapFields` (`host:*` fields are the editor's own Puck custom fields);
    - `resolveFields` from `visibleIf`, evaluated by `isVisible` (never evaluates strings);
-   - `resolveData` → `POST /api/blocks/resolve`, result stored in `props.__data` with
+   - `resolveData` → the `resolveData` RPC, result stored in `props.__data` with
      `readOnly.__data` ([D-0028](/docs/internal/decisions#D-0028));
-   - `render` → `RemoteBlock`, which uses `useRemoteRender`.
-3. **Rendering**: `createRemoteRenderer` queues every request issued in the same tick and sends
-   one `POST /api/blocks/render` (≤ 100 items per call). The server opens **one session** for the
-   batch, renders each item with a fresh nonce and `isEditing: true`, and returns HTML, nonce and
-   effects. The client caches results by a stable key of `(kind, name, props, data)` (LRU 500) and
-   dedupes in-flight requests. `useRemoteRender` debounces re-renders (150 ms) and keeps the last
-   HTML on screen.
-4. **Slots**: `htmlToReact` swaps nonce-valid markers for Puck's slot components, exactly like the
-   public renderer, so drag-and-drop works on nested blocks.
-5. **Styles**: `ctx.assets.style` effects pointing at the theme's assets are injected into Puck's
-   canvas iframe by the `iframe` override. Scripts are not run in the editor.
-6. **Save** → `POST /api/pages/save` with the CSRF header and the draft revision the editor
-   loaded as `baseRevision`. The server restores `__missing` blocks to their original type and
-   props, strips `__data`, validates and saves a new draft revision; a stale base is a `409`.
-   `loadEditor` opens the latest **draft** (`readDraft`), migrates outdated items (`migratePage`,
-   so the next save stores the result; failed blocks are listed in `EditorProps.migrationErrors`),
-   and passes its `PageMeta` as `EditorProps.page`. On save, `stampVersions` gives items without
-   `__v` (added in the editor) their block's current version; restore copies a revision as is.
-7. **Reload theme** → `POST /api/artifact/reload`; if the version changed, the page reloads.
-8. **Workflow header** (`workflow.tsx`): Save draft, Publish, Copy preview link (when
-   `EditorProps.previewEnabled`), History/Restore and the conflict banner call the `pages/*` routes. "Unsaved changes" compares the editor data with the last saved
-   data, ignoring `__data` and `readOnly` (what `resolveData` adds), so loading data never marks a
-   page as changed ([D-0165](/docs/internal/decisions#D-0165)). The header gets its state through React
-   context: Puck remounts an override whose identity changes, so the `overrides` object is a
-   stable module constant ([D-0167](/docs/internal/decisions#D-0167)).
+   - `render` → `BrowserBlock`: the theme's `render(props, data, ctx)` inside an error boundary,
+     with `SlotContext` providing Puck's slot components to the SDK's `<Slot>`.
+5. **Styles**: `ctx.assets.style` URLs under the artifact's `assetBase` are injected into Puck's
+   canvas iframe by the `iframe` override. Scripts are not run in the editor; `head.*` is ignored.
+   Puck's own Publish button is replaced by nothing: publishing is host UI.
+6. **Changes**: Puck's `onChange` is debounced (500 ms) and sent as `change` with the full data;
+   the frame validates it and calls `onChange`.
+7. **Publish** (host UI, the example's plugin): the admin page sends `{ slug, data, base }` to its
+   own RPC route; the handler refuses when the pointer moved since `base`, then
+   `core.writePage` (`cleanPage`: zod, `restoreMissing`, `stripResolved`) and
+   `artifacts.writePointer(id)`, then reloads the host's artifact.
 
 ## resolveData details
 
 - Runs on load/insert, when a prop listed in the manifest's `propRefs` changed, or on `force`.
 - Keystrokes (`trigger: 'replace'`) are debounced per block (300 ms); superseded calls give up.
 - Failures fall back to `{ ok: false, error: 'loading' }` for each data key.
+- On the server, `core.resolveBlockData` parses `{ slug, block, props }` with a non-strict schema
+  (anything else is dropped), takes the spec from the manifest and runs it in **draft** mode.
 
 <Source path="packages/core/src/core.ts" />
-<Source path="packages/core/src/editor/EditorClient.tsx" />
-<Source path="packages/core/src/editor/config.tsx" />
-<Source path="packages/core/src/editor/remote-render.ts" />
-<Source path="packages/core/src/editor/workflow.tsx" />
-<Source path="packages/core/src/editor/fields.ts" />
-<Source path="packages/core/src/editor/host-fields.tsx" />
-<Source path="packages/core/src/editor/visible-if.ts" />
+<Source path="packages/core/src/server/editor-rpc.ts" />
+<Source path="packages/editor/src/frame.tsx" />
+<Source path="packages/editor/src/bridge.tsx" />
+<Source path="packages/editor/src/config.tsx" />
+<Source path="packages/editor/src/fields.ts" />
+<Source path="packages/editor/src/host-fields.tsx" />
+<Source path="packages/editor/src/visible-if.ts" />
+<Source path="apps/editor/src/main.tsx" />
+<Source path="apps/host/src/app/api/editor-rpc/route.ts" />

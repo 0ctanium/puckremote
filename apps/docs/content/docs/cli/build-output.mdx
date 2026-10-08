@@ -7,16 +7,21 @@ description: What puck-remote build produces.
 dist
 ├── manifest.json
 ├── bundle.js
-└── assets
-    ├── theme.css
-    └── enhance.js
+├── bundle.browser.js
+├── assets
+│   ├── theme.css
+│   └── enhance.js
+└── pages
+    └── home.json
 ```
 
 <TypeTable
   type={{
-    'manifest.json': { description: "Everything except code: blocks, root, fields, defaults, queries, adapters (name and origin), categories, and the sha256 of every file. See the manifest format.", type: 'JSON' },
-    'bundle.js': { description: "One minified script with the sandbox shims, React, react-dom/server, the SDK runtime and your blocks. It exposes only __render, __toRequest and __fromResponse.", type: 'JavaScript' },
-    'assets/**': { description: "Your assets folder, copied as-is. Served at /theme/v<N>/assets/** only if listed in the manifest with a matching hash.", type: 'files' },
+    'manifest.json': { description: "Everything except code: blocks, root, fields, defaults, queries, adapters (name and origin), categories, and the sha256 of every other file, pages included. See the manifest format.", type: 'JSON' },
+    'bundle.js': { description: "One minified script with the sandbox shims, React, react-dom/server, the SDK runtime and your blocks. It exposes only __render, __toRequest and __fromResponse. Runs on the server only; never served.", type: 'JavaScript' },
+    'bundle.browser.js': { description: "Your blocks and root as an ES module (default export { blocks, root }) for the editor. Imports react, react/jsx-runtime, react-dom, react-dom/client and @puck-remote/sdk by name; the editor provides them. Served at /theme/<id>/bundle.browser.js.", type: 'JavaScript' },
+    'assets/**': { description: "Your assets folder, copied as-is. Served at /theme/<id>/assets/** only if listed in the manifest with a matching hash.", type: 'files' },
+    'pages/**': { description: "Your pages folder, validated against the blocks and re-serialized. Never served; read by the host.", type: 'JSON' },
   }}
 />
 

@@ -1,6 +1,6 @@
 ---
 title: Artifact store
-description: Where published theme versions and the active-version pointer live.
+description: Where theme artifacts (code and pages) and the current-artifact pointer live.
 ---
 
 ## `@puck-remote/artifacts-fs`
@@ -17,28 +17,34 @@ import { fsArtifactStore } from '@puck-remote/artifacts-fs';
 artifacts: fsArtifactStore({ dir: path.join(process.cwd(), 'artifacts') }),
 ```
 
-<TypeTable type={{ dir: { description: "Directory holding v<N>/ folders and current.json.", type: 'string', required: true } }} />
+<TypeTable type={{ dir: { description: "Directory holding one folder per artifact and current.json.", type: 'string', required: true } }} />
 
 ```files
 artifacts
 ├── current.json
-├── v1
+├── 1d361ac2d6ec…
 │   ├── manifest.json
 │   ├── bundle.js
-│   └── assets
-└── v2
+│   ├── bundle.browser.js
+│   ├── assets
+│   └── pages
+└── e1cf82a1deba…
 ```
 
-- Versions are written to a temporary directory, then renamed: a half-written version is never
-  visible. Existing versions are never overwritten.
-- `current.json` is replaced atomically (temp file + rename).
-- `watch` reports pointer changes from a directory watcher, so the host switches versions within
-  ~100 ms.
-- Reads resolve symlinks and refuse anything outside the version directory.
+- **Ids are content hashes** ([D-0206](/docs/internal/decisions#D-0206)): sha256 over the sorted lines
+  `<path>\0<sha256(file)>\n` of every file, in full hex (`artifactHash(files)` computes it). The
+  same files always get the same id; writing them again returns the existing artifact.
+- Artifacts are written to a temporary directory, then renamed: a half-written one is never
+  visible. Existing artifacts are never overwritten.
+- `current.json` (`{"id": "…"}`) is replaced atomically (temp file + rename).
+- `watch` reports pointer changes from a directory watcher, so the host switches within ~100 ms.
+- Reads resolve symlinks and refuse anything outside the artifact directory.
 
 ## Writing your own
 
-For serverless or several instances, use a shared store (S3, a database…).
+For serverless or several instances, use a shared store (S3, a database…). Ids are yours to
+choose ([D-0189](/docs/internal/decisions#D-0189)): content hashes, counters, database keys. The core treats
+them as opaque strings and only requires `[A-Za-z0-9._-]{1,128}`, because they appear in URLs.
 
 ```ts
 import type { ArtifactStore } from '@puck-remote/sdk/host';
@@ -46,16 +52,16 @@ import type { ArtifactStore } from '@puck-remote/sdk/host';
 
 <TypeTable
   type={{
-    readPointer: { description: "Active version, or null if nothing was published.", type: '() => Promise<number | null>', required: true },
-    writePointer: { description: "Atomically switch the active version (publish and rollback).", type: '(version: number) => Promise<void>', required: true },
-    listVersions: { description: "All published versions.", type: '() => Promise<number[]>', required: true },
-    readFile: { description: "Bytes of a file of a version, or null.", type: '(version: number, path: string) => Promise<Uint8Array | null>', required: true },
-    writeVersion: { description: "Write a complete version; must not become visible until fully written.", type: '(version: number, files: Record<string, Uint8Array>) => Promise<void>', required: true },
+    readPointer: { description: "Current artifact id, or null if nothing was published.", type: '() => Promise<string | null>', required: true },
+    writePointer: { description: "Atomically switch the current artifact (going live, rollback). Refuse unknown ids.", type: '(id: string) => Promise<void>', required: true },
+    list: { description: "All stored artifact ids.", type: '() => Promise<string[]>', required: true },
+    readFile: { description: "Bytes of a file of an artifact, or null.", type: '(id: string, path: string) => Promise<Uint8Array | null>', required: true },
+    writeArtifact: { description: "Store a complete artifact and return its id; must not become visible until fully written. Stored artifacts never change.", type: '(files: Record<string, Uint8Array>) => Promise<string>', required: true },
     watch: { description: "Optional change feed for the pointer. Without it the host polls readPointer every artifactPollMs.", type: '(onChange: () => void) => () => void' },
   }}
 />
 
-The store only moves bytes: the host validates the manifest and verifies every file's hash, and
-keeps serving the previous version if anything is wrong. Paths are relative POSIX paths already
-validated by the host; still refuse escapes. Check your store with
+The store only moves bytes: the host validates the manifest and verifies every file's hash
+(pages included), and keeps serving the previous artifact if anything is wrong. Paths are
+relative POSIX paths already validated by the host; still refuse escapes. Check your store with
 [`artifactStoreContract`](/docs/core/adapters/testing).

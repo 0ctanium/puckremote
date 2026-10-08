@@ -1,0 +1,98 @@
+{
+  "root": {
+    "props": {
+      "title": "Home",
+      "description": "A page rendered from sandboxed blocks",
+      "theme": "light"
+    }
+  },
+  "content": [
+    {
+      "type": "hero",
+      "props": {
+        "content": [
+          {
+            "type": "card",
+            "props": {
+              "content": [
+                {
+                  "type": "latest-posts",
+                  "props": {
+                    "content": [],
+                    "id": "posts-nested",
+                    "heading": "Nested posts",
+                    "count": 2,
+                    "layout": "list",
+                    "columns": 2,
+                    "items": []
+                  }
+                },
+                {
+                  "type": "latest-posts",
+                  "props": {
+                    "content": [],
+                    "id": "latest-posts-7669e253-2d11-466c-836b-4ed5fed56d7a",
+                    "heading": "Copy in card slot",
+                    "count": 2,
+                    "layout": "list",
+                    "columns": 2,
+                    "items": []
+                  }
+                }
+              ],
+              "id": "card-1",
+              "title": "A card inside the hero",
+              "body": "Cards have their own slot.",
+              "tone": "accent"
+            }
+          }
+        ],
+        "id": "hero-1",
+        "title": "Sandboxed React blocks",
+        "subtitle": "Rendered inside isolated-vm, composed by Puck.",
+        "align": "center",
+        "background": "#f4f1ea",
+        "showCta": true,
+        "cta": {
+          "href": "/search",
+          "label": "Search posts"
+        }
+      }
+    },
+    {
+      "type": "quote",
+      "props": {
+        "id": "quote-1",
+        "text": "Untrusted code, trusted pipeline.",
+        "author": "POC"
+      }
+    },
+    {
+      "type": "latest-posts",
+      "props": {
+        "content": [],
+        "id": "posts-1",
+        "heading": "Latest",
+        "count": 2,
+        "layout": "grid",
+        "columns": 3,
+        "accent": "#c2410c",
+        "items": [
+          {
+            "title": "Pinned: read the README"
+          }
+        ]
+      }
+    },
+    {
+      "type": "event-list",
+      "props": {
+        "id": "events-1",
+        "heading": "Upcoming events",
+        "city": "",
+        "count": 4
+      }
+    }
+  ],
+  "zones": {}
+}

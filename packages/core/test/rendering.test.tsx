@@ -88,8 +88,8 @@ describe('15. slots render real child blocks', () => {
     expect(html).not.toMatch(/data-puck-slot="(content|children)" data-nonce="[0-9a-f]{32}"/) // all real markers swapped
     // Head effects collected from root
     expect(page.head.title).toBe('Hello · POC Site')
-    expect(page.head.styles).toEqual(['/theme/v1/assets/theme.css'])
-    expect(page.head.scripts[0]).toMatchObject({ url: '/theme/v1/assets/enhance.js', defer: true })
+    expect(page.head.styles).toEqual([`/theme/${page.artifact}/assets/theme.css`])
+    expect(page.head.scripts[0]).toMatchObject({ url: `/theme/${page.artifact}/assets/enhance.js`, defer: true })
     await h.close()
   })
 })

@@ -1,23 +1,25 @@
 ---
 title: Security headers
-description: Headers and CSP set per surface by securityHeaders().
+description: Headers and CSP for public pages, admin pages, the editor app and theme files.
 ---
+
+`securityHeaders(surface, …)` from `@puck-remote/core/edge` builds them; the Next proxy picks the
+surface from the request's origin: admin origins get `admin`, every other origin `site`.
 
 All surfaces: `x-content-type-options: nosniff`, `referrer-policy: same-origin`.
 
-## Editor
+## Admin pages
 
 `x-frame-options: DENY`, `cross-origin-opener-policy: same-origin`, and (enforced by default):
 
 ```
 default-src 'self'; script-src 'self' 'nonce-…' 'strict-dynamic'; style-src 'self' 'unsafe-inline';
-img-src 'self' https: data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob: data:;
-object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+img-src 'self' https: data: blob:; font-src 'self' data:; connect-src 'self';
+frame-src <editor origin>; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 ```
 
-`style-src 'unsafe-inline'` is needed by Puck's inline styles. The editor imports Puck's
-`no-external.css` because the default stylesheet loads a font from a third-party origin
-([D-0085](/docs/internal/decisions#D-0085)).
+The only frame an admin page may load is the editor app ([D-0195](/docs/internal/decisions#D-0195)).
+Without `origins`, `frame-src` is `'none'`.
 
 ## Site
 
@@ -33,11 +35,28 @@ frame-ancestors <frameAncestors>
 Theme `<script>` tags carry the nonce; with `strict-dynamic`, scripts they load are trusted. The
 origin list is the fallback for browsers without `strict-dynamic`.
 
+## Editor app
+
+Served by your static host, not by the core. The example's `apps/editor/serve.mjs` sends:
+
+```
+default-src 'self'; script-src 'self' '<import map hash>' <admin origins>;
+style-src 'self' 'unsafe-inline' <admin origins>; img-src * data: blob:; font-src 'self' data: <admin origins>;
+connect-src 'self'; frame-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'none';
+frame-ancestors <admin origins>
+```
+
+plus `referrer-policy: no-referrer`, `cross-origin-opener-policy: same-origin` and `cache-control:
+no-store`. The theme bundle and assets come from the admin origin's theme route. See
+[The editor app](/docs/guides/editor-app).
+
 ## Development
 
 `dev: true` adds `'unsafe-eval'` to `script-src` and `ws:` to `connect-src` (HMR) and nothing else.
 
-## Theme assets
+## Theme files
 
 `content-type` from the extension (unknown types download as attachments), `nosniff`,
-`cache-control: public, max-age=31536000, immutable`, `cross-origin-resource-policy: same-origin`.
+`cache-control: public, max-age=31536000, immutable`. With `origins`, also
+`access-control-allow-origin: <editor origin>` and `cross-origin-resource-policy: cross-origin`
+(the editor is another site); otherwise `cross-origin-resource-policy: same-origin`.

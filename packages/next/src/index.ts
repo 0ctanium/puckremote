@@ -4,22 +4,21 @@
  *
  *   // src/puck-remote.ts
  *   export const remote = createPuckRemote(config)
- *   // app/[[...path]]/page.tsx        → remote.loadPage(props) + <PuckRemotePage page={page} />
- *   // app/editor/[[...path]]/page.tsx → <EditorClient {...await remote.loadEditor(props)} />
- *   // app/api/[[...path]]/route.ts    → export const { GET, POST } = remote.api
- *   // app/theme/[[...path]]/route.ts  → export const { GET } = remote.theme
+ *   // app/[[...path]]/page.tsx            → remote.loadPage(props) + <PuckRemotePage page={page} />
+ *   // app/admin/[[...path]]/page.tsx      → <PuckEditorFrame payload={await remote.loadEditor(props)} … />
+ *   // app/admin/rpc/route.ts              → export const { POST } = remote.createEditorRpcRoute(handlers)
+ *   // app/theme/[[...path]]/route.ts      → export const { GET, HEAD } = remote.theme
  */
-import { AccessDeniedError, createCore, normalizeSlug, WrongSurfaceError, type EditorProps, type PageContext, type PuckRemoteConfig, type PuckRemoteCore, type PreparedPage } from '@puck-remote/core'
-import { PREVIEW_PARAM } from '@puck-remote/core/edge'
+import { createCore, normalizeSlug, type EditorPayload, type PageContext, type PuckRemoteConfig, type PuckRemoteCore, type PreparedPage } from '@puck-remote/core'
+import { requestOrigin } from '@puck-remote/core/edge'
 import { pageMetadata } from '@puck-remote/core/react'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { cache } from 'react'
 
 export { PuckRemotePage, pageMetadata } from '@puck-remote/core/react'
-export { EditorClient } from '@puck-remote/core/editor'
-export type { EditorProps, PageContext, PuckRemoteConfig, PreparedPage }
+export type { EditorPayload, PageContext, PuckRemoteConfig, PreparedPage }
 
 type Params = Promise<{ path?: string[] }>
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
@@ -28,19 +27,30 @@ export interface PageProps {
   searchParams?: SearchParams
 }
 
+/** A server-side RPC handler. Wrap it with your own auth: the request carries the admin session. */
+export type EditorRpcHandler = (params: unknown, request: Request) => Promise<unknown> | unknown
+
+/** Max RPC request body (JSON). */
+const RPC_MAX_BYTES = 1024 * 1024
+
 export interface PuckRemote {
   core: PuckRemoteCore
-  /** Resolve data and render all blocks in the isolate. Calls notFound() for unknown pages. */
+  /** Resolve data and render all blocks in the isolate. Calls notFound() for unknown pages and on admin origins. */
   loadPage(props: PageProps, context?: PageContext): Promise<PreparedPage>
   generateMetadata(props: PageProps): Promise<Metadata>
-  loadEditor(props: { params: Params }): Promise<EditorProps>
-  api: { GET: (req: Request) => Promise<Response>; POST: (req: Request) => Promise<Response> }
+  /** The editor payload for an admin page. Calls notFound() outside the configured admin origins. */
+  loadEditor(props: { params: Params }): Promise<EditorPayload>
+  /**
+   * POST route dispatching `{ method, params }` to allow-listed handlers. Refuses requests whose
+   * Origin is not an admin origin, and bodies over 1 MB. Authentication is the handlers' job.
+   */
+  createEditorRpcRoute(handlers: Record<string, EditorRpcHandler>): { POST: (req: Request) => Promise<Response> }
   theme: { GET: (req: Request) => Promise<Response>; HEAD: (req: Request) => Promise<Response> }
 }
 
-async function slugOf(params: Params, strip?: string): Promise<string> {
+async function slugOf(params: Params): Promise<string> {
   const slug = normalizeSlug((await params).path)
-  if (!slug || slug === strip) notFound()
+  if (!slug) notFound()
   return slug
 }
 
@@ -48,14 +58,6 @@ function firstValues(sp: Record<string, string | string[] | undefined>): Record<
   const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(sp)) if (v !== undefined) out[k] = Array.isArray(v) ? v[0] : v
   return out
-}
-
-export interface NextBindingOptions {
-  /**
-   * Where to send unauthenticated editor visitors (`?next=<editor path>` is appended).
-   * Without it, denied editor requests render the 404 page (the editor's existence isn't revealed).
-   */
-  loginUrl?: string
 }
 
 /** Rebuild a standard Request from the incoming headers (server components have no Request). */
@@ -66,18 +68,20 @@ async function currentRequest(pathname: string): Promise<Request> {
   return new Request(`${proto}://${host}${pathname}`, { headers: h })
 }
 
-export function createPuckRemote(config: PuckRemoteConfig, options: NextBindingOptions = {}): PuckRemote {
+const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'private, no-store' } })
+
+export function createPuckRemote(config: PuckRemoteConfig): PuckRemote {
   const core = createCore(config)
   // Per-request memo: generateMetadata and the page share one isolate pass.
   // React cache() is per request, so the memo never crosses requests (or hostnames).
   const prepare = cache(async (slug: string, qs: string, locale: string | undefined) => {
-    // The request lets the core check that this origin serves the public site.
-    const request = await currentRequest(`/${slug === 'home' ? '' : slug}`)
-    const query = Object.fromEntries(new URLSearchParams(qs))
-    return core.preparePage(slug, query, { locale, request, preview: query[PREVIEW_PARAM] })
+    return core.preparePage(slug, Object.fromEntries(new URLSearchParams(qs)), { locale })
   })
+  const isAdmin = (request: Request) => !!core.config.origins?.admin.includes(requestOrigin(request))
   const loadPage: PuckRemote['loadPage'] = async ({ params, searchParams }, context = {}) => {
     const slug = await slugOf(params)
+    // Theme scripts run on public pages: never next to the admin session.
+    if (isAdmin(await currentRequest('/'))) notFound()
     const qs = new URLSearchParams(firstValues((await searchParams) ?? {})).toString()
     const page = await prepare(slug, qs, context.locale)
     if (!page) notFound()
@@ -93,17 +97,31 @@ export function createPuckRemote(config: PuckRemoteConfig, options: NextBindingO
     },
     async loadEditor({ params }) {
       const slug = await slugOf(params)
-      const path = `${core.config.routes.editor}/${slug === 'home' ? '' : slug}`
-      try {
-        return await core.loadEditor(slug, await currentRequest(path))
-      } catch (e) {
-        if (e instanceof WrongSurfaceError) notFound()
-        if (!(e instanceof AccessDeniedError)) throw e
-        if (e.status === 401 && options.loginUrl) redirect(`${options.loginUrl}?next=${encodeURIComponent(path)}`)
-        notFound()
+      // Admin pages exist only on admin origins (the editor's existence isn't revealed elsewhere).
+      if (!isAdmin(await currentRequest('/'))) notFound()
+      return core.editorPayload(slug)
+    },
+    createEditorRpcRoute(handlers) {
+      return {
+        async POST(request) {
+          // Same-origin calls from the admin page only (CSRF): browsers always send Origin on POST.
+          const origin = request.headers.get('origin')
+          if (!origin || !core.config.origins?.admin.includes(origin) || !isAdmin(request)) return json({ error: 'not found' }, 404)
+          if (Number(request.headers.get('content-length') ?? 0) > RPC_MAX_BYTES) return json({ error: 'too large' }, 413)
+          const text = await request.text().catch(() => '')
+          if (Buffer.byteLength(text) > RPC_MAX_BYTES) return json({ error: 'too large' }, 413)
+          let body: { method?: unknown; params?: unknown }
+          try {
+            body = JSON.parse(text)
+          } catch {
+            return json({ error: 'invalid body' }, 400)
+          }
+          const method = typeof body?.method === 'string' ? body.method : ''
+          if (!Object.hasOwn(handlers, method)) return json({ error: 'unknown method' }, 404)
+          return json({ value: await handlers[method](body.params, request) })
+        },
       }
     },
-    api: { GET: (req) => core.handleApi(req), POST: (req) => core.handleApi(req) },
     theme: { GET: (req) => core.handleTheme(req), HEAD: (req) => core.handleTheme(req) },
   }
 }

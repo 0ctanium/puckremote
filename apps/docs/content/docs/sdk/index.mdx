@@ -28,11 +28,11 @@ export default defineBlock({
 | Import | For | Content |
 |---|---|---|
 | `@puck-remote/sdk` | Themes | `defineBlock`, `defineRoot`, `defineAdapter`, `defineCategories`, `Slot`, `find`, `findByID`, `global`, `source`, `query`, `http`, types |
-| `@puck-remote/sdk/host` | Host adapters | `DataSource`, `PageStore`, `ArtifactStore`, `CacheStore`, `AuthAdapter` and their helpers |
+| `@puck-remote/sdk/host` | Host adapters | `DataSource`, `ArtifactStore` and their helpers |
 | `@puck-remote/sdk/constants` | Tooling | `SDK_MAJOR`, field types, operators, limits |
 | `@puck-remote/sdk/runtime`, `/shims` | The CLI | Sandbox entry points and shims (you don't import these) |
 
-`SDK_MAJOR` (currently `1`) versions the contract between themes and hosts: a host rejects
+`SDK_MAJOR` (currently `3`) versions the contract between themes and hosts: a host rejects
 artifacts built for another major version with an explicit message.
 
 <Cards>

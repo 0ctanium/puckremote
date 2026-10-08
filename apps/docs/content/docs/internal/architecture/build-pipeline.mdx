@@ -7,7 +7,7 @@ description: How puck-remote build turns a theme repo into an artifact.
 **not by the host**.
 
 1. **List sources**: `blocks/*.{tsx,ts,jsx,js}` (lowercase slug names), `root.*`, `adapters/*`,
-   `config/categories.*`.
+   `config/categories.*`, `pages/**/*.json`.
 2. **Metadata build**: esbuild bundles a generated entry importing every definition (platform
    node, ESM), writes it to a temp file and `import`s it **in Node**. React and react-dom are
    resolved from the theme repo (`single-react` plugin) so there is exactly one copy.
@@ -19,14 +19,18 @@ description: How puck-remote build turns a theme repo into an artifact.
 4. **Isolate bundle**: esbuild bundles a second entry that calls `install({ blocks, root,
    adapters })` from `@puck-remote/sdk/runtime`, as a minified **IIFE** (`platform: 'neutral'`,
    `conditions: ['browser']`, `target: es2022`, `NODE_ENV=production`), with `ISOLATE_SHIMS` as a
-   banner. It exposes only `__render`, `__toRequest`, `__fromResponse`, `__migrate`.
-5. **Assets**: `assets/` copied as-is.
-6. **Manifest**: sha256 of every file, `artifactVersion` = package version + bundle hash prefix,
-   `sdkMajor: 2` (bumped when `__migrate` was added, [D-0143](/docs/internal/decisions#D-0143)). Each
-   block's meta carries its `version`.
-7. **Baseline** (optional, `--baseline`, and always in `publish` against the active version):
-   `checkBaseline` compares each block's field shape (names, types, nested fields, select/radio
-   option values) and version with the previous manifest.
+   banner. It exposes only `__render`, `__toRequest`, `__fromResponse`.
+5. **Browser bundle**: the same definitions as an ESM module (`export default { blocks, root }`,
+   `platform: 'browser'`, minified), with `BROWSER_EXTERNALS` (`react`, `react/jsx-runtime`,
+   `react-dom`, `react-dom/client`, `@puck-remote/sdk`) left as bare imports for the editor's
+   import map ([D-0200](/docs/internal/decisions#D-0200)). Written as `bundle.browser.js`.
+6. **Assets**: `assets/` copied as-is.
+7. **Pages** (`validatePage`): each `pages/<slug>.json` must have a valid slug path, parse as JSON,
+   have Puck's `{ root, content }` shape, and use only blocks of this theme, slots included
+   ([D-0199](/docs/internal/decisions#D-0199)). Written back re-serialized.
+8. **Manifest**: sha256 of every file (pages included), `artifactVersion` = package version +
+   bundle hash prefix, `sdkMajor: 3` (bumped when migrations were removed and pages joined the
+   artifact).
 
 The validation here exists for good error messages; the host's zod schema is the real gate.
 

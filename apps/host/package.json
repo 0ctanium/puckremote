@@ -12,13 +12,13 @@
   "dependencies": {
     "@puck-remote/core": "workspace:*",
     "@puck-remote/next": "workspace:*",
-    "@puck-remote/pages-fs": "workspace:*",
     "@puck-remote/source-mock": "workspace:*",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "@puck-remote/artifacts-fs": "workspace:*",
-    "@puckeditor/core": "0.23.0"
+    "@puckeditor/core": "0.23.0",
+    "@puck-remote/editor": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "26.6.4",

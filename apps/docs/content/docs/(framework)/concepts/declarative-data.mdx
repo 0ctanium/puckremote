@@ -1,6 +1,6 @@
 ---
 title: Declarative data
-description: Blocks describe their data as JSON queries; the host plans, validates, executes and caches them.
+description: Blocks describe their data as JSON queries; the host plans, validates and executes them.
 ---
 
 Blocks never fetch. Each block declares a `data` object of **query specs**, built with the SDK
@@ -19,10 +19,8 @@ graph LR
   B[Block data specs] --> P[Substitute params]
   P --> D[Dedupe by hash]
   D --> G[Budget]
-  G --> C{Cached?}
-  C -->|yes| R[QueryResult]
-  C -->|no| X[Run: data source / HTTP / adapter]
-  X --> R
+  G --> X[Run: data source / HTTP / adapter]
+  X --> R[QueryResult]
 ```
 
 ## Parameter references
@@ -41,9 +39,12 @@ Values inside a spec may be references the host substitutes per instance:
 
 - **Security**: the host decides what can be reached and how ([host source](/docs/internal/architecture/host-source), [HTTP source](/docs/internal/architecture/http-source)); secrets never enter the isolate.
 - **Performance**: the host sees every query of the page at once, so it **dedupes** identical
-  queries, applies a **budget**, runs them **in parallel**, and **caches** results.
-- **Cacheability**: the host knows statically which pages read request params.
-- **Draft safety**: `mode` (`public`/`draft`) is set by the host only; drafts are never cached.
+  queries, applies a **budget** and runs them **in parallel**. Query results are not cached by
+  the core ([D-0187](/docs/internal/decisions#D-0187)); cache in your data source if you need to.
+- **Cacheability**: the host knows statically which pages read request params, so pages can be
+  cached by your CDN ([D-0205](/docs/internal/decisions#D-0205)).
+- **Draft safety**: `mode` (`public`/`draft`) is set by the host only: `draft` for the editor's
+  data requests, `public` for the site.
 
 ## Budget (defaults)
 

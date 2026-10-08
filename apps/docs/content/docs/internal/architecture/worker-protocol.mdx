@@ -10,9 +10,9 @@ host after `__toRequest` returns (tested with the IPC tap).
 
 | Message | Meaning |
 |---|---|
-| `{ t: 'load', id, version, bundle, limits }` | Compile a version's bundle (once per worker and version) |
+| `{ t: 'load', id, version, bundle, limits }` | Compile an artifact's bundle (once per worker and artifact; `version` carries the artifact id) |
 | `{ t: 'open', id, version, sid }` | Open a session: a fresh isolate context |
-| `{ t: 'call', id, sid, entry, args }` | Call `__render`, `__toRequest`, `__fromResponse` or `__migrate` with string args |
+| `{ t: 'call', id, sid, entry, args }` | Call `__render`, `__toRequest` or `__fromResponse` with string args |
 | `{ t: 'release', sid }` | Release a session (no reply) |
 
 ## Worker → host
@@ -33,7 +33,6 @@ host after `__toRequest` returns (tested with the IPC tap).
 | `__render` | `kind`, `name`, `propsJson`, `dataJson`, `ctxJson` | `{ html, effects }` JSON |
 | `__toRequest` | `adapterName`, `queryJson` | Request JSON |
 | `__fromResponse` | `adapterName`, `responseJson`, `queryJson` | Result JSON |
-| `__migrate` | `kind`, `name`, `propsJson` (field values only), `fromVersion` | `{ props, version }` JSON |
 
 The worker exits when the IPC channel closes. A future remote renderer can speak the same
 protocol over another transport ([D-0075](/docs/internal/decisions#D-0075)).

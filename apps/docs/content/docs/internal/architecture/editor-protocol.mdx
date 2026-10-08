@@ -1,0 +1,45 @@
+---
+title: Editor protocol
+description: The typed, versioned postMessage protocol between the admin page and the editor iframe.
+---
+
+Both sides import the same module, `@puck-remote/editor/protocol`
+([D-0194](/docs/internal/decisions#D-0194)). Every message carries `v: 1` (`PROTOCOL_VERSION`) and a `type`,
+and is validated with zod by the receiver (strict objects: unknown keys fail).
+
+| Direction | `type` | Fields |
+|---|---|---|
+| editor → host | `ready` | — |
+| host → editor | `init` | `payload` (`EditorPayload`), `options` (JSON only: `permissions`, `locales`, `categories`, `flags`, `extra`) |
+| editor → host | `change` | `data`: the full Puck data |
+| editor → host | `rpc` | `id`, `method` (`^[A-Za-z][A-Za-z0-9._:-]{0,63}$`), `params` (JSON, plus File/Blob values) |
+| host → editor | `rpc:result` | `id`, then `ok: true, value` or `ok: false, error` |
+| either | `error` | `message` (≤ 2000 chars) |
+
+## Rules
+
+- **Origin and source**: the host accepts a message only if `event.origin` is the editor origin
+  **and** `event.source` is its own iframe's window; the bridge only if `event.source` is
+  `window.parent` and `event.origin` is an allowed parent (the first `init` pins it).
+- **Explicit target origin** on every `postMessage`, never `*`. The bridge posts `ready` to each
+  allowed parent origin; the browser drops the ones that don't match.
+- **Allow-listed RPC**: the host only runs methods present in the frame's `rpc` map (own
+  properties); unknown methods get `unknown method <name>`. There is no generic fetch or proxy
+  method, and the page slug comes from the admin page's state.
+- **Limits** (`LIMITS`, [D-0203](/docs/internal/decisions#D-0203)): RPC requests and results 1 MB of
+  JSON, File/Blob values 10 MB per request, 20 RPCs per second per frame (token bucket), `change`
+  at most every 500 ms, page data 2 MB. `measure()` counts JSON bytes and Blob bytes and rejects
+  anything else (functions, class instances, cycles).
+- **Results** must be JSON: a handler returning a Blob or something too large answers
+  `result too large or not JSON`.
+
+## Why `init` carries URLs, not code
+
+Functions cannot be structured-cloned, and the editor must not trust code from the parent anyway.
+`init` carries the manifest (JSON) and the URL of `bundle.browser.js`; the bridge checks the URL is
+on an admin origin and imports it, so the code it runs is the artifact's, served by the host's
+theme route with hash verification.
+
+<Source path="packages/editor/src/protocol.ts" />
+<Source path="packages/editor/src/frame.tsx" />
+<Source path="packages/editor/src/bridge.tsx" />

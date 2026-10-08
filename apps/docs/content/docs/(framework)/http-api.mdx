@@ -1,54 +1,39 @@
 ---
 title: HTTP API
-description: Every endpoint under routes.api and routes.theme.
+description: The theme route served by the core, and the editor RPC route of the Next bindings.
 ---
 
-All API routes answer only on **editor origins** (404 elsewhere), require the listed action, and
-respond with `cache-control: private, no-store`. Signed-out callers get `401` before any input
-validation. Mutations (non-GET/HEAD/OPTIONS) also need the
-CSRF checks. POST bodies are capped at 2 MB ([D-0088](/docs/internal/decisions#D-0088)).
+The core answers one route, `routes.theme` (default `/theme`). Everything else (admin pages, RPCs,
+publishing) is your app's, so it uses your app's own session ([D-0187](/docs/internal/decisions#D-0187)).
 
-| Method & path | Action | Body | Response |
-|---|---|---|---|
-| `GET /api/pages?slug=` | `page:read-draft` | — | `{ meta, draft }` (the latest draft revision); `404` |
-| `POST /api/pages/save` | `page:write` | `{ slug, data, baseRevision }` | `{ meta }`; `409 { error: 'conflict', meta }` when `baseRevision` isn't the current draft (`null` creates the page); `__data` stripped, `__missing` restored |
-| `POST /api/pages/publish` | `page:publish` | `{ slug, revision }` | `{ meta }`; `409` unless `revision` is the current draft |
-| `POST /api/pages/unpublish` | `page:publish` | `{ slug }` | `{ meta }`; `404` |
-| `POST /api/pages/delete` | `page:delete` | `{ slug }` | `{ ok: true }`, also when the page didn't exist |
-| `GET /api/pages/history?slug=&limit=&before=` | `page:read-draft` | — | `{ revisions }` newest first, without data; `limit` 1–100 (default 20) |
-| `GET /api/pages/revision?slug=&revision=` | `page:read-draft` | — | One revision with its data; `404` |
-| `POST /api/pages/restore` | `page:write` | `{ slug, revision, baseRevision }` | `{ meta }`: the old revision saved as a new draft; `409` on a stale base; `404` |
-| `POST /api/pages/preview-link` | `page:preview` | `{ slug, revision }` | `{ url, expiresAt }` (`url` is on the first site origin, relative without `origins`); `404` when previews are off or the revision doesn't exist |
-| `POST /api/blocks/resolve` | `page:read-draft` | `{ blockType, props, slug? }` | `{ data, usesRequestParams }`; draft mode; spec always from the manifest |
-| `POST /api/blocks/render` | `page:read-draft` | `{ slug, items: [{ key, kind, name, props, data }] }` (≤ 100 items) | `{ results: { [key]: { ok, html, nonce, effects } \| { ok: false, error } } }` |
-| `POST /api/artifact/reload` | `artifact:activate` | — | `{ ok, version, changed }` or `500 { ok: false, error }` |
-| `GET\|HEAD /theme/v<N>/assets/**` | — | — | The file if listed in the manifest and hash-valid; `immutable`; otherwise `404` |
+## Theme route
 
-Other paths → `404`; other methods → `405` with `Allow`.
-
-## Errors
-
-| Status | Meaning |
+| Method & path | Response |
 |---|---|
-| `400` | Invalid body (`invalid body`), slug or query string (`invalid query`) |
-| `401` | No principal (`authentication required`) |
-| `403` | Not authorized, missing `x-puck-remote: 1`, foreign `Origin`, or cross-site `Sec-Fetch-Site` |
-| `404` | Unknown route, wrong origin, unknown block (resolve) |
-| `405` | Wrong method |
-| `409` | Write conflict: the page changed since `baseRevision`, or the revision to publish is no longer the draft. The body carries the current `meta` (`null` if the page doesn't exist) |
-| `500` | A stored page uses a newer page format than this version reads ([D-0154](/docs/internal/decisions#D-0154)) |
+| `GET\|HEAD /theme/<id>/assets/**` | The file if listed in that artifact's manifest and hash-valid; `immutable`; otherwise `404` |
+| `GET\|HEAD /theme/<id>/bundle.browser.js` | The theme's browser bundle (ESM), same checks |
 
-## CSRF
+`bundle.js`, `manifest.json` and `pages/**` are never served (`404`). Other methods get `405`.
+With `origins` configured, served files carry `access-control-allow-origin: <editor origin>` and
+`cross-origin-resource-policy: cross-origin`, so the editor can import the bundle and show assets
+in its canvas.
 
-A mutation must send `x-puck-remote: 1`. If the browser sends `Origin`, it must equal the request's
-own origin or be in `allowedOrigins` (editor origins included). Without `Origin`, `Sec-Fetch-Site`
-must be `same-origin` or `none` when present ([D-0057](/docs/internal/decisions#D-0057)). Non-browser clients
-send the header and authenticate with a bearer token.
+## Editor RPC route (Next bindings)
 
-## Why `/blocks/resolve` ignores client-sent specs
+`remote.createEditorRpcRoute(handlers)` builds a `POST` handler for the calls your admin page
+makes: the RPCs it relays from the editor and its own actions.
 
-The body schema is a non-strict object: anything besides `blockType`, `props` and `slug` (a spec,
-data, query, mode…) is silently dropped. The query spec always comes from the server-side
-manifest, and the mode is always `draft` (test 11).
+| Request | Response |
+|---|---|
+| `POST { method, params }` | `200 { value }`: what the handler returned |
+| `Origin` missing or not an admin origin, or request not on an admin origin | `404` |
+| Body over 1 MB | `413` |
+| Invalid JSON | `400` |
+| `method` not in `handlers` | `404` |
 
-Deep dive: [auth and CSRF](/docs/internal/architecture/auth-and-csrf).
+Handlers receive `(params, request)` and must check your admin session on `request`. Responses
+carry `cache-control: private, no-store`.
+
+The calls the editor may make are limited twice: by the `rpc` map you give `<PuckEditorFrame>`
+(the only methods the iframe can reach), and by this route's handlers. See
+[Editor protocol](/docs/internal/architecture/editor-protocol).

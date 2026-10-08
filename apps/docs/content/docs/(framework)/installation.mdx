@@ -22,13 +22,14 @@ icon: Download
 ### Install the packages
 
 ```npm
-npm install @puck-remote/core @puck-remote/next @puckeditor/core
+npm install @puck-remote/core @puck-remote/next @puck-remote/editor @puckeditor/core
 ```
 
-Pick adapters for where your artifacts, pages and data live. The file-based ones are good to start:
+Pick an artifact store (themes: code and pages) and a data source. The file-based store is good to
+start:
 
 ```npm
-npm install @puck-remote/artifacts-fs @puck-remote/pages-fs
+npm install @puck-remote/artifacts-fs
 ```
 
 </Step>
@@ -41,22 +42,18 @@ The config is the **only file that knows your backend**. Every option is describ
 
 ```ts title="puck-remote.config.ts"
 import path from 'node:path';
-import { defineConfig, devAllowAll, sharedSecretAuth } from '@puck-remote/core/config';
+import { defineConfig } from '@puck-remote/core/config';
 import { fsArtifactStore } from '@puck-remote/artifacts-fs';
-import { fsPageStore } from '@puck-remote/pages-fs';
 import { myCms } from './src/cms'; // your DataSource, see Core › Adapters › Data source
 
 const root = process.cwd(); // import.meta.dirname is undefined in Next server bundles
-const prod = process.env.NODE_ENV === 'production';
 
 export default defineConfig({
   artifacts: fsArtifactStore({ dir: path.join(root, 'artifacts') }),
-  pages: fsPageStore({ dir: path.join(root, 'data/pages') }),
   source: myCms(),
-  auth: prod ? sharedSecretAuth({ secret: process.env.PUCK_REMOTE_ADMIN_TOKEN }) : devAllowAll(),
   origins: {
-    site: ['https://www.example.com'],
-    editor: ['https://admin.example.com'],
+    admin: ['https://admin.example.com'], // your pages that embed the editor
+    editor: 'https://editor.example.net', // the static editor app, on another site
   },
   site: { name: 'My site', locale: 'en' },
 });
@@ -67,7 +64,7 @@ export default defineConfig({
 
 ### Add the app files
 
-Five small files wire the framework into Next.js. They are explained in [Next.js setup](/docs/next-js).
+A few small files wire the framework into Next.js. They are explained in [Next.js setup](/docs/next-js).
 
 ```files
 my-app
@@ -79,11 +76,12 @@ my-app
     └── app
         ├── [[...path]]
         │   └── page.tsx
-        ├── editor
+        ├── admin
         │   └── [[...path]]
-        │       └── page.tsx
+        │       ├── page.tsx
+        │       └── AdminEditor.tsx
         ├── api
-        │   └── [[...path]]
+        │   └── editor-rpc
         │       └── route.ts
         └── theme
             └── [[...path]]
@@ -117,19 +115,49 @@ export default async function Page(props: PageProps) {
 }
 ```
 
-```tsx tab="app/editor/[[...path]]/page.tsx"
-import { EditorClient } from '@puck-remote/next';
+```tsx tab="app/admin/[[...path]]/page.tsx"
 import { remote } from '@/puck-remote';
+import { AdminEditor } from './AdminEditor';
 
-export default async function Editor(props: { params: Promise<{ path?: string[] }> }) {
-  return <EditorClient {...await remote.loadEditor(props)} />;
+export const dynamic = 'force-dynamic';
+
+export default async function Admin(props: { params: Promise<{ path?: string[] }> }) {
+  // Check your own admin session here first.
+  return <AdminEditor payload={await remote.loadEditor(props)} />;
 }
 ```
 
-```ts tab="app/api/[[...path]]/route.ts"
+```tsx tab="app/admin/[[...path]]/AdminEditor.tsx"
+'use client';
+import { PuckEditorFrame } from '@puck-remote/editor/frame';
+import type { EditorPayload } from '@puck-remote/next';
+
+const call = async (method: string, params: unknown) =>
+  (await (await fetch('/api/editor-rpc', { method: 'POST', body: JSON.stringify({ method, params }) })).json()).value;
+
+export function AdminEditor({ payload }: { payload: EditorPayload }) {
+  return (
+    <PuckEditorFrame
+      editorUrl="https://editor.example.net/"
+      editorOrigin="https://editor.example.net"
+      payload={payload}
+      rpc={{ resolveData: (p) => call('resolveData', { ...(p as object), slug: payload.slug }) }}
+      onChange={(data) => {/* keep it for your Publish button */}}
+    />
+  );
+}
+```
+
+```ts tab="app/api/editor-rpc/route.ts"
 import { remote } from '@/puck-remote';
 
-export const { GET, POST } = remote.api;
+export const { POST } = remote.createEditorRpcRoute({
+  async resolveData(params, request) {
+    // Check your own admin session on `request` here.
+    const { slug, block, props } = params as { slug: string; block: string; props: Record<string, unknown> };
+    return remote.core.resolveBlockData(slug, block, props);
+  },
+});
 ```
 
 ```ts tab="app/theme/[[...path]]/route.ts"
@@ -147,7 +175,7 @@ export const { GET, HEAD } = remote.theme;
 import { withPuckRemote } from '@puck-remote/next/config';
 
 export default withPuckRemote({
-  allowedDevOrigins: ['*.localhost'], // the editor runs on editor.localhost in development
+  allowedDevOrigins: ['*.localhost'], // admin pages run on admin.localhost in development
 });
 ```
 
@@ -170,15 +198,23 @@ npx puck-remote publish --artifacts ../my-app/artifacts
 </Step>
 <Step>
 
+### Host the editor app
+
+The editor is a static app served from another site, with headers that only let your admin
+origins embed it. See [The editor app](/docs/guides/editor-app).
+
+</Step>
+<Step>
+
 ### Run it
 
 ```bash
 NODE_OPTIONS=--no-node-snapshot npx next dev
 ```
 
-Open the site on `http://localhost:3000` and the editor on `http://editor.localhost:3000/editor`.
-In development without `origins`, every surface answers on every hostname; in production the
-site and the editor **must** use distinct origins (see [Deploying safely](/docs/guides/deploying)).
+Open the site on `http://localhost:3000` and the admin page on `http://admin.localhost:3000/admin`
+(with `origins.admin` set to that origin in development). The editor must run on a different
+origin from the admin pages (see [Origins](/docs/concepts/origins)).
 
 </Step>
 </Steps>

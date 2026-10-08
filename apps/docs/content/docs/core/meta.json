@@ -9,10 +9,7 @@
     "---Adapters---",
     "adapters/index",
     "adapters/artifact-store",
-    "adapters/page-store",
     "adapters/data-source",
-    "adapters/cache",
-    "adapters/auth",
     "adapters/renderer",
     "adapters/testing"
   ]

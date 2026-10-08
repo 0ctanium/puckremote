@@ -7,16 +7,17 @@ description: Accepted limitations and what is planned about them.
 |---|---|
 | isolated-vm is in maintenance mode; a V8 escape runs native code, unchecked by Node's permission model | `bubblewrap()` on Linux (experimental); remote renderer planned for M5 ([D-0075](/docs/internal/decisions#D-0075)) |
 | Blocks in one request share a context | Accepted ([D-0026](/docs/internal/decisions#D-0026)) |
-| Theme client scripts don't run in the editor canvas | By design ([D-0080](/docs/internal/decisions#D-0080)) |
-| Next marks dynamic pages `no-store`; `x-page-cacheable` is only a signal; pages render on every request | Rendered-page caching postponed to post-V1, decided from M5 load tests; query results are cached ([D-0149](/docs/internal/decisions#D-0149)) |
+| Theme client scripts don't run in the editor canvas; `head.*` is ignored there | By design: blocks are real components in the editor ([D-0192](/docs/internal/decisions#D-0192)) |
+| Next marks dynamic pages `no-store`; `x-page-cacheable` is only a signal; pages render and run their queries on every request | No caching in the core ([D-0187](/docs/internal/decisions#D-0187)); cache in the data source or the CDN |
 | No dependent (`$ref`) queries, no pagination helpers | Post-V1 ([D-0072](/docs/internal/decisions#D-0072)); client-side loading is the theme's job ([D-0011](/docs/internal/decisions#D-0011)) |
-| `pages-fs` is single-instance (in-process lock only) | Use a database-backed `PageStore` for clusters; Payload adapters in M3b ([D-0127](/docs/internal/decisions#D-0127)) |
-| Preview links can't be revoked one by one | Rotate `preview.secret` ([D-0118](/docs/internal/decisions#D-0118)) |
-| No autosave; no page list or delete button in the editor | Out of M3a scope ([D-0119](/docs/internal/decisions#D-0119)); the API has `pages/delete` |
-| No richtext, inline editing, extensible host fields | M4, mandatory for V1 ([D-0071](/docs/internal/decisions#D-0071)) |
+| No drafts, history UI, preview links or concurrent-edit merging in the core | Plugins on `writePage` and the pointer ([D-0190](/docs/internal/decisions#D-0190)); the example publishes on save and refuses a stale base |
+| `publish` from the CLI replaces pages edited since the last `pull` | As in Shopify; run `puck-remote pull` first ([D-0199](/docs/internal/decisions#D-0199)) |
+| Every page save stores a full artifact copy (`artifacts-fs` dedupes only identical artifacts) | Accepted for now; a store may share unchanged files internally |
+| No page list or delete in the core | Not in scope; an app can list `pages/` entries of the manifest |
+| No richtext or inline-editing field types in the SDK yet (the editor now runs real components, so Puck supports them) | M4, mandatory for V1 ([D-0071](/docs/internal/decisions#D-0071)) |
 | No localization | Post-V1, app-defined `LocaleResolver` ([D-0073](/docs/internal/decisions#D-0073)) |
 | Single tenant | ([D-0009](/docs/internal/decisions#D-0009)) |
-| `memoryCache` and `artifacts-fs` are per machine | Plug shared stores for clusters |
+| `artifacts-fs` is per machine | Plug a shared store for clusters |
 | `resolveData` stripping is our convention, not enforced by Puck | Tested (test 18) |
 | Artifacts are published by writing to the store directly; manifests are not signed | Ideas from the POC notes: an upload API that verifies hashes, signed manifests, immutable storage, pointer in the database (not decided) |
 | No multi-tenancy (per-tenant artifacts, isolates, secrets) | Not decided; the secret-to-origin binding already exists |

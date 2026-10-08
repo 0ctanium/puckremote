@@ -1,60 +1,61 @@
 ---
 title: The editor
-description: How the Puck editor is built from manifest JSON and renders blocks on the server.
+description: A credential-free Puck editor in an iframe on its own site, driven by the host page through typed postMessage messages.
 ---
 
-The editor is a standard Puck editor (`@puckeditor/core` 0.23) whose config is **built from the
-manifest's JSON only**:
-
-- fields are mapped from field specs (`editor/fields.ts`), including host-owned fields
-  `host:color`, `host:media`, `host:link`;
-- `visibleIf` becomes a Puck `resolveFields`;
-- blocks with data get a `resolveData` that calls `POST <api>/blocks/resolve` (draft mode);
-- each block's `render` asks the **server** for HTML via `POST <api>/blocks/render`.
-
-## Why server rendering
-
-Before M2, the editor loaded `bundle.js` into a hidden same-origin iframe
-([D-0015](/docs/internal/decisions#D-0015), [D-0023](/docs/internal/decisions#D-0023)). That meant theme JavaScript in the
-admin origin: equivalent to XSS with an admin session. M2 replaced it
-([D-0080](/docs/internal/decisions#D-0080)):
-
-- the canvas renders through the same isolate pipeline as the public site, so **parity is
-  automatic**;
-- **no theme JavaScript ever runs in the editor's origin**; the bundle is never served;
-- the cost: theme client scripts don't run in the canvas.
+The editor is a **static app on its own site** (for example `https://editor.example.net`) that
+runs the full Puck editor: native canvas drag and drop, real theme components
+([D-0192](/docs/internal/decisions#D-0192)). It holds **no credentials**: it never authenticates, never
+calls your backend and never sees a secret. All authority stays in your app.
 
 ```mermaid
 sequenceDiagram
-  participant B as Editor (browser)
-  participant A as API (editor origin)
-  participant W as Render worker
-  B->>A: POST /api/blocks/resolve (block + props)
-  A-->>B: data (draft mode)
-  B->>A: POST /api/blocks/render (batched blocks)
-  A->>W: __render in a fresh isolate context
-  W-->>A: HTML + nonce + effects
-  A-->>B: results
-  B->>B: parse HTML, swap slots, show in canvas
+  participant H as Admin page (your app)
+  participant E as Editor iframe (editor site)
+  participant S as Your server
+  E->>H: ready
+  H->>E: init (page, manifest, theme URLs, options)
+  E->>S: GET /theme/<id>/bundle.browser.js (CORS)
+  E->>E: rebuild the Puck config, mount Puck
+  E->>H: rpc resolveData (block, props)
+  H->>S: POST /api/editor-rpc (with the admin session)
+  S-->>H: data (draft mode)
+  H-->>E: rpc:result
+  E->>H: change (page data, debounced)
+  H->>S: publish (host UI, outside the frame)
 ```
+
+## Two sides
+
+- **Your admin page** renders `<PuckEditorFrame>` from `@puck-remote/editor/frame` with the
+  payload from `core.editorPayload(slug)`, a map of allow-listed RPC handlers and an `onChange`
+  callback ([D-0209](/docs/internal/decisions#D-0209)). Publishing is a button in **your** UI, outside the
+  frame, so theme code running in the editor can never publish.
+- **The editor app** runs the bridge from `@puck-remote/editor/bridge`. It waits for `init`,
+  imports the theme's `bundle.browser.js`, rebuilds the Puck config from the manifest (fields,
+  defaults, categories) plus the bundle's render functions, and mounts Puck. Functions never cross
+  `postMessage`; only JSON does.
+
+Both sides check where they run ([D-0207](/docs/internal/decisions#D-0207)): the frame refuses to load
+outside an admin origin, the bridge refuses an `init` unless it runs on the configured editor
+origin and the message comes from an admin origin. Every message is validated against the typed
+protocol (version, shape, size, rate). See [Editor protocol](/docs/internal/architecture/editor-protocol).
 
 ## Data in the editor
 
-`resolveData` writes results into the reserved prop `__data`, marked `readOnly`. It re-runs only
-when a prop referenced by `$prop` changed (from the manifest's `propRefs`), on load/insert, or on
-force, and keystrokes are debounced. **On save, `__data` is stripped** from every node, because
-Puck would otherwise persist it ([D-0028](/docs/internal/decisions#D-0028); test 18).
+Blocks with data get a Puck `resolveData` that asks the host through the `resolveData` RPC; your
+handler calls `core.resolveBlockData(slug, block, props)` (draft mode). Only the block name and
+its props go over the wire; the query always comes from the manifest, and the page slug from your
+admin page's state, never from the editor ([D-0202](/docs/internal/decisions#D-0202)). Results land in
+the reserved prop `__data`, marked `readOnly`, and are stripped when a page is written
+([D-0028](/docs/internal/decisions#D-0028)).
 
-## Saving and publishing
+## Why the editor runs theme code now
 
-The editor opens the page's latest **draft**. **Save draft** stores a new revision without touching
-the public site; **Publish** makes a revision public. Saves are refused if someone else saved in
-the meantime. See [Drafts and publishing](/docs/guides/publishing).
+Before, the canvas was rendered on the server so that no theme JavaScript ran next to an
+editor's session ([D-0080](/docs/internal/decisions#D-0080), superseded). Running the editor on a separate,
+credential-free site gives the same protection while letting blocks be real client components in
+the canvas. The browser enforces the boundary: the editor's site has no cookies for your app, and
+`frame-ancestors` only lets your admin origins embed it.
 
-## Rendering pipeline in the browser
-
-`createRemoteRenderer` batches every render request issued in the same tick into one POST (one
-isolate session server-side), caches results by input (LRU 500), and `useRemoteRender` keeps the
-previous HTML while a newer render is in flight (150 ms debounce).
-
-Deep dive: [editor lifecycle](/docs/internal/architecture/editor-lifecycle).
+Set-up: [The editor app](/docs/guides/editor-app). Deep dive: [editor lifecycle](/docs/internal/architecture/editor-lifecycle).

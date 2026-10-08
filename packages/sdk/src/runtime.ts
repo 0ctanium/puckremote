@@ -88,24 +88,6 @@ export function install(registry: Registry): void {
     }
   }
 
-  // Applies migrations (fromVersion, version]; returns the props without slot or host keys.
-  g.__migrate = (kind: 'block' | 'root', name: string, propsJson: string, fromVersionArg: string): string => {
-    const fromVersion = Number(fromVersionArg)
-    const def = kind === 'root' ? registry.root : Object.hasOwn(registry.blocks, name) ? registry.blocks[name] : undefined
-    if (!def) throw new Error(`unknown ${kind}: ${name}`)
-    const version = def.version ?? 1
-    let props = JSON.parse(propsJson) as Record<string, unknown>
-    for (let v = fromVersion + 1; v <= version; v++) {
-      const step = def.migrations?.[v]
-      if (typeof step !== 'function') throw new Error(`missing migration ${v} for ${name}`)
-      props = step(props)
-      if (!props || typeof props !== 'object' || Array.isArray(props)) throw new Error(`migration ${v} of ${name} must return an object`)
-    }
-    const s = JSON.stringify({ props, version })
-    if (s === undefined) throw new Error('migrations must return JSON-serializable props')
-    return s
-  }
-
   const adapter = (name: string): AdapterDefinition => {
     if (!Object.hasOwn(registry.adapters, name)) throw new Error(`unknown adapter: ${name}`)
     return registry.adapters[name]

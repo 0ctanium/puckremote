@@ -10,8 +10,10 @@ description: How the packages are built, exported and kept apart.
 | `@puck-remote/sdk` | Theme API (bundled into the isolate), wire contract, host contracts (`/host`) | react (peer) |
 | `@puck-remote/core` | Framework-agnostic engine | `@puck-remote/sdk/host` only from the SDK; no Next, no concrete plugins |
 | `@puck-remote/next` | Next.js bindings | `@puck-remote/core`; never isolated-vm, the SDK or plugins |
-| `@puck-remote/source-*`, `pages-*`, `artifacts-*` | Trusted host plugins | `@puck-remote/sdk/host` |
-| App (`apps/host`) | Wiring only | `@puck-remote/next`, `@puck-remote/core/config`; plugins only in `puck-remote.config.ts` |
+| `@puck-remote/editor` | Editor protocol, `<PuckEditorFrame>`, iframe bridge (browser) | `@puck-remote/sdk` (`SlotContext`), types from `@puck-remote/core`, `@puckeditor/core` |
+| `@puck-remote/source-*`, `artifacts-*` | Trusted host plugins | `@puck-remote/sdk/host` |
+| App (`apps/host`) | Wiring, admin page, its own auth and publish plugin | `@puck-remote/next`, `@puck-remote/core`, `@puck-remote/editor/frame`; plugins only in `puck-remote.config.ts` |
+| Editor app (`apps/editor`) | Static editor | `@puck-remote/editor/bridge`, the SDK, React, Puck |
 
 `no-dev-code.test.ts` enforces this table plus the rule that `bundle.js` only flows to the isolate
 compiler.
@@ -20,7 +22,8 @@ compiler.
 
 - tsdown, ESM + `.d.ts` + sourcemaps, `target: node22`, shared settings in `tsdown.shared.ts`
   (`library(entry, extra)`). Dependencies and peers stay external.
-- The core's `editor.js` gets a `'use client'` banner (bundling drops module directives).
+- `@puck-remote/editor`'s `frame.js` gets a `'use client'` banner (bundling drops module directives);
+  the editor package builds for `platform: 'browser'`.
 - The core also builds `render-worker.js`, a dist-only entry the worker pool forks.
 
 ## The `@puck-remote/source` condition ([D-0062](/docs/internal/decisions#D-0062))
@@ -45,7 +48,7 @@ regular dependency of the core (Node ≥ 24).
 ## One runtime per process
 
 `createCore` memoizes on `globalThis` by `config.id` ([D-0047](/docs/internal/decisions#D-0047)), so every Next
-route bundle and HMR share one artifact loader, worker pool and cache.
+route bundle and HMR share one artifact loader and worker pool.
 
 <Source path="tsdown.shared.ts" />
 <Source path="packages/core/package.json" />

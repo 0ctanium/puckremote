@@ -55,31 +55,44 @@ It listens on `http://localhost:4010` and backs the theme's `events` adapter.
 </Step>
 <Step>
 
-### Start the host
+### Start the host and the editor app
 
 ```bash
 pnpm --filter host dev
 ```
 
-| Surface | URL |
+```bash
+pnpm --filter editor dev
+```
+
+| What | URL |
 |---|---|
 | Public site | `http://localhost:3100/` (or `http://site.localhost:3100/`) |
 | Search page (uncacheable) | `http://localhost:3100/search?q=nonce` |
-| Editor | `http://editor.localhost:3100/editor` |
+| Admin page (editor frame + Publish) | `http://admin.localhost:3100/admin` |
+| Editor app (embedded only) | `http://127.0.0.1:3300/` |
 
-`*.localhost` resolves to loopback, so the site and the editor are two origins on one app. On the
-site hostname, `/editor` and `/api/*` answer 404.
+`*.localhost` resolves to loopback, so the site and the admin pages are two origins on one app;
+the editor app is another site. On the admin hostname, public pages answer 404, and `/admin`
+answers 404 elsewhere.
 
 </Step>
 <Step>
 
 ### Change the theme
 
-Edit a block in `examples/theme/blocks`, then run `pnpm --filter theme release` again. The host
-picks up the new version within 2 seconds, with no restart. Roll back with:
+Pages edited in the admin page live in the published artifacts. Bring them into the theme first:
 
 ```bash
-cd examples/theme && ./node_modules/.bin/puck-remote activate 1 --artifacts ../../artifacts
+pnpm --filter theme pull
+```
+
+Edit a block in `examples/theme/blocks` (and the pages in `examples/theme/pages` that use it), then
+run `pnpm --filter theme release` again. The host picks up the new artifact within 2 seconds, with
+no restart. Roll back by activating an older artifact id (see `ls artifacts`):
+
+```bash
+cd examples/theme && ./node_modules/.bin/puck-remote activate <id> --artifacts ../../artifacts
 ```
 
 </Step>
@@ -94,11 +107,12 @@ puck-repository-poc
 │   ├── cli
 │   ├── core
 │   ├── next
+│   ├── editor
 │   ├── artifacts-fs
-│   ├── pages-fs
 │   └── source-mock
 ├── apps
 │   ├── host
+│   ├── editor
 │   └── docs
 ├── examples
 │   └── theme
@@ -111,15 +125,17 @@ puck-repository-poc
 | Path | Content |
 |---|---|
 | `packages/sdk` | `@puck-remote/sdk`: theme API and host contracts |
-| `packages/cli` | `@puck-remote/cli`: build, publish, activate |
+| `packages/cli` | `@puck-remote/cli`: build, publish, pull, activate |
 | `packages/core` | `@puck-remote/core`: the engine |
 | `packages/next` | `@puck-remote/next`: Next.js bindings |
-| `packages/artifacts-fs`, `pages-fs`, `source-mock` | File-based and example adapters |
-| `apps/host` | Example Next.js app |
+| `packages/editor` | `@puck-remote/editor`: editor protocol, `<PuckEditorFrame>`, iframe bridge |
+| `packages/artifacts-fs`, `source-mock` | File-based and example adapters |
+| `apps/host` | Example Next.js app (public site + admin page) |
+| `apps/editor` | The static editor app |
 | `apps/docs` | This documentation |
-| `examples/theme` | Example theme (the "developer repo") |
+| `examples/theme` | Example theme (the "developer repo"), with its pages |
 | `mock/api-server` | External API stand-in |
-| `artifacts`, `data` | Published theme versions (git-ignored); pages and seed data |
+| `artifacts`, `data` | Published theme artifacts (git-ignored); CMS seed data |
 
 ## Useful commands
 
@@ -131,6 +147,5 @@ puck-repository-poc
 | Benchmarks | `pnpm --filter @puck-remote/core bench` |
 | Docs | `pnpm docs:dev` (port 3200) |
 
-In development the editor is open (`devAllowAll()`). A production build refuses to start without
-an `auth` adapter; the example uses `sharedSecretAuth` with `PUCK_REMOTE_ADMIN_TOKEN` (see
-[Environment](/docs/environment)).
+Auth belongs to the app. In development the example's admin page and RPC route are open; in
+production they require `PUCK_REMOTE_ADMIN_TOKEN` (see [Environment](/docs/environment)).

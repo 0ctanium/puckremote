@@ -168,15 +168,13 @@ export const blockMetaSchema = z.strictObject({
   propRefs: z.record(z.string(), z.array(z.string())),
   usesRequestParams: z.boolean(),
   slots: z.array(z.string()),
-  /** Version of the block's fields; saved items older than this are migrated (props.__v). */
-  version: z.number().int().min(1),
 })
 export type BlockMeta = z.infer<typeof blockMetaSchema>
 
 export const manifestSchema = z
   .strictObject({
     artifactVersion: z.string().max(100),
-    sdkMajor: z.literal(2, { message: 'artifact was built for an incompatible SDK major version; rebuild with the current @puck-remote/sdk' }),
+    sdkMajor: z.literal(3, { message: 'artifact was built for an incompatible SDK major version; rebuild with the current @puck-remote/sdk' }),
     createdAt: z.string(),
     files: z.record(
       z.string().refine((p) => !p.split('/').some((s) => s === '..' || s === '.' || s === '') && !p.startsWith('/'), 'unsafe path'),
@@ -197,6 +195,9 @@ export const manifestSchema = z
   })
   .superRefine((m, ctx) => {
     if (!m.files['bundle.js']) ctx.addIssue({ code: 'custom', message: 'bundle.js missing from files' })
+    for (const p of Object.keys(m.files)) {
+      if (p.startsWith('pages/') && !pageSlugOf(p)) ctx.addIssue({ code: 'custom', message: `files: ${p} is not a valid page path` })
+    }
     const check = (name: string, b: BlockMeta) => {
       // Derived data must agree with the specs; the host recomputes rather than trusts.
       for (const [key, spec] of Object.entries(b.data)) {
@@ -211,6 +212,18 @@ export const manifestSchema = z
     }
   })
 export type Manifest = z.infer<typeof manifestSchema>
+
+const PAGE_PATH = /^pages\/((?:[a-z0-9][a-z0-9-]{0,63}\/){0,4}[a-z0-9][a-z0-9-]{0,63})\.json$/
+
+/** pages/<slug>.json → slug, or null for any other path. */
+export function pageSlugOf(file: string): string | null {
+  return PAGE_PATH.exec(file)?.[1] ?? null
+}
+
+export const pagePath = (slug: string) => `pages/${slug}.json`
+
+/** Slugs of the pages an artifact carries. */
+export const pageSlugs = (m: Pick<Manifest, 'files'>) => Object.keys(m.files).map(pageSlugOf).filter((s): s is string => s !== null).sort()
 
 /** Recompute what the CLI claims, so the host never relies on CLI-provided analysis. */
 export function analyzeSpecs(data: Record<string, QuerySpec>): { propRefs: Record<string, string[]>; usesRequestParams: boolean } {

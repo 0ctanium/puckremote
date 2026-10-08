@@ -21,7 +21,7 @@ beforeAll(async () => {
 afterAll(() => api.close())
 
 const pool = async (opts: Parameters<typeof workerPoolRenderer>[0] = {}, limits = testConfig().isolate) =>
-  workerPoolRenderer({ size: 1, log: quietLog, ...opts })({ version: 1, bundle: (await buildEvil()).bundle, limits }) as WorkerPoolRuntime
+  workerPoolRenderer({ size: 1, log: quietLog, ...opts })({ id: "test", bundle: (await buildEvil()).bundle, limits }) as WorkerPoolRuntime
 
 describe('process sandbox (same flags as real workers)', () => {
   it('denies filesystem, network, child processes and worker threads; empty environment', async () => {
@@ -116,7 +116,7 @@ describe('secrets never reach a worker', () => {
     {
       const { bundle } = await buildExample()
       const tap = (_dir: string, m: unknown) => void sent.push(JSON.stringify(m))
-      const runtime = workerPoolRenderer({ size: 1, log: quietLog, tap })({ version: 1, bundle, limits: testConfig().isolate })
+      const runtime = workerPoolRenderer({ size: 1, log: quietLog, tap })({ id: "test", bundle, limits: testConfig().isolate })
       const h = await dataDeps({ mockOrigin: api.origin, runtime })
       const { byInstance } = await resolvePageData(
         { instances: [{ id: 'e', props: { count: 2, city: '' }, meta: h.deps.manifest.blocks['event-list'] }], env: env(), mode: 'public' },
