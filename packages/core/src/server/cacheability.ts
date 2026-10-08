@@ -5,7 +5,7 @@
  */
 import type { ArtifactStore, PageStore } from '@puck-remote/sdk/host'
 import { analyzeSpecs, type QuerySpec } from './manifest-schema.ts'
-import { readPage } from './pages.ts'
+import { readPublished } from './pages.ts'
 
 const memo = new WeakMap<ArtifactStore, Map<number, Set<string>>>()
 
@@ -32,7 +32,7 @@ export async function pageCacheability(
   config: { artifacts: ArtifactStore; pages: PageStore },
   slug: string,
 ): Promise<{ cacheable: boolean; blocks: string[] } | null> {
-  const page = await readPage(config.pages, slug).catch(() => null)
+  const page = await readPublished(config.pages, slug).catch(() => null)
   if (!page) return null
   const types = await uncacheableTypes(config.artifacts)
   const found = new Set<string>()

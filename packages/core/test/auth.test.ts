@@ -26,14 +26,22 @@ const post = (p: string, opts: { body?: unknown; token?: string; csrf?: boolean;
 }
 const get = (p: string, token?: string) => req(p, { headers: token ? { authorization: `Bearer ${token}` } : {} })
 
-/** Admin can do everything, "viewer" can only open the editor and read drafts. */
+/**
+ * Admin can do everything; "writer" can also save drafts (not publish); "viewer" can only open
+ * the editor and read drafts. Every authorize call is recorded (to check the resource is passed).
+ */
+const calls: { action: Action; resource?: { slug?: string } }[] = []
 const auth: AuthAdapter = {
   async authenticate(r) {
     const t = r.headers.get('authorization')?.replace('Bearer ', '')
-    return t === 'admin' || t === 'viewer' ? { id: t } : null
+    return t === 'admin' || t === 'viewer' || t === 'writer' ? { id: t } : null
   },
-  authorize: (p, action: Action) => p.id === 'admin' || action === 'editor:open' || action === 'page:read-draft',
+  authorize: (p, action: Action, resource) => {
+    calls.push({ action, resource })
+    return p.id === 'admin' || action === 'editor:open' || action === 'page:read-draft' || (p.id === 'writer' && action === 'page:write')
+  },
 }
+const emptyPage = { root: { props: {} }, content: [] }
 
 let core: PuckRemoteCore
 let artifactsDir: string
@@ -56,7 +64,19 @@ afterAll(async () => (await core.host()).store.close())
 
 describe('authentication and authorization', () => {
   it('401 without credentials on every API route, including draft-mode resolve', async () => {
-    for (const r of [get('/api/pages?slug=home'), post('/api/pages', { body: { slug: 'x', data: {} } }), post('/api/blocks/resolve', { body: { blockType: 'latest-posts', props: {} } }), post('/api/artifact/reload')]) {
+    for (const r of [
+      get('/api/pages?slug=home'),
+      get('/api/pages/history?slug=home'),
+      get('/api/pages/revision?slug=home&revision=1'),
+      post('/api/pages/save', { body: { slug: 'x', data: {} } }),
+      post('/api/pages/publish', { body: 'not even valid' }),
+      post('/api/pages/unpublish', { body: { slug: 'x' } }),
+      post('/api/pages/delete', { body: { slug: 'x' } }),
+      post('/api/pages/restore', { body: { slug: 'x' } }),
+      post('/api/blocks/resolve', { body: { blockType: 'latest-posts', props: {} } }),
+      post('/api/blocks/render', { body: {} }),
+      post('/api/artifact/reload'),
+    ]) {
       const res = await core.handleApi(r)
       expect(res.status, r.url).toBe(401)
       expect(res.headers.get('cache-control')).toContain('no-store')
@@ -64,12 +84,33 @@ describe('authentication and authorization', () => {
   })
 
   it('403 when authenticated but not allowed; 200 when allowed', async () => {
-    expect((await core.handleApi(post('/api/pages', { token: 'viewer', body: { slug: 'x', data: { root: { props: {} }, content: [] } } }))).status).toBe(403)
+    expect((await core.handleApi(post('/api/pages/save', { token: 'viewer', body: { slug: 'x', data: emptyPage, baseRevision: null } }))).status).toBe(403)
     expect((await core.handleApi(post('/api/artifact/reload', { token: 'viewer' }))).status).toBe(403)
     const draft = await core.handleApi(post('/api/blocks/resolve', { token: 'viewer', body: { blockType: 'latest-posts', props: { count: 1 } } }))
     expect(draft.status).toBe(200)
     expect(JSON.stringify(await draft.json())).toContain('DRAFT') // editor data is draft data — hence the auth requirement
-    expect((await core.handleApi(post('/api/pages', { token: 'admin', body: { slug: 'x', data: { root: { props: {} }, content: [] } } }))).status).toBe(200)
+    expect((await core.handleApi(post('/api/pages/save', { token: 'admin', body: { slug: 'x', data: emptyPage, baseRevision: null } }))).status).toBe(200)
+  })
+
+  it('publishing needs page:publish; deleting needs page:delete; the slug reaches authorize', async () => {
+    const saved = await core.handleApi(post('/api/pages/save', { token: 'writer', body: { slug: 'blog/w', data: emptyPage, baseRevision: null } }))
+    expect(saved.status).toBe(200)
+    const { meta } = await saved.json()
+    calls.length = 0
+    expect((await core.handleApi(post('/api/pages/publish', { token: 'writer', body: { slug: 'blog/w', revision: meta.draftRevision } }))).status).toBe(403)
+    expect((await core.handleApi(post('/api/pages/unpublish', { token: 'writer', body: { slug: 'blog/w' } }))).status).toBe(403)
+    expect((await core.handleApi(post('/api/pages/delete', { token: 'writer', body: { slug: 'blog/w' } }))).status).toBe(403)
+    expect(calls).toEqual([
+      { action: 'page:publish', resource: { slug: 'blog/w' } },
+      { action: 'page:publish', resource: { slug: 'blog/w' } },
+      { action: 'page:delete', resource: { slug: 'blog/w' } },
+    ])
+    calls.length = 0
+    await core.handleApi(get('/api/pages/history?slug=blog/w', 'viewer'))
+    await core.handleApi(post('/api/blocks/render', { token: 'viewer', body: { slug: 'blog/w', items: [] } }))
+    await core.handleApi(post('/api/blocks/resolve', { token: 'viewer', body: { slug: 'blog/w', blockType: 'quote', props: {} } }))
+    expect(calls.map((c) => c.resource)).toEqual([{ slug: 'blog/w' }, { slug: 'blog/w' }, { slug: 'blog/w' }])
+    expect((await core.handleApi(post('/api/pages/publish', { token: 'admin', body: { slug: 'blog/w', revision: meta.draftRevision } }))).status).toBe(200)
   })
 
   it('loadEditor requires editor:open', async () => {
@@ -80,20 +121,21 @@ describe('authentication and authorization', () => {
 })
 
 describe('CSRF', () => {
-  const body = { slug: 'x', data: { root: { props: {} }, content: [] } }
+  const body = { slug: 'x', data: emptyPage, baseRevision: null }
   it('rejects mutations without the custom header, even with valid credentials', async () => {
-    const res = await core.handleApi(post('/api/pages', { token: 'admin', body, csrf: false }))
+    const res = await core.handleApi(post('/api/pages/save', { token: 'admin', body, csrf: false }))
     expect(res.status).toBe(403)
     expect((await res.json()).error).toMatch(/x-puck-remote/)
   })
   it('rejects a foreign Origin and cross-site fetches', async () => {
-    expect((await core.handleApi(post('/api/pages', { token: 'admin', body, origin: 'https://evil.test' }))).status).toBe(403)
-    expect((await core.handleApi(post('/api/pages', { token: 'admin', body, origin: null, site: 'cross-site' }))).status).toBe(403)
+    expect((await core.handleApi(post('/api/pages/save', { token: 'admin', body, origin: 'https://evil.test' }))).status).toBe(403)
+    expect((await core.handleApi(post('/api/pages/save', { token: 'admin', body, origin: null, site: 'cross-site' }))).status).toBe(403)
   })
   it('accepts allowlisted origins and header-only non-browser clients', async () => {
     const c2 = createCore({ ...core.config, auth, id: `auth2-${process.pid}`, allowedOrigins: ['https://admin.test'] })
-    expect((await c2.handleApi(post('/api/pages', { token: 'admin', body, origin: 'https://admin.test' }))).status).toBe(200)
-    expect((await core.handleApi(post('/api/pages', { token: 'admin', body, origin: null }))).status).toBe(200) // CLI/CI
+    // Each create needs a fresh slug (a second create of the same slug is a conflict).
+    expect((await c2.handleApi(post('/api/pages/save', { token: 'admin', body: { ...body, slug: 'csrf-a' }, origin: 'https://admin.test' }))).status).toBe(200)
+    expect((await core.handleApi(post('/api/pages/save', { token: 'admin', body: { ...body, slug: 'csrf-b' }, origin: null }))).status).toBe(200) // CLI/CI
     ;(await c2.host()).store.close()
   })
   it('safe methods do not need the header', async () => {

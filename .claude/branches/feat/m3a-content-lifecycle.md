@@ -109,12 +109,23 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
 
 ## Implementation
 ### Public API / config changes
-[New or changed exports, options and defaults: each one is a decision]
+- **Slice A:**
+  - `@puck-remote/sdk/host`: `PageStore` v2, plus `Revision`, `PageRevision`, `PageMeta` and `WriteResult`.
+  - `@puck-remote/pages-fs`: `fsPageStore({ dir, maxRevisions })`, with `FsPageStoreOptions` exported.
+  - `pageStoreContract` rewritten.
+- **Slice B:**
+  - `Action` gains `page:delete` and `page:preview`.
+  - New API routes: `pages`, `pages/save|publish|unpublish|delete|history|revision|restore`. The old `POST pages` is removed.
+  - `EditorProps.page` added.
+  - Core internals: `authenticateRequest` and `authorizePrincipal` split out of `authorizeRequest`; `pages.ts` gains `readPublished`, `readDraft`, `cleanPage`, `saveDraft`, `PAGE_SCHEMA_VERSION` and `PageFormatError`.
 
 ### Docs pages touched
-[apps/docs/content/docs/...]
-
-[Key changes, files, testing, migration plan]
+- **Slice A:** `core/adapters/page-store.mdx`, `core/adapters/testing.mdx`.
+- **Slice B:**
+  - `(framework)/http-api.mdx`
+  - `core/adapters/auth.mdx`
+  - `internal/architecture/{auth-and-csrf,editor-lifecycle,public-request}.mdx`
+  - `internal/quality/testing.mdx`
 
 ## Investigation Notes
 [Research, experiments, dead ends]

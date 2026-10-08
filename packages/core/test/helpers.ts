@@ -163,15 +163,25 @@ export const env = (query: Record<string, string> = {}) => ({
 // Full-host harness (artifacts + pages in a temp dir)
 // ---------------------------------------------------------------------------
 import { publish } from '@puck-remote/cli'
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import { mkdtemp } from 'node:fs/promises'
+import type { PageStore } from '@puck-remote/sdk/host'
 import { createHost } from '../src/server/host.ts'
+
+/** Create and publish pages through the store (revision 1, published). */
+export async function seedPages(pages: PageStore, entries: Record<string, unknown>) {
+  for (const [slug, data] of Object.entries(entries)) {
+    const r = await pages.saveDraft(slug, { data, schemaVersion: 1 }, { baseRevision: null })
+    if (!r.ok) throw new Error(`seed ${slug}: conflict`)
+    await pages.publish(slug, { revision: r.meta.draftRevision })
+  }
+}
 
 export async function testHost(opts: { theme: 'example' | 'evil'; pages: Record<string, unknown>; mockOrigin?: string; config?: Partial<HostConfig> }) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'puck-remote-host-'))
   const artifactsDir = path.join(dir, 'artifacts')
   const pagesDir = path.join(dir, 'pages')
-  await mkdir(pagesDir, { recursive: true })
-  for (const [slug, data] of Object.entries(opts.pages)) await writeFile(path.join(pagesDir, `${slug}.json`), JSON.stringify(data))
+  const pages = fsPageStore({ dir: pagesDir })
+  await seedPages(pages, opts.pages)
   const built = opts.theme === 'evil' ? await buildEvil() : await buildExample()
   const artifacts = fsArtifactStore({ dir: artifactsDir })
   await publish({ distDir: built.outDir, artifacts, quiet: true })
@@ -181,7 +191,7 @@ export async function testHost(opts: { theme: 'example' | 'evil'; pages: Record<
     ...base,
     artifacts,
     source: mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') }),
-    pages: fsPageStore({ dir: pagesDir }),
+    pages,
     ...opts.config,
   }
   const host = createHost(config)

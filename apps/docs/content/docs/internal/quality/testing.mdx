@@ -33,6 +33,9 @@ suppressed; debug with `process.stderr.write`. Sandbox suites run against **both
 | M2 | Worker permissions (fs, network, child processes, threads, env), watchdog kill, crash, recycling, no secrets over IPC, bubblewrap (Linux) | `worker.test.ts` |
 | M2 | Surfaces per origin, production guard, `requestOrigin` | `surface.test.ts` |
 | M2 | CSP per surface, dev relaxations, nonces, effects allowlist, render RPC auth and limits | `headers.test.ts` |
+| M3a | Publishing workflow over HTTP: drafts vs published, 409 conflicts on save/publish/restore, history paging and limits, restore, unpublish, delete | `routes.test.ts` |
+| M3a | `page:publish` / `page:delete` enforced; the slug reaches `authorize` on every page and block route; 401 before validation | `auth.test.ts` |
+| M3a | `pageStoreContract` (drafts, conflicts, publish, history, concurrency) and `pages-fs` retention | `adapters.test.ts` |
 
 Fixtures: `packages/core/test/fixtures/evil` is a hostile theme; `helpers.ts` builds artifacts and
 starts the mock API on a random port ([D-0032](/docs/internal/decisions#D-0032)).

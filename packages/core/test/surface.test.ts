@@ -14,7 +14,7 @@ import { createCore, devAllowAll, WrongSurfaceError, type PuckRemoteCore } from 
 import { DEFAULT_ROUTES, resolveConfig } from '../src/server/config.ts'
 import { inProcessRenderer } from '../src/server/runtime/in-process.ts'
 import { classifyRequest } from '../src/server/surface.ts'
-import { buildExample, quietLog, REPO_ROOT } from './helpers.ts'
+import { buildExample, quietLog, REPO_ROOT, seedPages } from './helpers.ts'
 
 const SITE = 'https://www.example.test'
 const EDITOR = 'https://admin.example.test'
@@ -56,7 +56,7 @@ describe('core entry points enforce surfaces', () => {
     await publish({ distDir: (await buildExample()).outDir, artifacts: path.join(dir, 'artifacts'), quiet: true })
     const pagesDir = path.join(dir, 'pages')
     const pages = fsPageStore({ dir: pagesDir })
-    await pages.put('home', { root: { props: {} }, content: [{ type: 'card', props: { id: 'c', title: 'Hello' } }] })
+    await seedPages(pages, { home: { root: { props: {} }, content: [{ type: 'card', props: { id: 'c', title: 'Hello' } }] } })
     core = createCore({
       id: `surface-${process.pid}`,
       artifacts: fsArtifactStore({ dir: path.join(dir, 'artifacts') }),

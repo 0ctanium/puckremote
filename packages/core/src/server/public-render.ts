@@ -7,7 +7,7 @@ import type { Host } from './host.ts'
 import type { RenderSession } from './runtime/types.ts'
 import type { Manifest } from './manifest-schema.ts'
 import { collectInstances, mapItems, MISSING_TYPE, renderProps, ROOT_ID, type Instance, type PageData } from './page-tree.ts'
-import { readPage, stripResolved } from './pages.ts'
+import { readPublished, stripResolved } from './pages.ts'
 import { resolvePageData, type ResolveStats } from './query/resolver.ts'
 import { assetBase, mergeEffects, newNonce, renderInIsolate, type Effect } from './render.ts'
 
@@ -62,7 +62,7 @@ export function restoreMissing(data: PageData): PageData {
 export async function preparePage(host: Host, slug: string, query: Record<string, string>, context: PageContext = {}): Promise<PreparedPage | null> {
   const artifact = host.store.get()
   const { manifest, runtime: runner, version } = artifact
-  const page = await readPage(host.config.pages, slug)
+  const page = await readPublished(host.config.pages, slug)
   if (!page) return null
   const data = rewriteMissing(stripResolved(page), manifest)
   const instances = collectInstances(data, manifest)

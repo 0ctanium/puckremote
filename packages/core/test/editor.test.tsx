@@ -13,7 +13,7 @@ import { createCore, devAllowAll } from '../src/index.ts'
 import { renderProps } from '../src/server/page-tree.ts'
 import { handleResolve } from '../src/server/editor-rpc.ts'
 import { collectInstances, RESERVED_DATA_PROP, type PageData } from '../src/server/page-tree.ts'
-import { stripResolved, writePage } from '../src/server/pages.ts'
+import { cleanPage, saveDraft, stripResolved } from '../src/server/pages.ts'
 import { preparePage, rewriteMissing } from '../src/server/public-render.ts'
 import { buildRscConfig } from '../src/server/puck-rsc.tsx'
 import { resolvePageData } from '../src/server/query/resolver.ts'
@@ -144,9 +144,12 @@ describe('18. resolveData output never persists', () => {
     const nested = (resolved.content[0].props.content as any)[0].props.content[0]
     expect(nested.props[RESERVED_DATA_PROP]).toBeDefined() // resolveAllData reaches slot content
 
-    // Save path (POST /api/pages → writePage) strips it everywhere.
-    const saved = await writePage(h.host.config.pages, 'home', resolved)
-    const onDisk = await readFile(path.join(h.pagesDir, 'home.json'), 'utf8')
+    // Save path (POST /api/pages/save → cleanPage → saveDraft) strips it everywhere.
+    const saved = cleanPage(resolved)
+    const base = (await h.host.config.pages.meta('home'))?.draftRevision ?? null
+    const w = await saveDraft(h.host.config.pages, 'home', saved, { baseRevision: base })
+    if (!w.ok) throw new Error('conflict')
+    const onDisk = JSON.stringify((JSON.parse(await readFile(path.join(h.pagesDir, 'home', 'revisions', `${w.meta.draftRevision}.json`), 'utf8')) as { data: unknown }).data)
     for (const s of [JSON.stringify(saved), onDisk, JSON.stringify(stripResolved(resolved))]) {
       expect(s).not.toContain(RESERVED_DATA_PROP)
       expect(s).not.toContain('readOnly')

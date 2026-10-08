@@ -57,10 +57,16 @@ export const myAuth = defineAuth({
 | Action | Needed for |
 |---|---|
 | `editor:open` | Opening the editor page |
-| `page:read-draft` | Reading pages and draft data in the editor, rendering blocks |
-| `page:write` | Saving a page |
+| `page:read-draft` | Reading drafts, history and revisions; draft data in the editor; rendering blocks |
+| `page:write` | Saving a draft, restoring a revision |
+| `page:publish` | Publishing and unpublishing |
+| `page:delete` | Deleting a page |
+| `page:preview` | Creating preview links (a draft becomes viewable outside the editor) |
 | `artifact:activate` | Reloading the active theme version |
-| `page:publish`, `artifact:publish` | Reserved for the publishing workflow |
+| `artifact:publish` | Reserved for the artifact upload API |
+
+Every page action receives the page as `resource` (`{ slug }`), so you can restrict sections of the
+site ([D-0132](/docs/internal/decisions#D-0132)).
 
 <Callout type="warn" title="Cookies">
   Keep editor session cookies **host-only** on the editor domain, never `Domain=.example.com`:

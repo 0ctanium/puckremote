@@ -24,8 +24,11 @@ description: From opening the editor page to saving, step by step.
    public renderer, so drag-and-drop works on nested blocks.
 5. **Styles**: `ctx.assets.style` effects pointing at the theme's assets are injected into Puck's
    canvas iframe by the `iframe` override. Scripts are not run in the editor.
-6. **Save** (`onPublish`) → `POST /api/pages` with the CSRF header. The server restores `__missing`
-   blocks to their original type and props, strips `__data`, validates and writes.
+6. **Save** → `POST /api/pages/save` with the CSRF header and the draft revision the editor
+   loaded as `baseRevision`. The server restores `__missing` blocks to their original type and
+   props, strips `__data`, validates and saves a new draft revision; a stale base is a `409`.
+   `loadEditor` opens the latest **draft** (`readDraft`), and passes its `PageMeta` as
+   `EditorProps.page`.
 7. **Reload theme** → `POST /api/artifact/reload`; if the version changed, the page reloads.
 
 ## resolveData details

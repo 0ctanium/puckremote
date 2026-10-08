@@ -61,10 +61,14 @@ describe('createCore', () => {
 
   it('handleApi dispatches pages / blocks/resolve / artifact/reload with method checks', async () => {
     const page = { root: { props: { title: 'R' } }, content: [{ type: 'card', props: { id: 'c1', title: 'Routed', __data: { leak: true } } }] }
-    const saved = await core.handleApi(post('/_remote/api/pages', { slug: 'routed', data: page }))
+    const saved = await core.handleApi(post('/_remote/api/pages/save', { slug: 'routed', data: page, baseRevision: null }))
     expect(saved.status).toBe(200)
+    const { meta } = await saved.json()
     const got = await (await core.handleApi(req('/_remote/api/pages?slug=routed'))).json()
+    expect(got.meta).toEqual(meta)
+    expect(got.draft.data.content[0].props.title).toBe('Routed')
     expect(JSON.stringify(got)).not.toContain('__data')
+    expect((await core.handleApi(post('/_remote/api/pages/publish', { slug: 'routed', revision: meta.draftRevision }))).status).toBe(200)
 
     const r = await core.handleApi(post('/_remote/api/blocks/resolve', { blockType: 'latest-posts', props: { count: 1 } }))
     expect(r.status).toBe(200)
@@ -74,8 +78,58 @@ describe('createCore', () => {
     expect((await core.handleApi(req('/_remote/api/blocks/resolve'))).status).toBe(405)
     expect((await core.handleApi(req('/_remote/api/artifact/reload'))).status).toBe(405)
     expect((await core.handleApi(req('/_remote/api/pages', { method: 'DELETE' }))).status).toBe(405)
+    expect((await core.handleApi(post('/_remote/api/pages'))).status).toBe(405)
+    expect((await core.handleApi(req('/_remote/api/pages/save'))).status).toBe(405)
     expect((await core.handleApi(req('/_remote/api/nope'))).status).toBe(404)
-    expect((await core.handleApi(post('/_remote/api/pages', 'not json'))).status).toBe(400)
+    expect((await core.handleApi(post('/_remote/api/pages/save', 'not json'))).status).toBe(400)
+    expect((await core.handleApi(post('/_remote/api/pages/save', { slug: 'routed', data: page }))).status).toBe(400) // baseRevision is required
+    expect((await core.handleApi(post('/_remote/api/pages/save', { slug: 'Bad Slug', data: page, baseRevision: null }))).status).toBe(400)
+  })
+
+  it('publishing workflow: drafts, conflicts, publish, history, restore, unpublish, delete', async () => {
+    const api = (p: string) => `/_remote/api/${p}`
+    const page = (title: string) => ({ root: { props: {} }, content: [{ type: 'card', props: { id: 'w1', title } }] })
+    const save = async (title: string, baseRevision: string | null) => core.handleApi(post(api('pages/save'), { slug: 'flow', data: page(title), baseRevision }))
+
+    const a = await (await save('One', null)).json()
+    expect(a.meta).toMatchObject({ slug: 'flow', publishedRevision: null })
+    expect(await core.preparePage('flow')).toBeNull() // nothing published yet
+    const conflict = await save('Again', null)
+    expect(conflict.status).toBe(409)
+    expect(await conflict.json()).toMatchObject({ error: 'conflict', meta: { draftRevision: a.meta.draftRevision } })
+
+    expect((await core.handleApi(post(api('pages/publish'), { slug: 'flow', revision: a.meta.draftRevision }))).status).toBe(200)
+    const b = await (await save('Two', a.meta.draftRevision)).json()
+    expect((await save('Lost', a.meta.draftRevision)).status).toBe(409)
+    // The site serves the published revision; the editor opens the draft.
+    expect((await core.preparePage('flow'))!.rendered.w1.html).toContain('One')
+    const editor = await core.loadEditor('flow', req('/editor/flow'))
+    expect(editor.page).toMatchObject({ draftRevision: b.meta.draftRevision, publishedRevision: a.meta.draftRevision })
+    expect(JSON.stringify(editor.initialData)).toContain('Two')
+    // Publishing a revision that is no longer the draft is a conflict.
+    expect((await core.handleApi(post(api('pages/publish'), { slug: 'flow', revision: a.meta.draftRevision }))).status).toBe(409)
+
+    const hist = await (await core.handleApi(req(api('pages/history?slug=flow&limit=1')))).json()
+    expect(hist.revisions.map((r: { revision: string }) => r.revision)).toEqual([b.meta.draftRevision])
+    const older = await (await core.handleApi(req(api(`pages/history?slug=flow&before=${b.meta.draftRevision}`)))).json()
+    expect(older.revisions.map((r: { revision: string }) => r.revision)).toEqual([a.meta.draftRevision])
+    for (const q of ['limit=0', 'limit=101', 'limit=x', 'limit=1.5']) expect((await core.handleApi(req(api(`pages/history?slug=flow&${q}`)))).status, q).toBe(400)
+    const one = await (await core.handleApi(req(api(`pages/revision?slug=flow&revision=${a.meta.draftRevision}`)))).json()
+    expect(one.data.content[0].props.title).toBe('One')
+    expect((await core.handleApi(req(api('pages/revision?slug=flow&revision=99999999')))).status).toBe(404)
+
+    // Restore = the old revision saved as a new draft (stale base → 409).
+    expect((await core.handleApi(post(api('pages/restore'), { slug: 'flow', revision: a.meta.draftRevision, baseRevision: a.meta.draftRevision }))).status).toBe(409)
+    const restored = await (await core.handleApi(post(api('pages/restore'), { slug: 'flow', revision: a.meta.draftRevision, baseRevision: b.meta.draftRevision }))).json()
+    expect(restored.meta.draftRevision).not.toBe(b.meta.draftRevision)
+    expect((await (await core.handleApi(req(api('pages?slug=flow')))).json()).draft.data.content[0].props.title).toBe('One')
+
+    const un = await core.handleApi(post(api('pages/unpublish'), { slug: 'flow' }))
+    expect((await un.json()).meta.publishedRevision).toBeNull()
+    expect(await core.preparePage('flow')).toBeNull()
+    expect((await core.handleApi(post(api('pages/delete'), { slug: 'flow' }))).status).toBe(200)
+    expect((await core.handleApi(req(api('pages?slug=flow')))).status).toBe(404)
+    expect((await core.handleApi(post(api('pages/unpublish'), { slug: 'flow' }))).status).toBe(404)
   })
 
   it('preparePage and loadEditor use the configured routes', async () => {

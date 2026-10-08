@@ -5,20 +5,32 @@ description: How requests to the editor and its API are authenticated, authorize
 
 ## Flow
 
-`authorizeRequest(auth, request, action, resource?)`:
+On the API, `handleApi` runs, in order ([D-0153](/docs/internal/decisions#D-0153)):
 
-1. No adapter (development only, warned at startup) → allowed.
-2. `authenticate(request)`; null or exception → **401**.
-3. `authorize(principal, action, resource)`; false or exception → **403**.
+1. CSRF (`checkCsrf`) → **403**.
+2. `authenticateRequest`: no adapter (development only, warned at startup) → anonymous and allowed;
+   `authenticate(request)` null or exception → **401**. Signed-out callers always get 401, never a
+   400 that reveals input validation.
+3. The route handler parses its input → **400**.
+4. The handler calls `ctx.authorize({ slug })`, i.e. `authorizePrincipal` → `authorize(principal,
+   action, resource)`; false or exception → **403**.
+5. The handler acts.
+
+If a handler returns anything but a 400 without having called `authorize`, `handleApi` throws
+instead of answering: a future route that forgets authorization fails closed
+([D-0157](/docs/internal/decisions#D-0157)). `loadEditor` uses `authorizeRequest`, which is steps 2 and 4.
 
 | Entry | Action |
 |---|---|
-| `loadEditor` | `editor:open` (resource: slug) |
-| `GET /pages`, `POST /blocks/resolve`, `POST /blocks/render` | `page:read-draft` |
-| `POST /pages` | `page:write` |
+| `loadEditor` | `editor:open` |
+| `GET /pages`, `/pages/history`, `/pages/revision`, `POST /blocks/resolve`, `/blocks/render` | `page:read-draft` |
+| `POST /pages/save`, `/pages/restore` | `page:write` |
+| `POST /pages/publish`, `/pages/unpublish` | `page:publish` |
+| `POST /pages/delete` | `page:delete` |
 | `POST /artifact/reload` | `artifact:activate` |
 
-`page:publish` and `artifact:publish` are reserved for M3.
+Every entry except `/artifact/reload` passes `{ slug }` as the resource. `artifact:publish` is
+reserved for the artifact upload API (M3b).
 
 ## CSRF (`checkCsrf`)
 

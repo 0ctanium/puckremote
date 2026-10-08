@@ -55,16 +55,28 @@ export function sharedSecretAuth(opts: { secret: string | undefined; cookie?: st
   }
 }
 
+/** Who is calling. With `auth === null` (development without an adapter) returns null. Throws 401. */
+export async function authenticateRequest(auth: AuthAdapter | null, request: Request): Promise<Principal | null> {
+  if (!auth) return null
+  const principal = await auth.authenticate(request).catch(() => null)
+  if (!principal) throw new AccessDeniedError(401)
+  return principal
+}
+
+/** May this (authenticated) principal do `action`? Throws 403. */
+export async function authorizePrincipal(auth: AuthAdapter | null, principal: Principal | null, action: Action, resource?: { slug?: string }): Promise<void> {
+  if (!auth || !principal) return
+  const allowed = await Promise.resolve(auth.authorize(principal, action, resource)).catch(() => false)
+  if (!allowed) throw new AccessDeniedError(403)
+}
+
 /**
  * Authenticate + authorize a request. With `auth === null` (development without an adapter,
  * already warned about at startup) everything is allowed.
  */
 export async function authorizeRequest(auth: AuthAdapter | null, request: Request, action: Action, resource?: { slug?: string }): Promise<Principal | null> {
-  if (!auth) return null
-  const principal = await auth.authenticate(request).catch(() => null)
-  if (!principal) throw new AccessDeniedError(401)
-  const allowed = await Promise.resolve(auth.authorize(principal, action, resource)).catch(() => false)
-  if (!allowed) throw new AccessDeniedError(403)
+  const principal = await authenticateRequest(auth, request)
+  await authorizePrincipal(auth, principal, action, resource)
   return principal
 }
 

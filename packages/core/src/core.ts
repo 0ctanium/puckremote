@@ -4,15 +4,15 @@
  */
 import type { Data } from '@puckeditor/core'
 import { resolveConfig, type HostConfig, type PuckRemoteConfig, type Routes } from './server/config.ts'
-import type { Action } from '@puck-remote/sdk/host'
-import { AccessDeniedError, authorizeRequest, checkCsrf } from './server/auth.ts'
+import type { Action, PageMeta, Principal, WriteResult } from '@puck-remote/sdk/host'
+import { AccessDeniedError, authenticateRequest, authorizePrincipal, authorizeRequest, checkCsrf } from './server/auth.ts'
 import { classifyRequest, WrongSurfaceError } from './server/surface.ts'
 import { handleResolve } from './server/editor-rpc.ts'
 import { createHost, type Host } from './server/host.ts'
 import type { RenderSession } from './server/runtime/types.ts'
 import type { Manifest } from './server/manifest-schema.ts'
 import { collectInstances, renderProps, type PageData } from './server/page-tree.ts'
-import { normalizeSlug, readPage, stripResolved, writePage } from './server/pages.ts'
+import { cleanPage, normalizeSlug, PageFormatError, pageFromRevision, readDraft, saveDraft, stripResolved } from './server/pages.ts'
 import { preparePage, restoreMissing, rewriteMissing, type PageContext, type PreparedPage } from './server/public-render.ts'
 import { fileResponse, readArtifactFile } from './server/static-files.ts'
 import { assetBase, newNonce, renderInIsolate } from './server/render.ts'
@@ -32,6 +32,15 @@ const renderBatchSchema = z.strictObject({
     )
     .max(100),
 })
+
+const revisionSchema = z.string().min(1).max(200)
+const slugSchema = z.strictObject({ slug: z.string().max(200) })
+const saveSchema = z.strictObject({ slug: z.string().max(200), data: z.unknown(), baseRevision: revisionSchema.nullable() })
+const publishSchema = z.strictObject({ slug: z.string().max(200), revision: revisionSchema })
+const restoreSchema = z.strictObject({ slug: z.string().max(200), revision: revisionSchema, baseRevision: revisionSchema.nullable() })
+
+const HISTORY_DEFAULT_LIMIT = 20
+const HISTORY_MAX_LIMIT = 100
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024
 
@@ -57,6 +66,8 @@ export interface EditorProps {
   /** Where the public site lives ('' = same origin), for "View page" links. */
   siteOrigin: string
   initialData: Data
+  /** The page's draft/published state, or null for a page that doesn't exist yet. */
+  page: PageMeta | null
   uncacheable: boolean
 }
 
@@ -67,13 +78,16 @@ export interface PuckRemoteCore {
   preparePage(slug: string, query?: Record<string, string>, context?: PageContext): Promise<PreparedPage | null>
   /** Throws AccessDeniedError (401/403) unless `request` may open the editor. */
   loadEditor(slug: string, request: Request): Promise<EditorProps>
-  /** `<routes.api>/pages` (GET ?slug=, POST), `/blocks/resolve` (POST), `/artifact/reload` (POST). */
+  /** `<routes.api>/pages/**` (drafts, publishing, history), `/blocks/resolve`, `/blocks/render`, `/artifact/reload`. */
   handleApi(request: Request): Promise<Response>
   /** `<routes.theme>/v<N>/assets/**` (GET). The theme bundle itself is never served. */
   handleTheme(request: Request): Promise<Response>
 }
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) => Response.json(body, { status, headers })
+
+/** 200 with the new meta, or 409 with the current one. */
+const writeResult = (r: WriteResult) => (r.ok ? json({ meta: r.meta }) : json({ error: 'conflict', meta: r.meta }, 409))
 
 /** Path below a route prefix, or null if the request is outside it. */
 function subpath(request: Request, prefix: string): string | null {
@@ -94,32 +108,131 @@ function build(config: HostConfig): PuckRemoteCore {
       return h
     })())
 
-  type Handler = (request: Request, h: Host) => Promise<Response>
+  /**
+   * The caller is authenticated before the handler runs (401). Handlers parse their input (400),
+   * then call `authorize` with the page they act on (403) before doing anything.
+   */
+  interface Ctx {
+    h: Host
+    principal: Principal | null
+    authorize(resource?: { slug?: string }): Promise<void>
+  }
+  type Handler = (request: Request, ctx: Ctx) => Promise<Response>
   /** route → method → [required action, handler]. Everything else is 404/405. */
   const routes: Record<string, Record<string, [Action, Handler]>> = {
     pages: {
       GET: [
         'page:read-draft',
-        async (request) => {
+        async (request, ctx) => {
           const slug = normalizeSlug(new URL(request.url).searchParams.get('slug') ?? 'home')
           if (!slug) return json({ error: 'invalid slug' }, 400)
-          const page = await readPage(config.pages, slug)
-          return page ? json(page) : json({ error: 'not found' }, 404)
+          await ctx.authorize({ slug })
+          const [meta, draft] = await Promise.all([config.pages.meta(slug), config.pages.getDraft(slug)])
+          if (!meta || !draft) return json({ error: 'not found' }, 404)
+          return json({ meta, draft: { ...draft, data: pageFromRevision(slug, draft) } })
         },
       ],
+    },
+    'pages/save': {
       POST: [
         'page:write',
-        async (request) => {
-          // Editor save: resolved data (__data) is stripped; __missing blocks are restored.
-          const body = (await readJson(request)) as any
-          const slug = normalizeSlug(body?.slug)
-          if (!slug || !body?.data) return json({ error: 'invalid body' }, 400)
+        async (request, ctx) => {
+          const body = saveSchema.safeParse(await readJson(request))
+          const slug = body.success ? normalizeSlug(body.data.slug) : null
+          if (!body.success || !slug) return json({ error: 'invalid body' }, 400)
+          await ctx.authorize({ slug })
+          let data: PageData
           try {
-            const saved = await writePage(config.pages, slug, restoreMissing(body.data as PageData))
-            return json({ ok: true, slug, blocks: saved.content.length })
+            // Resolved data (__data) is stripped; __missing blocks are restored.
+            data = cleanPage(restoreMissing(body.data.data as PageData))
           } catch (e) {
             return json({ error: e instanceof Error ? e.message : 'invalid page' }, 400)
           }
+          return writeResult(await saveDraft(config.pages, slug, data, { baseRevision: body.data.baseRevision, author: ctx.principal?.id }))
+        },
+      ],
+    },
+    'pages/publish': {
+      POST: [
+        'page:publish',
+        async (request, ctx) => {
+          const body = publishSchema.safeParse(await readJson(request))
+          const slug = body.success ? normalizeSlug(body.data.slug) : null
+          if (!body.success || !slug) return json({ error: 'invalid body' }, 400)
+          await ctx.authorize({ slug })
+          return writeResult(await config.pages.publish(slug, { revision: body.data.revision, author: ctx.principal?.id }))
+        },
+      ],
+    },
+    'pages/unpublish': {
+      POST: [
+        'page:publish',
+        async (request, ctx) => {
+          const body = slugSchema.safeParse(await readJson(request))
+          const slug = body.success ? normalizeSlug(body.data.slug) : null
+          if (!body.success || !slug) return json({ error: 'invalid body' }, 400)
+          await ctx.authorize({ slug })
+          await config.pages.unpublish(slug)
+          const meta = await config.pages.meta(slug)
+          return meta ? json({ meta }) : json({ error: 'not found' }, 404)
+        },
+      ],
+    },
+    'pages/delete': {
+      POST: [
+        'page:delete',
+        async (request, ctx) => {
+          const body = slugSchema.safeParse(await readJson(request))
+          const slug = body.success ? normalizeSlug(body.data.slug) : null
+          if (!body.success || !slug) return json({ error: 'invalid body' }, 400)
+          await ctx.authorize({ slug })
+          await config.pages.delete(slug)
+          return json({ ok: true })
+        },
+      ],
+    },
+    'pages/history': {
+      GET: [
+        'page:read-draft',
+        async (request, ctx) => {
+          const q = new URL(request.url).searchParams
+          const slug = normalizeSlug(q.get('slug') ?? 'home')
+          const limit = q.has('limit') ? Number(q.get('limit')) : HISTORY_DEFAULT_LIMIT
+          const before = q.get('before') ?? undefined
+          if (!slug || !Number.isInteger(limit) || limit < 1 || limit > HISTORY_MAX_LIMIT || (before !== undefined && !revisionSchema.safeParse(before).success)) {
+            return json({ error: 'invalid query' }, 400)
+          }
+          await ctx.authorize({ slug })
+          return json({ revisions: await config.pages.history(slug, { limit, before }) })
+        },
+      ],
+    },
+    'pages/revision': {
+      GET: [
+        'page:read-draft',
+        async (request, ctx) => {
+          const q = new URL(request.url).searchParams
+          const slug = normalizeSlug(q.get('slug') ?? 'home')
+          const revision = revisionSchema.safeParse(q.get('revision'))
+          if (!slug || !revision.success) return json({ error: 'invalid query' }, 400)
+          await ctx.authorize({ slug })
+          const rev = await config.pages.getRevision(slug, revision.data)
+          return rev ? json({ ...rev, data: pageFromRevision(slug, rev) }) : json({ error: 'not found' }, 404)
+        },
+      ],
+    },
+    'pages/restore': {
+      POST: [
+        'page:write',
+        async (request, ctx) => {
+          const body = restoreSchema.safeParse(await readJson(request))
+          const slug = body.success ? normalizeSlug(body.data.slug) : null
+          if (!body.success || !slug) return json({ error: 'invalid body' }, 400)
+          await ctx.authorize({ slug })
+          const rev = await config.pages.getRevision(slug, body.data.revision)
+          if (!rev) return json({ error: 'not found' }, 404)
+          const data = cleanPage(pageFromRevision(slug, rev))
+          return writeResult(await saveDraft(config.pages, slug, data, { baseRevision: body.data.baseRevision, author: ctx.principal?.id }))
         },
       ],
     },
@@ -127,17 +240,20 @@ function build(config: HostConfig): PuckRemoteCore {
       // Editor data RPC (draft mode): body is { blockType, props, slug }; the spec comes from the manifest.
       POST: [
         'page:read-draft',
-        async (request, h) => {
+        async (request, ctx) => {
           const body = (await readJson(request)) as any
-          const { manifest, runtime } = h.store.get()
+          const slug = normalizeSlug(typeof body?.slug === 'string' ? body.slug : 'home')
+          if (!slug) return json({ error: 'invalid body' }, 400)
+          await ctx.authorize({ slug })
+          const { manifest, runtime } = ctx.h.store.get()
           let session: Promise<RenderSession> | null = null
           try {
             const res = await handleResolve(body, {
               manifest,
               config,
-              source: h.source,
-              http: h.http,
-              cache: h.cache,
+              source: ctx.h.source,
+              http: ctx.h.http,
+              cache: ctx.h.cache,
               site: config.site,
               session: () => (session ??= runtime.session()),
             })
@@ -154,11 +270,13 @@ function build(config: HostConfig): PuckRemoteCore {
       // the isolate treats all input as untrusted, and the HTML only goes back to that caller.
       POST: [
         'page:read-draft',
-        async (request, h) => {
+        async (request, ctx) => {
           const parsed = renderBatchSchema.safeParse(await readJson(request))
-          if (!parsed.success) return json({ error: 'invalid body' }, 400)
-          const { slug, items } = parsed.data
-          const { manifest, runtime, version } = h.store.get()
+          const slug = parsed.success ? normalizeSlug(parsed.data.slug) : null
+          if (!parsed.success || !slug) return json({ error: 'invalid body' }, 400)
+          await ctx.authorize({ slug })
+          const { items } = parsed.data
+          const { manifest, runtime, version } = ctx.h.store.get()
           const session = await runtime.session()
           const results: Record<string, unknown> = {}
           try {
@@ -190,8 +308,9 @@ function build(config: HostConfig): PuckRemoteCore {
       // Manual reload (the store's change feed or polling also picks up pointer changes).
       POST: [
         'artifact:activate',
-        async (_request, h) => {
-          const r = await h.store.reload()
+        async (_request, ctx) => {
+          await ctx.authorize()
+          const r = await ctx.h.store.reload()
           return json(r, r.ok ? 200 : 500)
         },
       ],
@@ -210,13 +329,25 @@ function build(config: HostConfig): PuckRemoteCore {
     try {
       const csrf = checkCsrf(request, config.allowedOrigins)
       if (csrf) throw csrf
-      await authorizeRequest(config.auth, request, action)
-      const res = await handler(request, await host())
+      const principal = await authenticateRequest(config.auth, request)
+      let authorized = false
+      const ctx: Ctx = {
+        h: await host(),
+        principal,
+        async authorize(resource) {
+          await authorizePrincipal(config.auth, principal, action, resource)
+          authorized = true
+        },
+      }
+      const res = await handler(request, ctx)
+      // Every handler must authorize before acting; a 400 before that is the only exception.
+      if (!authorized && res.status !== 400) throw new Error(`puck-remote: handler for ${sub} did not authorize`)
       // Editor API responses are per-user and may contain drafts: never cache them.
       res.headers.set('cache-control', 'private, no-store')
       return res
     } catch (e) {
       if (e instanceof AccessDeniedError) return json({ error: e.message }, e.status, { 'cache-control': 'private, no-store' })
+      if (e instanceof PageFormatError) return json({ error: e.message }, 500, { 'cache-control': 'private, no-store' })
       throw e
     }
   }
@@ -246,7 +377,8 @@ function build(config: HostConfig): PuckRemoteCore {
       await authorizeRequest(config.auth, request, 'editor:open', { slug })
       const h = await host()
       const { manifest, version } = h.store.get()
-      const page = (await readPage(config.pages, slug)) ?? { root: { props: { ...(manifest.root?.defaultProps ?? {}) } }, content: [] }
+      const draft = await readDraft(config.pages, slug)
+      const page = draft?.data ?? { root: { props: { ...(manifest.root?.defaultProps ?? {}) } }, content: [] }
       const data = rewriteMissing(stripResolved(page), manifest)
       return {
         manifest,
@@ -256,6 +388,7 @@ function build(config: HostConfig): PuckRemoteCore {
         routes: config.routes,
         siteOrigin: config.origins?.site[0] ?? '',
         initialData: data as unknown as Data,
+        page: draft?.meta ?? null,
         uncacheable: collectInstances(data, manifest).some((i) => i.meta?.usesRequestParams),
       }
     },

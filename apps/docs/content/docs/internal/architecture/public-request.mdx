@@ -34,8 +34,9 @@ sequenceDiagram
 3. **`core.preparePage`**: rejects a non-site origin (returns `null` → 404), then lazily starts the
    host (first artifact load, watcher).
 4. **`preparePage` pipeline** ([D-0018](/docs/internal/decisions#D-0018)):
-   1. `readPage` from the `PageStore`, validated with zod; `stripResolved` removes any stray
-      `__data`;
+   1. `readPublished`: the **published** revision from the `PageStore` (nothing published → 404),
+      upgraded from older page formats if needed and validated with zod; `stripResolved` removes
+      any stray `__data`. Drafts never reach the public site ([D-0134](/docs/internal/decisions#D-0134));
    2. `rewriteMissing`: unknown block types become `__missing` ([missing blocks](/docs/internal/architecture/missing-blocks));
    3. `collectInstances`: the host's own depth-first walk of root → content → slots
       ([D-0016](/docs/internal/decisions#D-0016)), giving every instance with its manifest metadata;
