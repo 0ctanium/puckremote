@@ -18,6 +18,9 @@ const PORT = process.env.PORT ?? '3100'
 // Dev: http://localhost:3100 (site) and http://editor.localhost:3100 (editor); *.localhost resolves to loopback.
 const SITE_ORIGINS = (process.env.PUCK_REMOTE_SITE_ORIGINS ?? `http://localhost:${PORT},http://site.localhost:${PORT}`).split(',')
 const EDITOR_ORIGINS = (process.env.PUCK_REMOTE_EDITOR_ORIGINS ?? `http://editor.localhost:${PORT}`).split(',')
+// Signs preview links. Development: a random secret per process (links stop working on restart).
+const PREVIEW_SECRET = process.env.PUCK_REMOTE_PREVIEW_SECRET ?? (process.env.NODE_ENV === 'production' ? undefined : crypto.randomUUID() + crypto.randomUUID())
+if (!PREVIEW_SECRET) throw new Error('PUCK_REMOTE_PREVIEW_SECRET is required in production')
 
 export default defineConfig({
   artifacts: fsArtifactStore({ dir: path.join(root, 'artifacts') }),
@@ -29,5 +32,6 @@ export default defineConfig({
   origins: { site: SITE_ORIGINS, editor: EDITOR_ORIGINS },
   site: { name: 'POC Site', locale: 'en' },
   http: { allowedOrigins: [MOCK_API], insecureDevOrigins: dev ? [MOCK_API] : [] },
+  preview: { secret: PREVIEW_SECRET },
   secrets: { EVENTS_API_KEY: { value: process.env.EVENTS_API_KEY ?? 'dev-events-key-7f3a9c', origins: [MOCK_API] } },
 })

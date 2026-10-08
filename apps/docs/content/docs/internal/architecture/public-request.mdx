@@ -36,7 +36,11 @@ sequenceDiagram
 4. **`preparePage` pipeline** ([D-0018](/docs/internal/decisions#D-0018)):
    1. `readPublished`: the **published** revision from the `PageStore` (nothing published → 404),
       upgraded from older page formats if needed and validated with zod; `stripResolved` removes
-      any stray `__data`. Drafts never reach the public site ([D-0134](/docs/internal/decisions#D-0134));
+      any stray `__data`. Drafts never reach the public site ([D-0134](/docs/internal/decisions#D-0134)),
+      except through a preview token (`PageContext.preview`): `verifyPreviewToken` checks the HMAC
+      (constant time), the slug and the expiry, then the granted revision is read with
+      `getRevision` and data resolves in **draft** mode. An invalid token is a 404. The
+      `puck_preview` parameter is removed from the query that `$query` blocks see;
    2. `rewriteMissing`: unknown block types become `__missing` ([missing blocks](/docs/internal/architecture/missing-blocks));
    3. `collectInstances`: the host's own depth-first walk of root → content → slots
       ([D-0016](/docs/internal/decisions#D-0016)), giving every instance with its manifest metadata;
@@ -67,3 +71,4 @@ effects before streaming markup, and keeps "one fresh context per request".
 <Source path="packages/core/src/server/page-tree.ts" />
 <Source path="packages/core/src/server/puck-rsc.tsx" />
 <Source path="packages/core/src/react/PuckRemotePage.tsx" />
+<Source path="packages/core/src/server/preview.ts" />

@@ -10,7 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fsArtifactStore } from '@puck-remote/artifacts-fs'
-import { createCore, devAllowAll, type PuckRemoteCore } from '../src/index.ts'
+import { createCore, devAllowAll, resolveConfig, type PuckRemoteCore } from '../src/index.ts'
 import { buildExample, REPO_ROOT } from './helpers.ts'
 
 let core: PuckRemoteCore
@@ -140,5 +140,70 @@ describe('createCore', () => {
     const editor = await core.loadEditor('routed', req('/editor/routed'))
     expect(editor.routes).toEqual({ api: '/_remote/api', theme: '/_remote/theme', editor: '/editor' })
     expect(editor.version).toBe(1)
+  })
+})
+
+describe('preview links', () => {
+  const SECRET = 'x'.repeat(32)
+  let pc: PuckRemoteCore
+  beforeAll(() => {
+    pc = createCore({ ...core.config, id: `preview-${process.pid}`, auth: devAllowAll(), preview: { secret: SECRET } })
+  })
+  afterAll(async () => (await pc.host()).store.close())
+  const api = (p: string) => `/_remote/api/${p}`
+
+  it('signs a draft revision; the site renders it with draft data, hides the token from $query, 404 otherwise', async () => {
+    const page = { root: { props: {} }, content: [{ type: 'card', props: { id: 'p1', title: 'Secret draft' } }] }
+    const saved = await (await pc.handleApi(post(api('pages/save'), { slug: 'blog/preview', data: page, baseRevision: null }))).json()
+    const res = await pc.handleApi(post(api('pages/preview-link'), { slug: 'blog/preview', revision: saved.meta.draftRevision }))
+    expect(res.status).toBe(200)
+    const { url, expiresAt } = await res.json()
+    expect(url).toMatch(/^\/blog\/preview\?puck_preview=/)
+    expect(Date.parse(expiresAt) - Date.now()).toBeGreaterThan(23 * 3600_000)
+    const token = new URL(url, 'http://x').searchParams.get('puck_preview')!
+
+    expect(await pc.preparePage('blog/preview')).toBeNull() // not published
+    const shown = (await pc.preparePage('blog/preview', { puck_preview: token }, { preview: token }))!
+    expect(shown.rendered.p1.html).toContain('Secret draft')
+    expect(shown).toMatchObject({ preview: true, cacheable: false })
+    // Draft data mode: unpublished CMS docs are visible in a preview.
+    const withData = await (await pc.handleApi(post(api('pages/save'), {
+      slug: 'blog/preview', baseRevision: saved.meta.draftRevision,
+      data: { root: { props: {} }, content: [{ type: 'search-results', props: { id: 's1' } }] },
+    }))).json()
+    const link2 = await (await pc.handleApi(post(api('pages/preview-link'), { slug: 'blog/preview', revision: withData.meta.draftRevision }))).json()
+    const t2 = new URL(link2.url, 'http://x').searchParams.get('puck_preview')!
+    const q = await pc.preparePage('blog/preview', { puck_preview: t2, q: 'DRAFT' }, { preview: t2 })
+    expect(q!.rendered.s1.html).toContain('DRAFT: Unannounced feature')
+
+    // Other slug, tampered, expired, garbage, feature off → 404.
+    expect(await pc.preparePage('home', {}, { preview: token })).toBeNull()
+    const [payload, sig] = token.split('.')
+    expect(await pc.preparePage('blog/preview', {}, { preview: `${payload}.${sig.slice(0, -2)}AA` })).toBeNull()
+    expect(await pc.preparePage('blog/preview', {}, { preview: 'nope' })).toBeNull()
+    const { createPreviewToken } = await import('../src/server/preview.ts')
+    const old = await createPreviewToken(SECRET, { slug: 'blog/preview', revision: saved.meta.draftRevision, ttlSeconds: 60, now: Date.now() - 120_000 })
+    expect(await pc.preparePage('blog/preview', {}, { preview: old.token })).toBeNull()
+    const other = await createPreviewToken('y'.repeat(32), { slug: 'blog/preview', revision: saved.meta.draftRevision, ttlSeconds: 60 })
+    expect(await pc.preparePage('blog/preview', {}, { preview: other.token })).toBeNull()
+    expect(await core.preparePage('blog/preview', {}, { preview: token })).toBeNull() // core without preview config
+
+    expect((await core.handleApi(post(api('pages/preview-link'), { slug: 'blog/preview', revision: saved.meta.draftRevision }))).status).toBe(404)
+    expect((await pc.handleApi(post(api('pages/preview-link'), { slug: 'blog/preview', revision: '99999999' }))).status).toBe(404)
+    expect((await pc.loadEditor('home', req('/editor'))).previewEnabled).toBe(true)
+    expect((await core.loadEditor('home', req('/editor'))).previewEnabled).toBe(false)
+  })
+
+  it('validates the preview config', () => {
+    expect(() => resolveConfig({ ...core.config, preview: { secret: SECRET, ttlSeconds: 59 } })).toThrow(/between 60 and 2592000/)
+    expect(() => resolveConfig({ ...core.config, preview: { secret: SECRET, ttlSeconds: 2592001 } })).toThrow(/between 60 and 2592000/)
+    const env = process.env.NODE_ENV
+    try {
+      process.env.NODE_ENV = 'production'
+      expect(() => resolveConfig({ ...core.config, allowSharedOrigin: true, preview: { secret: 'short' } })).toThrow(/at least 32 bytes in production/)
+      expect(resolveConfig({ ...core.config, allowSharedOrigin: true, preview: { secret: SECRET } }).preview).toEqual({ secret: SECRET, ttlSeconds: 86400 })
+    } finally {
+      process.env.NODE_ENV = env
+    }
   })
 })

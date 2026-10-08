@@ -10,6 +10,7 @@
  *   // app/theme/[[...path]]/route.ts  → export const { GET } = remote.theme
  */
 import { AccessDeniedError, createCore, normalizeSlug, WrongSurfaceError, type EditorProps, type PageContext, type PuckRemoteConfig, type PuckRemoteCore, type PreparedPage } from '@puck-remote/core'
+import { PREVIEW_PARAM } from '@puck-remote/core/edge'
 import { pageMetadata } from '@puck-remote/core/react'
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
@@ -72,7 +73,8 @@ export function createPuckRemote(config: PuckRemoteConfig, options: NextBindingO
   const prepare = cache(async (slug: string, qs: string, locale: string | undefined) => {
     // The request lets the core check that this origin serves the public site.
     const request = await currentRequest(`/${slug === 'home' ? '' : slug}`)
-    return core.preparePage(slug, Object.fromEntries(new URLSearchParams(qs)), { locale, request })
+    const query = Object.fromEntries(new URLSearchParams(qs))
+    return core.preparePage(slug, query, { locale, request, preview: query[PREVIEW_PARAM] })
   })
   const loadPage: PuckRemote['loadPage'] = async ({ params, searchParams }, context = {}) => {
     const slug = await slugOf(params)

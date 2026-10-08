@@ -7,7 +7,8 @@ import type { Host } from './host.ts'
 import type { RenderSession } from './runtime/types.ts'
 import type { Manifest } from './manifest-schema.ts'
 import { collectInstances, mapItems, MISSING_TYPE, renderProps, ROOT_ID, type Instance, type PageData } from './page-tree.ts'
-import { readPublished, stripResolved } from './pages.ts'
+import { pageFromRevision, readPublished, stripResolved } from './pages.ts'
+import { PREVIEW_PARAM, verifyPreviewToken } from './preview.ts'
 import { resolvePageData, type ResolveStats } from './query/resolver.ts'
 import { assetBase, mergeEffects, newNonce, renderInIsolate, type Effect } from './render.ts'
 
@@ -23,6 +24,8 @@ export interface PageContext {
   locale?: string
   /** The incoming request, when available: lets the core enforce which origins serve the site. */
   request?: Request
+  /** A preview token (the `puck_preview` query parameter): renders that draft revision with draft data. */
+  preview?: string
 }
 
 export interface PreparedPage {
@@ -36,6 +39,8 @@ export interface PreparedPage {
   rendered: Record<string, RenderedBlock>
   head: ReturnType<typeof mergeEffects>
   cacheable: boolean
+  /** Rendered from a preview link (a draft): never cache, never index. */
+  preview: boolean
   uncacheableBlocks: string[]
   stats: { data: ResolveStats; renderMs: number; blocks: number; failures: number; contextMs: number }
 }
@@ -62,8 +67,11 @@ export function restoreMissing(data: PageData): PageData {
 export async function preparePage(host: Host, slug: string, query: Record<string, string>, context: PageContext = {}): Promise<PreparedPage | null> {
   const artifact = host.store.get()
   const { manifest, runtime: runner, version } = artifact
-  const page = await readPublished(host.config.pages, slug)
+  const preview = context.preview !== undefined
+  const page = preview ? await readPreview(host, slug, context.preview!) : await readPublished(host.config.pages, slug)
   if (!page) return null
+  // The token is for the host only; blocks reading $query never see it.
+  const { [PREVIEW_PARAM]: _token, ...pageQuery } = query
   const data = rewriteMissing(stripResolved(page), manifest)
   const instances = collectInstances(data, manifest)
   const uncacheableBlocks = [...new Set(instances.filter((i) => i.meta?.usesRequestParams).map((i) => i.name))]
@@ -76,9 +84,9 @@ export async function preparePage(host: Host, slug: string, query: Record<string
     await getSession()
     const contextMs = performance.now() - tCtx
     const locale = context.locale ?? host.config.site.locale
-    const env = { page: { slug, locale }, site: host.config.site, query: uncacheableBlocks.length ? query : {} }
+    const env = { page: { slug, locale }, site: host.config.site, query: uncacheableBlocks.length ? pageQuery : {} }
     const { byInstance, stats } = await resolvePageData(
-      { instances, env, mode: 'public' },
+      { instances, env, mode: preview ? 'draft' : 'public' },
       { manifest, config: host.config, source: host.source, http: host.http, cache: host.cache, session: getSession },
     )
 
@@ -109,13 +117,24 @@ export async function preparePage(host: Host, slug: string, query: Record<string
       data,
       rendered,
       head: mergeEffects(effects, assetBase(host.config.routes.theme, version), host.config.security),
-      cacheable: uncacheableBlocks.length === 0,
+      cacheable: !preview && uncacheableBlocks.length === 0,
+      preview,
       uncacheableBlocks,
       stats: { data: stats, renderMs: performance.now() - tRender, blocks: Object.keys(rendered).length, failures, contextMs },
     }
   } finally {
     ;(session as RenderSession | null)?.release()
   }
+}
+
+/** The draft revision a valid preview token grants, or null (feature off, invalid, expired, missing). */
+async function readPreview(host: Host, slug: string, token: string): Promise<PageData | null> {
+  const preview = host.config.preview
+  if (!preview) return null
+  const revision = await verifyPreviewToken(preview.secret, token, slug)
+  if (!revision) return null
+  const rev = await host.config.pages.getRevision(slug, revision)
+  return rev ? pageFromRevision(slug, rev) : null
 }
 
 async function renderOne(inst: Instance, data: Record<string, unknown>, host: Host, slug: string, version: number, locale: string, session: RenderSession) {

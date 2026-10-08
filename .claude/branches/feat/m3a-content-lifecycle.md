@@ -90,6 +90,14 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
 | D-0165 | 'Unsaved changes' compares editor data ignoring __data and readOnly keys | user | accepted |
 | D-0166 | Editor header overrides are a stable component fed by React context (Puck remounts overrides whose identity changes) | user | superseded by D-0167 |
 | D-0167 | Editor header overrides are a stable component fed by React context (Puck remounts overrides whose identity changes); D-0166 was mislabeled as user-approved | agent-unreviewed | needs-review |
+| D-0168 | Copy preview link saves unsaved changes first, then links that revision | user | accepted |
+| D-0169 | Preview link is copied to the clipboard with status 'Preview link copied (expires <date time>)'; without clipboard access it is shown in a prompt | user | accepted |
+| D-0170 | preview config errors: 'preview.secret must be at least 32 bytes in production'; 'preview.ttlSeconds must be an integer between 60 and 2592000 (30 days)' (60 s minimum) | user | accepted |
+| D-0171 | Demo app: random preview secret per process in development; production requires PUCK_REMOTE_PREVIEW_SECRET | user | accepted |
+| D-0172 | @puck-remote/core/edge exports PREVIEW_PARAM ('puck_preview'); PreparedPage.preview flag; preview config accepts null (off) | user | accepted |
+| D-0173 | preview-link returns 404 when previews are off or the revision is missing (after auth); relative URL without origins; tokens over 2048 chars rejected | user | accepted |
+| D-0174 | Demo app: 'PUCK_REMOTE_PREVIEW_SECRET is required in production'; clipboard fallback prompt 'Preview link'; status 'Preview link failed (<status>)' | user | accepted |
+| D-0175 | Preview responses end up 'no-store' (Next replaces the proxy's 'private, no-store' on dynamic pages); accepted and documented | user | accepted |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -129,6 +137,15 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
   - `EditorProps.page` added.
   - Core internals: `authenticateRequest` and `authorizePrincipal` split out of `authorizeRequest`; `pages.ts` gains `readPublished`, `readDraft`, `cleanPage`, `saveDraft`, `PAGE_SCHEMA_VERSION` and `PageFormatError`.
 
+- **Slice D:**
+  - config `preview { secret, ttlSeconds }` (`HostConfig.preview`);
+  - `PageContext.preview` and `PreparedPage.preview`;
+  - route `pages/preview-link`;
+  - `EditorProps.previewEnabled`;
+  - `PREVIEW_PARAM` exported from `@puck-remote/core/edge`;
+  - `server/preview.ts` (token create/verify);
+  - the Next proxy sets no-store/noindex for previews;
+  - the demo app uses `PUCK_REMOTE_PREVIEW_SECRET`.
 - **Slice C:** the editor header (`editor/workflow.tsx`) replaces Puck's Publish button; `EditorClient` uses Puck `onChange` and stable `OVERRIDES`.
 
 ### Docs pages touched
@@ -142,8 +159,16 @@ A page was one record per slug. The editor's Puck "Publish" button overwrote it,
   - new `(framework)/guides/publishing.mdx`, placed before "Deploying safely";
   - `(framework)/concepts/editor.mdx`;
   - `internal/architecture/editor-lifecycle.mdx`.
+- **Slice D:**
+  - `(framework)/{configuration,environment,http-api}.mdx`;
+  - `(framework)/next-js/api.mdx`;
+  - `(framework)/guides/publishing.mdx` (preview section);
+  - `core/entry-points.mdx`;
+  - `internal/architecture/{public-request,editor-lifecycle}.mdx`;
+  - `internal/quality/testing.mdx`.
 
 ## Investigation Notes
+- Next 16 replaces the proxy's `cache-control: private, no-store` with `no-store` on dynamic pages (D-0175).
 - Puck 0.23 exposes `useGetPuck()` (current data, `dispatch({ type: 'setData' })`) and an `onChange` prop. Both are used by the workflow header.
 
 

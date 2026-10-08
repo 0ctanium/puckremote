@@ -18,3 +18,4 @@ export {
   type Surface,
 } from './server/surface.ts'
 export { resolveSurfaces } from './server/config.ts'
+export { PREVIEW_PARAM } from './server/preview.ts'

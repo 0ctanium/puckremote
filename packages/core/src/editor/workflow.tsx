@@ -111,9 +111,11 @@ export interface WorkflowHeaderProps {
   api: Api
   workflow: ReturnType<typeof useWorkflowState>
   onStatus(message: string): void
+  /** Show "Copy preview link" (preview links are configured on the server). */
+  previewEnabled: boolean
 }
 
-export function WorkflowHeader({ slug, api, workflow, onStatus }: WorkflowHeaderProps) {
+export function WorkflowHeader({ slug, api, workflow, onStatus, previewEnabled }: WorkflowHeaderProps) {
   const getPuck = useGetPuck()
   const { state, setState, dirty } = workflow
   const [busy, setBusy] = useState(false)
@@ -172,6 +174,23 @@ export function WorkflowHeader({ slug, api, workflow, onStatus }: WorkflowHeader
       onStatus(`Published ${new Date().toLocaleTimeString()}`)
     })
 
+  const copyPreviewLink = () =>
+    run(async () => {
+      // The link shows what the editor shows: unsaved changes are saved first.
+      const meta = dirty || !state.meta ? await save() : state.meta
+      if (!meta) return
+      const res = await api.post('pages/preview-link', { slug, revision: meta.draftRevision })
+      if (!res.ok) return onStatus(`Preview link failed (${res.status})`)
+      const { url, expiresAt } = (await res.json()) as { url: string; expiresAt: string }
+      const absolute = new URL(url, location.href).href
+      try {
+        await navigator.clipboard.writeText(absolute)
+        onStatus(`Preview link copied (expires ${new Date(expiresAt).toLocaleString()})`)
+      } catch {
+        window.prompt('Preview link', absolute)
+      }
+    })
+
   async function loadHistory(before?: string) {
     const q = new URLSearchParams({ slug, limit: String(HISTORY_PAGE), ...(before ? { before } : {}) })
     const res = await api.get(`pages/history?${q}`)
@@ -212,6 +231,11 @@ export function WorkflowHeader({ slug, api, workflow, onStatus }: WorkflowHeader
       <button type="button" disabled={busy} onClick={saveDraft}>
         Save draft
       </button>
+      {previewEnabled && (
+        <button type="button" disabled={busy} onClick={copyPreviewLink}>
+          Copy preview link
+        </button>
+      )}
       <button type="button" disabled={!canPublish} onClick={publish}>
         Publish
       </button>

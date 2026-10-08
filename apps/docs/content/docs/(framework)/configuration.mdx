@@ -120,6 +120,22 @@ secrets: {
 
 Names match `^[A-Z][A-Z0-9_]*$`.
 
+## Preview links (`preview`)
+
+```ts
+preview: { secret: process.env.PUCK_REMOTE_PREVIEW_SECRET! },
+```
+
+<TypeTable
+  type={{
+    'preview.secret': { description: "Signs preview links (HMAC-SHA256). At least 32 bytes in production. Rotate it to revoke every link.", type: 'string', required: true },
+    'preview.ttlSeconds': { description: "How long a link works: 60 to 2592000 (30 days).", type: 'number', default: '86400' },
+  }}
+/>
+
+Without `preview`, preview links are off: the editor hides the button and the API answers 404.
+See [Drafts and publishing](/docs/guides/publishing#preview-links).
+
 ## Security (`security`)
 
 <TypeTable
@@ -143,6 +159,9 @@ With `NODE_ENV=production`, the engine refuses to start when:
 - `auth` is missing;
 - `origins` is missing (unless `allowSharedOrigin`);
 - an origin is both a site and an editor origin (unless `allowSharedOrigin`);
-- `origins.editor` is empty.
+- `origins.editor` is empty;
+- `preview.secret` is shorter than 32 bytes.
+
+`preview.ttlSeconds` outside 60–2592000 is rejected in every environment.
 
 `devAllowAll()` itself throws in production.

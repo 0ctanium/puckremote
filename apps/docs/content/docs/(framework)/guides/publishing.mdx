@@ -45,15 +45,32 @@ changes they haven't seen ([D-0123](/docs/internal/decisions#D-0123)).
 | `page:write` | Save draft, Restore |
 | `page:publish` | Publish, unpublish |
 | `page:delete` | Deleting a page (API only) |
+| `page:preview` | Copy preview link |
 
 Your [auth adapter](/docs/core/adapters/auth) receives the page slug with each action, so you can
 give people rights on parts of the site only.
+
+## Preview links
+
+**Copy preview link** shows the current draft to someone without editor access: it saves unsaved
+changes first, then copies a link to the public site, e.g.
+`https://www.example.com/pricing?puck_preview=…`. The link:
+
+- shows exactly that revision, with draft data from your data source (unpublished CMS documents
+  included) ([D-0118](/docs/internal/decisions#D-0118));
+- works for `preview.ttlSeconds` (24 hours by default), then answers 404, like a tampered link or
+  a link used on another page;
+- is never cached or indexed (`no-store`, `x-robots-tag: noindex`);
+- can't be revoked on its own: rotate `preview.secret` to invalidate every link.
+
+Previews are off until you set [`preview`](/docs/configuration#preview-links-preview). Creating a
+link needs the `page:preview` action.
 
 ## Without the editor
 
 Everything the editor does goes through the [HTTP API](/docs/http-api) (`pages/save`,
 `pages/publish`, `pages/unpublish`, `pages/delete`, `pages/history`, `pages/revision`,
-`pages/restore`), so scripts and CI can manage pages with a bearer token.
+`pages/restore`, `pages/preview-link`), so scripts and CI can manage pages with a bearer token.
 
 ## Where pages are stored
 

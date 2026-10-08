@@ -50,7 +50,7 @@ function CanvasStyles({ document: doc, children }: { document?: Document; childr
 
 export type { EditorProps }
 
-export function EditorClient({ manifest, version, slug, site, routes, siteOrigin, initialData, page }: EditorProps) {
+export function EditorClient({ manifest, version, slug, site, routes, siteOrigin, initialData, page, previewEnabled }: EditorProps) {
   const assetBase = themeAssetBase(routes.theme, version)
   const [status, setStatus] = useState<string>('')
   // Blocks are rendered by the server (one batched call per tick); theme JS never runs here.
@@ -75,7 +75,7 @@ export function EditorClient({ manifest, version, slug, site, routes, siteOrigin
     [manifest, version, assetBase, slug, site, api, renderer],
   )
 
-  const header = { slug, version, siteOrigin, api, workflow, status, setStatus }
+  const header = { slug, version, siteOrigin, api, workflow, status, setStatus, previewEnabled }
   return (
     <HeaderContext.Provider value={header}>
       <Puck config={config} data={initialData} onChange={workflow.onChange} headerTitle={`/${slug === 'home' ? '' : slug}`} overrides={OVERRIDES} />
@@ -95,11 +95,12 @@ const HeaderContext = createContext<{
   workflow: ReturnType<typeof useWorkflowState>
   status: string
   setStatus(s: string): void
+  previewEnabled: boolean
 } | null>(null)
 
 // Puck's own Publish button (children) is replaced by the workflow controls.
 function HeaderActions() {
-  const { slug, version, siteOrigin, api, workflow, status, setStatus } = useContext(HeaderContext)!
+  const { slug, version, siteOrigin, api, workflow, status, setStatus, previewEnabled } = useContext(HeaderContext)!
   return (
     <>
       <span style={{ fontSize: 12, color: '#64748b' }} data-testid="artifact-version">
@@ -119,7 +120,7 @@ function HeaderActions() {
       <a href={`${siteOrigin}/${slug === 'home' ? '' : slug}`} target="_blank" rel="noreferrer">
         View page
       </a>
-      <WorkflowHeader slug={slug} api={api} workflow={workflow} onStatus={setStatus} />
+      <WorkflowHeader slug={slug} api={api} workflow={workflow} onStatus={setStatus} previewEnabled={previewEnabled} />
     </>
   )
 }

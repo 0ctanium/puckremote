@@ -15,6 +15,7 @@ import { collectInstances, renderProps, type PageData } from './server/page-tree
 import { cleanPage, normalizeSlug, PageFormatError, pageFromRevision, readDraft, saveDraft, stripResolved } from './server/pages.ts'
 import { preparePage, restoreMissing, rewriteMissing, type PageContext, type PreparedPage } from './server/public-render.ts'
 import { fileResponse, readArtifactFile } from './server/static-files.ts'
+import { createPreviewToken, PREVIEW_PARAM } from './server/preview.ts'
 import { assetBase, newNonce, renderInIsolate } from './server/render.ts'
 import { z } from 'zod'
 
@@ -68,6 +69,8 @@ export interface EditorProps {
   initialData: Data
   /** The page's draft/published state, or null for a page that doesn't exist yet. */
   page: PageMeta | null
+  /** Preview links are configured (shows "Copy preview link"). */
+  previewEnabled: boolean
   uncacheable: boolean
 }
 
@@ -236,6 +239,22 @@ function build(config: HostConfig): PuckRemoteCore {
         },
       ],
     },
+    'pages/preview-link': {
+      POST: [
+        'page:preview',
+        async (request, ctx) => {
+          const body = publishSchema.safeParse(await readJson(request))
+          const slug = body.success ? normalizeSlug(body.data.slug) : null
+          if (!body.success || !slug) return json({ error: 'invalid body' }, 400)
+          await ctx.authorize({ slug })
+          const preview = config.preview
+          if (!preview || !(await config.pages.getRevision(slug, body.data.revision))) return json({ error: 'not found' }, 404)
+          const { token, expiresAt } = await createPreviewToken(preview.secret, { slug, revision: body.data.revision, ttlSeconds: preview.ttlSeconds })
+          const path = slug === 'home' ? '/' : `/${slug}`
+          return json({ url: `${config.origins?.site[0] ?? ''}${path}?${PREVIEW_PARAM}=${encodeURIComponent(token)}`, expiresAt })
+        },
+      ],
+    },
     'blocks/resolve': {
       // Editor data RPC (draft mode): body is { blockType, props, slug }; the spec comes from the manifest.
       POST: [
@@ -389,6 +408,7 @@ function build(config: HostConfig): PuckRemoteCore {
         siteOrigin: config.origins?.site[0] ?? '',
         initialData: data as unknown as Data,
         page: draft?.meta ?? null,
+        previewEnabled: config.preview !== null,
         uncacheable: collectInstances(data, manifest).some((i) => i.meta?.usesRequestParams),
       }
     },

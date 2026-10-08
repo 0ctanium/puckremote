@@ -18,6 +18,7 @@ CSRF checks. POST bodies are capped at 2 MB ([D-0088](/docs/internal/decisions#D
 | `GET /api/pages/history?slug=&limit=&before=` | `page:read-draft` | — | `{ revisions }` newest first, without data; `limit` 1–100 (default 20) |
 | `GET /api/pages/revision?slug=&revision=` | `page:read-draft` | — | One revision with its data; `404` |
 | `POST /api/pages/restore` | `page:write` | `{ slug, revision, baseRevision }` | `{ meta }`: the old revision saved as a new draft; `409` on a stale base; `404` |
+| `POST /api/pages/preview-link` | `page:preview` | `{ slug, revision }` | `{ url, expiresAt }` (`url` is on the first site origin, relative without `origins`); `404` when previews are off or the revision doesn't exist |
 | `POST /api/blocks/resolve` | `page:read-draft` | `{ blockType, props, slug? }` | `{ data, usesRequestParams }`; draft mode; spec always from the manifest |
 | `POST /api/blocks/render` | `page:read-draft` | `{ slug, items: [{ key, kind, name, props, data }] }` (≤ 100 items) | `{ results: { [key]: { ok, html, nonce, effects } \| { ok: false, error } } }` |
 | `POST /api/artifact/reload` | `artifact:activate` | — | `{ ok, version, changed }` or `500 { ok: false, error }` |

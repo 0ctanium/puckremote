@@ -30,8 +30,8 @@ description: From opening the editor page to saving, step by step.
    `loadEditor` opens the latest **draft** (`readDraft`), and passes its `PageMeta` as
    `EditorProps.page`.
 7. **Reload theme** → `POST /api/artifact/reload`; if the version changed, the page reloads.
-8. **Workflow header** (`workflow.tsx`): Save draft, Publish, History/Restore and the conflict
-   banner call the `pages/*` routes. "Unsaved changes" compares the editor data with the last saved
+8. **Workflow header** (`workflow.tsx`): Save draft, Publish, Copy preview link (when
+   `EditorProps.previewEnabled`), History/Restore and the conflict banner call the `pages/*` routes. "Unsaved changes" compares the editor data with the last saved
    data, ignoring `__data` and `readOnly` (what `resolveData` adds), so loading data never marks a
    page as changed ([D-0165](/docs/internal/decisions#D-0165)). The header gets its state through React
    context: Puck remounts an override whose identity changes, so the `overrides` object is a

@@ -65,6 +65,8 @@ export interface HostConfig {
     cacheTtlMs: number
   }
   secrets: Record<string, SecretDef>
+  /** Signed preview links for drafts. null = feature off. */
+  preview: { secret: string; ttlSeconds: number } | null
 }
 
 export interface Routes {
@@ -79,7 +81,7 @@ export interface Routes {
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? Partial<T[K]> : T[K] }
 
 /** What an app provides. Everything except paths and plugins has a default. */
-type Plugins = 'artifacts' | 'source' | 'pages' | 'cache' | 'auth' | 'secrets' | 'allowedOrigins' | 'renderer' | 'origins' | 'security'
+type Plugins = 'artifacts' | 'source' | 'pages' | 'cache' | 'auth' | 'secrets' | 'allowedOrigins' | 'renderer' | 'origins' | 'security' | 'preview'
 
 /** What an app provides. Everything except the storage plugins has a default. */
 export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, Plugins>> {
@@ -106,6 +108,11 @@ export interface PuckRemoteConfig extends DeepPartial<Omit<HostConfig, Plugins>>
   /** Escape hatch: serve site and editor from one origin in production (not recommended). */
   allowSharedOrigin?: boolean
   secrets?: Record<string, SecretDef>
+  /**
+   * Signed, expiring links that show a draft on the public site to people without editor access.
+   * Without it, preview links are off. Rotate `secret` to revoke every link.
+   */
+  preview?: { secret: string; ttlSeconds?: number } | null
 }
 
 export class ConfigError extends Error {}
@@ -144,6 +151,23 @@ function resolveOrigins(input: PuckRemoteConfig): OriginsConfig | null {
     )
   }
   return null
+}
+
+const PREVIEW_DEFAULT_TTL = 24 * 60 * 60
+const PREVIEW_MIN_TTL = 60
+const PREVIEW_MAX_TTL = 30 * 24 * 60 * 60
+const PREVIEW_MIN_SECRET_BYTES = 32
+
+function resolvePreview(input: PuckRemoteConfig['preview']): HostConfig['preview'] {
+  if (!input) return null
+  const ttlSeconds = input.ttlSeconds ?? PREVIEW_DEFAULT_TTL
+  if (!Number.isInteger(ttlSeconds) || ttlSeconds < PREVIEW_MIN_TTL || ttlSeconds > PREVIEW_MAX_TTL) {
+    throw new ConfigError(`puck-remote: preview.ttlSeconds must be an integer between ${PREVIEW_MIN_TTL} and ${PREVIEW_MAX_TTL} (30 days)`)
+  }
+  if (process.env.NODE_ENV === 'production' && new TextEncoder().encode(input.secret ?? '').length < PREVIEW_MIN_SECRET_BYTES) {
+    throw new ConfigError(`puck-remote: preview.secret must be at least ${PREVIEW_MIN_SECRET_BYTES} bytes in production`)
+  }
+  return { secret: input.secret, ttlSeconds }
 }
 
 function resolveSecurity(input: Pick<PuckRemoteConfig, 'security'>): SecurityPolicy {
@@ -197,6 +221,7 @@ export function resolveConfig(input: PuckRemoteConfig): HostConfig {
       ...input.http,
     },
     secrets: input.secrets ?? {},
+    preview: resolvePreview(input.preview),
   }
 }
 

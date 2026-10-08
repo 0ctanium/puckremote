@@ -3,14 +3,15 @@
  *  - 404 when the request's origin doesn't serve its surface (editor/API only on editor origins,
  *    public pages only on site origins);
  *  - security headers per surface (CSP with a per-request nonce, framing, sniffing…);
- *  - cache headers for public pages (pages using URL query params are never cacheable).
+ *  - cache headers for public pages (pages using URL query params are never cacheable; preview
+ *    links are no-store and noindex).
  * Imports only @puck-remote/core/edge (no isolate, no workers).
  *
  *   // src/proxy.ts
  *   export const proxy = createProxy(remoteConfig)
  *   export const config = { matcher: ['/((?!_next/|favicon\\.ico).*)'] }
  */
-import { classifyRequest, cspNonce, normalizeSlug, pageCacheability, resolveSurfaces, securityHeaders } from '@puck-remote/core/edge'
+import { classifyRequest, cspNonce, normalizeSlug, pageCacheability, PREVIEW_PARAM, resolveSurfaces, securityHeaders } from '@puck-remote/core/edge'
 import type { PuckRemoteConfig } from '@puck-remote/core/config'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -29,6 +30,12 @@ export function createProxy(config: Pick<PuckRemoteConfig, 'artifacts' | 'pages'
     const res = NextResponse.next({ request: { headers: requestHeaders } })
     for (const [k, v] of Object.entries(headers)) res.headers.set(k, v)
     if (where.surface !== 'site') return res
+    // Preview links show drafts: never cache, never index (the core verifies the token itself).
+    if (req.nextUrl.searchParams.has(PREVIEW_PARAM)) {
+      res.headers.set('cache-control', 'private, no-store')
+      res.headers.set('x-robots-tag', 'noindex')
+      return res
+    }
     const slug = normalizeSlug(req.nextUrl.pathname)
     if (!slug) return res
     const c = await pageCacheability(config, slug).catch(() => null)

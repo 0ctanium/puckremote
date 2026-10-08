@@ -36,6 +36,7 @@ isolated-vm.
     normalizeSlug: { description: "Validates and normalizes a slug ('' → 'home').", type: '(parts: string | string[]) => string | null' },
     normalizeOrigin: { description: "Canonical scheme://host[:port].", type: '(origin: string) => string' },
     DEFAULT_SECURITY: { description: "Default security policy.", type: 'SecurityPolicy' },
+    PREVIEW_PARAM: { description: "Query parameter carrying a preview token ('puck_preview'). Pass its value as PageContext.preview; send no-store and noindex when present.", type: 'string' },
   }}
 />
 
