@@ -16,7 +16,7 @@ import * as React from 'react'
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from 'react'
 import { buildEditorConfig, type ThemeModule } from './config.tsx'
 import type { HostFieldFactories } from './fields.ts'
-import { hostToEditorSchema, LIMITS, measure, PROTOCOL_VERSION, type EditorOptions, type EditorPayload, type EditorToHost } from './protocol.ts'
+import { hostToEditorSchema, LIMITS, measure, PROTOCOL_VERSION, type EditorOptions, type EditorPayload, type EditorToHost, type RpcHandlers, type TypedRpc } from './protocol.ts'
 
 /** Why the editor refuses an init, or null. */
 export function initProblem(payload: EditorPayload, parentOrigin: string, selfOrigin: string): string | null {
@@ -121,20 +121,26 @@ export function connectToHost(opts: {
 // React
 // ---------------------------------------------------------------------------
 
-export interface EditorContextValue {
-  /** Call a method the admin page allow-listed in <PuckEditorFrame rpc={…}>. */
-  rpc: Rpc
+export interface EditorContextValue<T extends RpcHandlers = RpcHandlers> {
+  /**
+   * Call a method the admin page allow-listed in <PuckEditorFrame rpc={…}>. Typed by the admin
+   * page's map: `useEditor<typeof rpc>()` (a type-only import).
+   */
+  rpc: TypedRpc<T>
   payload: EditorPayload
   options: EditorOptions
 }
 
 const EditorContext = createContext<EditorContextValue | null>(null)
 
-/** The editor's connection to the host, inside <PuckRemoteEditor> (overrides, plugins, custom fields). */
-export function useEditor(): EditorContextValue {
+/**
+ * The editor's connection to the host, inside <PuckRemoteEditor> (overrides, plugins, custom fields).
+ * `T` is the type of the admin page's `rpc` map; the caller asserts it (types don't cross origins).
+ */
+export function useEditor<T extends RpcHandlers = RpcHandlers>(): EditorContextValue<T> {
   const ctx = useContext(EditorContext)
   if (!ctx) throw new Error('useEditor() must be used inside <PuckRemoteEditor>')
-  return ctx
+  return ctx as unknown as EditorContextValue<T>
 }
 
 type PuckProps = ComponentProps<typeof Puck>
@@ -299,3 +305,4 @@ function ReadyEditor(p: PuckRemoteEditorProps & { payload: EditorPayload; option
 export { buildEditorConfig, type ThemeModule } from './config.tsx'
 export { colorField, linkField, mediaField } from './host-fields.tsx'
 export type { HostFieldFactories } from './fields.ts'
+export type { RpcHandler, RpcHandlers, TypedRpc } from './protocol.ts'

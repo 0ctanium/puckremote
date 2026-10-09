@@ -53,6 +53,27 @@ export interface EditorOptions {
 
 export type RpcHandler<P = any, R = any> = (params: P) => Promise<R> | R;
 
+/** The `rpc` map an admin page passes to <PuckEditorFrame>; its type also types the editor's calls. */
+export type RpcHandlers = Record<string, RpcHandler>;
+
+/** Arguments after the method name: none, an optional or a required params value. */
+type RpcParams<H> = H extends (...args: infer A) => unknown
+  ? A extends []
+    ? []
+    : undefined extends A[0]
+      ? [params?: A[0]]
+      : [params: A[0]]
+  : [params?: unknown];
+
+/**
+ * `rpc(method, params)` typed by an admin page's handler map: method names, params and results
+ * come from `T` (`useEditor<typeof rpc>()`). Results cross postMessage, so handlers return JSON.
+ */
+export type TypedRpc<T extends RpcHandlers = RpcHandlers> = <K extends keyof T & string>(
+  method: K,
+  ...params: RpcParams<T[K]>
+) => Promise<Awaited<ReturnType<T[K]>>>;
+
 export type EditorToHost =
   | { v: 1; type: "ready" }
   | { v: 1; type: "change"; data: PageData }

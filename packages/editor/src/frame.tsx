@@ -15,8 +15,10 @@ import {
   type EditorPayload,
   type HostToEditor,
   type PageData,
-  type RpcHandler,
+  type RpcHandlers,
 } from "./protocol.ts";
+
+export type { RpcHandler, RpcHandlers, TypedRpc } from "./protocol.ts";
 
 export interface PuckEditorFrameProps {
   /** URL of the editor app. Its origin must be `editorOrigin`. */
@@ -28,7 +30,7 @@ export interface PuckEditorFrameProps {
   /** JSON-only options (permissions, locales, categories, flags). */
   options?: EditorOptions;
   /** Allow-listed RPC handlers; anything else is refused. They run with the host's session. */
-  rpc?: Record<string, RpcHandler>;
+  rpc?: RpcHandlers;
   /** Every validated change (debounced by the editor). */
   onChange?: (data: PageData) => void;
   onError?: (message: string) => void;
@@ -65,7 +67,7 @@ export interface HostHandlerOptions {
   source: () => unknown;
   post: (m: HostToEditor) => void;
   init: () => { payload: EditorPayload; options: EditorOptions };
-  rpc: () => Record<string, RpcHandler>;
+  rpc: () => RpcHandlers;
   onChange: (data: PageData) => void;
   onError: (message: string) => void;
   now?: () => number;

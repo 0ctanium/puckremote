@@ -18,6 +18,12 @@ export async function resolveData(params: {
   return remote.core.resolveBlockData(s, block, props);
 }
 
+/** The signed-in user's name (an RPC the editor uses for its header badge). */
+export async function currentUser() {
+  const { user } = await requireSession({ redirect: false });
+  return user;
+}
+
 // The demo's publishing plugin: "save = write the page into a new artifact + make it current".
 // Drafts, review or history would be other plugins on the same two primitives.
 export async function publish(params: {

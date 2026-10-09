@@ -1,14 +1,10 @@
 "use client";
 import type { EditorPayload } from "@puck-remote/next";
-import {
-  PuckEditorFrame,
-  type PuckEditorFrameProps,
-} from "@puck-remote/editor/frame";
+import { PuckEditorFrame } from "@puck-remote/editor/frame";
 import { useState } from "react";
 import { logout } from "../login/actions";
-import { resolveData, publish } from "./actions";
-
-const rpc: PuckEditorFrameProps["rpc"] = { resolveData };
+import { publish } from "./actions";
+import { rpc } from "./rpc";
 
 /** Admin UI: the editor frame plus the host's own controls (publish lives here, not in the frame). */
 export function ClientEditor({

@@ -91,6 +91,41 @@ with its own session, for example as server actions:
 `payload` is the page being edited (`slug`, `artifact`, `manifest`, `data`…), `options` the JSON
 options the admin page passed.
 
+### Typed calls
+
+Give `useEditor` the type of your admin page's `rpc` map, and `rpc` checks method names, params
+and results ([D-0317](/docs/internal/decisions#D-0317)). Export the map from its own module on the
+admin side, and import only its **type** on the editor side: no admin code reaches the editor
+bundle, which runs on another origin.
+
+```ts title="app/admin/editor/rpc.ts"
+import type { RpcHandlers } from '@puck-remote/editor/frame';
+import { currentUser, resolveData } from './actions';
+
+export const rpc = { resolveData, currentUser } satisfies RpcHandlers;
+export type AdminRpc = typeof rpc;
+```
+
+```tsx title="app/editor/EditorPage.tsx"
+import type { AdminRpc } from '@/app/admin/editor/rpc';
+
+function Badge() {
+  const { rpc } = useEditor<AdminRpc>();
+  useEffect(() => {
+    rpc('currentUser').then(setUser); // Promise<string>
+    // rpc('nope') and rpc('resolveData') without params are type errors
+  }, [rpc]);
+  /* … */
+}
+```
+
+- A handler takes one `params` value; a handler without parameters is called as `rpc('name')`.
+- The result type is the handler's return type. Results cross `postMessage`, so return JSON
+  (plain objects, arrays, strings, numbers, booleans, `null`); anything else is refused at
+  runtime.
+- The type is your assertion: it isn't checked at runtime. Without a type argument, `rpc` stays
+  loosely typed.
+
 ## How the theme gets React
 
 `bundle.browser.js` doesn't bundle React or the SDK: it reads them from

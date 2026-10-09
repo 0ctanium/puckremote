@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 316
+next_decision = 325
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -166,6 +166,16 @@ title = "Redirect /admin/x to /x on admin origins"
 description = "Redirect /admin/x to /x on admin origins"
 tags = [ "next", "origins", "routing" ]
 decisions = [ "D-0307", "D-0308", "D-0309", "D-0310", "D-0311", "D-0312", "D-0313", "D-0314", "D-0315" ]
+
+[adrs."feat/typed-rpc"]
+file = "branches/feat/typed-rpc.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Strongly typed useEditor().rpc"
+description = "Strongly typed useEditor().rpc"
+tags = [ "editor", "rpc", "types" ]
+decisions = [ "D-0316", "D-0317", "D-0318", "D-0319", "D-0320", "D-0321", "D-0322", "D-0323", "D-0324" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -2828,6 +2838,78 @@ date = "2026-10-09"
 provenance = "user"
 status = "accepted"
 tags = [ "examples", "auth" ]
+
+[decisions.D-0316]
+title = "Strong typing on the existing useEditor().rpc (no new hook), typed by the admin page rpc object type"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "rpc" ]
+
+[decisions.D-0317]
+title = "useEditor<T extends RpcHandlers = RpcHandlers>() with TypedRpc<T> = <K>(method: K, ...params: Parameters<T[K]>) => Promise<Awaited<ReturnType<T[K]>>>; runtime unchanged, loose by default"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "types" ]
+
+[decisions.D-0318]
+title = "RpcHandlers and TypedRpc exported from @puck-remote/editor/protocol, re-exported by /frame and /react; PuckEditorFrame rpc prop typed RpcHandlers; no runtime helper"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "types" ]
+
+[decisions.D-0319]
+title = "RPC handlers keep one params value; parameterless handlers are called without a second argument"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "rpc" ]
+
+[decisions.D-0320]
+title = "Typed RPC results are the handler return types; no Jsonify transform (JSON is enforced at runtime, documented)"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "types" ]
+
+[decisions.D-0321]
+title = "Example: rpc map in admin/editor/rpc.ts with AdminRpc type; currentUser action; editor badge uses useEditor<AdminRpc>().rpc(currentUser)"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0322]
+title = "Typed RPC tests with expectTypeOf in packages/editor/test/rpc-types.test.ts, typecheck and a browser check"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0323]
+title = "Docs: editor-app guide Typed calls section, testing map"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0324]
+title = "Typed RPC on feat/typed-rpc from feat/admin-prefix-redirect"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]
