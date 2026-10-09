@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 325
+next_decision = 337
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -176,6 +176,16 @@ title = "Strongly typed useEditor().rpc"
 description = "Strongly typed useEditor().rpc"
 tags = [ "editor", "rpc", "types" ]
 decisions = [ "D-0316", "D-0317", "D-0318", "D-0319", "D-0320", "D-0321", "D-0322", "D-0323", "D-0324" ]
+
+[adrs."chore/two-puck-spike"]
+file = "branches/chore/two-puck-spike.md"
+type = "chore"
+status = "active"
+created = "2026-10-09"
+title = "Spike: two synced Puck instances (admin fields/plugins, frame canvas/DnD)"
+description = "Spike: two synced Puck instances (admin fields/plugins, frame canvas/DnD)"
+tags = [ "editor", "research", "security" ]
+decisions = [ "D-0325", "D-0326", "D-0327", "D-0328", "D-0329", "D-0330", "D-0331", "D-0332", "D-0333", "D-0334", "D-0335", "D-0336" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -2910,6 +2920,104 @@ date = "2026-10-09"
 provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "process" ]
+
+[decisions.D-0325]
+title = "Time-boxed spike of a two-Puck split (admin: header, fields, plugins; frame: canvas, drawer, outline), admin-authoritative"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "research" ]
+
+[decisions.D-0326]
+title = "Spike on chore/two-puck-spike with a research ADR; findings in the ADR and internal/quality/research-two-puck.mdx"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process", "docs" ]
+
+[decisions.D-0327]
+title = "Owner uncommitted HeaderAction work stashed as \"wip: HeaderAction\", not part of the spike"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "process" ]
+superseded_by = "D-0335"
+
+[decisions.D-0328]
+title = "Spike scope: example app only (src/spike, admin/spike page, editor page ?spike=1); packages unchanged"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples", "research" ]
+
+[decisions.D-0329]
+title = "Spike channel: minimal postMessage with origin and source checks; frame→admin ready/action, admin→frame state with a sequence number"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "research", "security" ]
+
+[decisions.D-0330]
+title = "Spike sync: admin holds the data; frame applies locally then sends; admin broadcasts; undo/redo only on the admin"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "research" ]
+
+[decisions.D-0331]
+title = "Spike admin config from the manifest (mapFields, visibleIf, placeholder render, resolveData via the server action)"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "research" ]
+
+[decisions.D-0332]
+title = "Spike time box: stop after the five questions or the first blocker needing Puck internals"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "research" ]
+
+[decisions.D-0333]
+title = "Spike verification: manual browser checklist, answers recorded with evidence; no automated tests"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "research", "testing" ]
+
+[decisions.D-0334]
+title = "Spike outcome: go / no-go / go-with-changes recommendation; nothing merged into packages from the spike"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "research" ]
+
+[decisions.D-0335]
+title = "Correction to D-0327: nothing was stashed; the working tree was already clean when the spike started (the owner changes were no longer present)"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "process" ]
+supersedes = [ "D-0327" ]
+
+[decisions.D-0336]
+title = "Spike tries both frame→admin sync styles and reports the better: (A) full state + ack via <PuckRemoteEditor> overrides.puck; (B) Puck actions via a temporary, uncommitted onAction pass-through"
+adr = "chore/two-puck-spike"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "research" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

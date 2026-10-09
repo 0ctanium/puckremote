@@ -1,0 +1,90 @@
+---
+title: "Research: two synced Puck instances"
+description: Spike results for splitting the editor between a trusted admin Puck and the theme's frame Puck, and the comparison of two sync styles.
+---
+
+A time-boxed spike ([D-0325](/docs/internal/decisions#D-0325)) tested whether the editor can be
+split in two Puck instances that stay in sync:
+
+- **Admin page (trusted):** header, Publish, undo/redo, the fields panel (`Puck.Fields`). Its config
+  comes from the manifest alone (fields, defaults, `visibleIf`, placeholder renders), so **no theme
+  code runs there**. It holds the page data and the history. `resolveData` goes straight to the
+  server action.
+- **Editor frame (theme code):** the canvas (`Puck.Preview`), the drawer (`Puck.Components`) and the
+  outline (`Puck.Outline`). Drag and drop needs one document, so everything that drags stays here.
+
+The motivation is security: features with authority (publish, version history, rollback) live
+entirely in the admin page, so theme code in the frame can never reach them.
+
+The prototype is throwaway code in the example app (`examples/app/src/spike/`,
+`admin.localhost:3100/spike`). It reuses `<PuckRemoteEditor>` for the handshake and theme loading,
+and swaps Puck's UI for a custom layout through `overrides.puck`.
+
+## Two sync styles
+
+The admin page holds the data in both. They differ in what the frame reports.
+
+|  | A: whole state | B: Puck actions |
+|---|---|---|
+| Frame → admin | `{ seq, data, itemSelector }` after each local change | Puck's `onAction` actions (insert, move, reorder, replace, remove, duplicate) and `setUi { itemSelector }` |
+| Admin applies | `setData` + `setUi` | Replays the action with `dispatch` |
+| Admin → frame | Its state `{ data, itemSelector, ack }`; the frame applies it only if `ack` covers its own pending edits | Same |
+| Echo control | Content comparison: skip a state equal to the last one received | Remote states are dispatched with `recordHistory: false`, and the frame ignores those actions |
+| Package change | None | `onAction` passed through `<PuckRemoteEditor>` |
+
+### Results
+
+| Check | A | B |
+|---|---|---|
+| Drag from the drawer, moves, slots | Works | Works |
+| Selection, including nested slots | Works | Works |
+| **Deselect (back to root fields)** | **Fails**: the admin keeps the block's fields | Works |
+| Admin field edits reflected in the canvas | Works | Works |
+| Undo/redo (admin buttons, ⌘Z forwarded from the canvas) | Works, but load-time echoes add extra history entries | Works, one entry per edit |
+| Array field items open state | Stays local, unaffected | Stays local, unaffected |
+| Messages and latency | About 1–3 KB per state on the example page, about 3 ms round trip, no perceptible lag | Same |
+
+### Why A fails on deselect
+
+A must recognize its own echoes, and it does so by content: a state identical to the last one
+received from the admin isn't sent back. Deselecting often returns the frame to a state identical
+to one the admin sent before (same data, nothing selected), so the deselection is never reported.
+The same applies to any edit that lands back on an earlier state.
+
+Puck also normalizes the data it receives, so states that differ only by normalization go back and
+forth at load. They settle, but each one adds an admin history entry.
+
+Both problems come from comparing content. B avoids them by construction: it reports **what the
+user did**, and remote states are marked when they're applied.
+
+## Recommendation: go with B, with changes
+
+The split works with Puck 0.23's public API (composition components, `onAction`, `setData`,
+`setUi`, `useGetPuck`). Variant B was correct on the first try. A real implementation needs:
+
+1. **`onAction` support in `@puck-remote/editor`**, as a real, documented API rather than the
+   spike's pass-through. The frame side and the admin side probably become package components
+   instead of example code.
+2. **Integration into the protocol.** The spike used a side channel, which the real protocol's
+   schema rejects (and reports as errors). The actions and states become typed, zod-validated
+   messages.
+3. **Validating what the frame sends.** Theme code can send any action, as it can send any page
+   today. The admin must validate action shapes and the resulting page (size, schema) before
+   applying them. The authority still never leaves the admin page.
+4. **Deterministic duplicates.** `duplicate` generates new ids independently on each side. The
+   admin's state, sent back after the action, corrects the frame. It would be cleaner to send the
+   duplicate as an `insert` with the admin's ids.
+5. **A full resync as a safety net.** The admin's state broadcast already brings the frame back in
+   line after any divergence. Keep it.
+6. **The UI.** The spike's custom layout is bare. Puck's tabbed sidebar, panel toggles and canvas
+   toolbar (viewports, zoom) must be rebuilt, or restyled from Puck's own pieces.
+7. **What moves out of the frame.** `resolveData` and the fields UI move to the admin page; the
+   frame's RPC allow-list could shrink to nothing.
+
+## Open points
+
+- Inline text editing in the canvas was checked only lightly; it needs a dedicated test (fast
+  typing, cursor position).
+- Field focus while the other side changes the same field was not stress-tested.
+- The admin layout's `puck.css` loads the Inter font from `rsms.me`, which the admin CSP blocks.
+  This is unrelated to the spike, but visible in the console.
