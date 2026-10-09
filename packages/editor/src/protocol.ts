@@ -4,7 +4,7 @@
  * outline; theme code runs there). Typed, versioned messages; both sides validate everything.
  *
  *   editor → host   ready, action { seq, action }, intent { undo | redo }, rpc, error
- *   host → editor   init, state { data, itemSelector, ack }, ui { leftSideBarVisible }, rpc:result, error
+ *   host → editor   init, state { data, itemSelector, ack }, ui { leftSideBarVisible, plugin }, rpc:result, error
  *
  * The editor proposes Puck actions; the host validates and replays them on its own Puck, then
  * sends its state back. Only JSON travels, except RPC params, which may also carry File/Blob
@@ -101,7 +101,7 @@ export type EditorToHost =
 export type HostToEditor =
   | { v: V; type: "init"; payload: EditorPayload; options: EditorOptions }
   | { v: V; type: "state"; data: PageData; itemSelector: ItemSelector; ack: number }
-  | { v: V; type: "ui"; leftSideBarVisible: boolean }
+  | { v: V; type: "ui"; leftSideBarVisible: boolean; plugin: string | null }
   | { v: V; type: "rpc:result"; id: number; ok: true; value: unknown }
   | { v: V; type: "rpc:result"; id: number; ok: false; error: string }
   | { v: V; type: "error"; message: string };
@@ -229,7 +229,8 @@ export const hostToEditorSchema = z.union([
     options: optionsSchema,
   }),
   z.strictObject({ v, type: z.literal("state"), data: pageDataSchema, itemSelector, ack: z.number().int().nonnegative() }),
-  z.strictObject({ v, type: z.literal("ui"), leftSideBarVisible: z.boolean() }),
+  // `plugin`: the frame plugin whose panel the editor shows (null: none).
+  z.strictObject({ v, type: z.literal("ui"), leftSideBarVisible: z.boolean(), plugin: z.string().min(1).max(64).nullable() }),
   z.strictObject({
     v,
     type: z.literal("rpc:result"),

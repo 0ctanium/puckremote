@@ -18,30 +18,21 @@ npm install @puck-remote/editor @puckeditor/core
 
 ## The admin page
 
-Compose the layout yourself: `<PuckEditorFrame>` renders Puck's context, so its children can use
-Puck's components and hooks. Place `<PuckEditorFrame.Canvas />` where the editor frame goes.
+By default `<PuckEditorFrame>` renders **Puck's native layout** on your admin page: the header
+(title, undo/redo, Publish), the plugin rail, the outline and the fields, with the editor frame in
+the center ([D-0347](/docs/internal/decisions#D-0347)). Extend it with Puck's own overrides and
+plugins.
 
 ```tsx title="app/admin/editor/ClientEditor.tsx"
 'use client';
-import { createUsePuck, Puck } from '@puckeditor/core';
-import { PuckEditorFrame, stripResolved, usePuckEditorFrame } from '@puck-remote/editor/frame';
+import { PuckEditorFrame } from '@puck-remote/editor/frame';
 import { publish, resolveData } from './actions'; // your server actions (check the session)
 
-const usePuck = createUsePuck();
-
-function Header({ slug }: { slug: string }) {
-  const history = usePuck((s) => s.history);
-  const data = usePuck((s) => s.appState.data);
-  const { setLeftSideBarVisible } = usePuckEditorFrame();
-  // "Unpublished changes": compare stripResolved(data) with the last published state.
-  return (
-    <header>
-      <button disabled={!history.hasPast} onClick={() => history.back()}>Undo</button>
-      <button disabled={!history.hasFuture} onClick={() => history.forward()}>Redo</button>
-      <button onClick={() => publish({ slug, data })}>Publish</button>
-    </header>
-  );
-}
+// Stable identity: Puck remounts overrides that change.
+const overrides = {
+  // Next to Puck's own Publish button (children).
+  headerActions: ({ children }) => <><MyStatus />{children}</>,
+};
 
 export function ClientEditor({ payload, editorUrl }) {
   return (
@@ -49,18 +40,47 @@ export function ClientEditor({ payload, editorUrl }) {
       payload={payload}
       editorUrl={editorUrl}
       resolveData={async (block, props) => (await resolveData({ slug: payload.slug, block, props })).data}
-    >
-      <Header slug={payload.slug} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', height: 'calc(100vh - 48px)' }}>
-        <PuckEditorFrame.Canvas />
-        <Puck.Fields />
-      </div>
-    </PuckEditorFrame>
+      onPublish={(data) => publish({ slug: payload.slug, data })}
+      overrides={overrides}
+    />
   );
 }
 ```
 
-Without children, `<PuckEditorFrame>` renders the canvas and the fields side by side.
+### Which plugins render where
+
+The rail is on the admin page. A plugin's panel renders **in the frame** when you mark it with
+`framePlugin(name)` ([D-0345](/docs/internal/decisions#D-0345)). Do that for panels that drag
+into the canvas, like the blocks drawer, because drag and drop can't cross the frame's boundary.
+Everything else renders on the admin page, next to your session.
+
+```tsx
+import { outlinePlugin } from '@puckeditor/core';
+import { framePlugin } from '@puck-remote/editor/frame';
+
+// The default: the drawer in the frame, the outline on the admin page.
+<PuckEditorFrame plugins={[framePlugin('blocks'), outlinePlugin(), myHistoryPlugin]} … />
+```
+
+When a frame plugin is active, the admin page collapses its own panel and the frame shows that
+plugin's panel next to the canvas. The editor page provides the real panel under the same name
+(`<PuckRemoteEditor plugins>`, below). The canvas toolbar (viewports, zoom) stays in the frame,
+next to the canvas it measures.
+
+### Your own layout
+
+Pass children to replace the native layout. `<PuckEditorFrame>` still provides Puck's context, so
+use Puck's components and hooks, and place `<PuckEditorFrame.Canvas />` where the frame goes:
+
+```tsx
+<PuckEditorFrame payload={payload} editorUrl={editorUrl} resolveData={…}>
+  <MyHeader />
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', height: 'calc(100vh - 48px)' }}>
+    <PuckEditorFrame.Canvas />
+    <Puck.Fields />
+  </div>
+</PuckEditorFrame>
+```
 
 <TypeTable
   type={{
@@ -68,22 +88,24 @@ Without children, `<PuckEditorFrame>` renders the canvas and the fields side by 
     editorUrl: { description: "URL of your editor page (on origins.editor).", type: 'string', required: true },
     editorOrigin: { description: "Defaults to editorUrl's origin; must match payload.origins.editor.", type: 'string' },
     resolveData: { description: "Data for one block, e.g. a server action calling core.resolveBlockData. Needed when blocks declare data.", type: '(block, props) => Promise<data>' },
+    onPublish: { description: "Puck's native Publish button (your server action, with your session).", type: '(data) => void' },
+    headerTitle: { description: "Header title; defaults to the page path.", type: 'string' },
+    headerPath: { description: "Header path.", type: 'string' },
+    plugins: { description: "Plugins in the rail; framePlugin(name) for the ones whose panel renders in the frame.", type: 'Plugin[]', default: "[framePlugin('blocks'), outlinePlugin()]" },
+    overrides: { description: "Puck overrides for this side (headerActions, fields, fieldLabel…). preview is always the frame.", type: 'Partial<Overrides>' },
     options: { description: "JSON options applied on both sides: permissions (also enforced on the actions the frame proposes), categories, locales, flags, extra.", type: 'EditorOptions' },
     rpc: { description: "Methods the editor frame may call through useEditor().rpc. Theme code runs there: list only harmless methods, never publishing or history.", type: 'RpcHandlers' },
     fields: { description: "Replace the built-in UIs of host:color, host:media and host:link (fields are edited on this side).", type: "Partial<Record<'host:color' | 'host:media' | 'host:link', (spec, name) => Field>>" },
     onChange: { description: "Every change of the page data.", type: '(data) => void' },
     onError: { description: "Protocol problems, refused actions, a page past 2 MB.", type: '(message: string) => void' },
-    overrides: { description: "Puck overrides for this side (e.g. fields, fieldLabel).", type: 'Partial<Overrides>' },
-    plugins: { description: "Puck plugins for this side.", type: 'Plugin[]' },
-    children: { description: "Your layout.", type: 'ReactNode' },
+    children: { description: "Your own layout instead of Puck's native one.", type: 'ReactNode' },
   }}
 />
 
-Inside it, `usePuckEditorFrame()` gives `{ payload, frameReady, setLeftSideBarVisible(visible) }`.
-Puck's own `createUsePuck()` gives the data, the selection and the history, because this side's
-Puck is the one that holds them. `stripResolved(data)` returns the page as it will be saved: the
-data blocks fetched (`__data`) is removed. Compare it with the last published version to show
-unsaved changes.
+Inside it, `usePuckEditorFrame()` gives `{ payload, frameReady }`. Puck's own `createUsePuck()`
+gives the data, the selection, the UI state and the history, because this side's Puck holds them.
+`stripResolved(data)` returns the page as it will be saved: the data blocks fetched (`__data`)
+is removed. Compare it with the last published version to show unsaved changes.
 
 ## The editor page (Next.js)
 
@@ -113,15 +135,16 @@ export function EditorPage({ allowedParents }: { allowedParents: string[] }) {
 }
 ```
 
-Import Puck's stylesheet yourself (`no-external.css` loads no third-party font). It shows Puck's
-own UI ([D-0326](/docs/internal/decisions#D-0326)): the Blocks/Outline sidebar and the canvas with
-its toolbar. Puck's header and fields panel are removed, since they belong to the admin page.
+Import Puck's stylesheet yourself (`no-external.css` loads no third-party font). It shows the
+canvas with its toolbar, and the panel of the frame plugin selected in the admin page's rail.
+Puck's header, rail and fields panel are removed, since they belong to the admin page
+([D-0351](/docs/internal/decisions#D-0351)).
 
 <TypeTable
   type={{
     allowedParents: { description: "Host origins allowed to embed the editor (origins.host). Also enforce them with CSP frame-ancestors.", type: 'string[]', required: true },
     overrides: { description: "Puck overrides, merged over the editor's own (theme styles in the canvas, no header). Fields are the admin page's.", type: 'Partial<Overrides>' },
-    plugins: { description: "Puck plugins (in the frame).", type: 'Plugin[]' },
+    plugins: { description: "Plugins whose panel renders in the frame, by name (match framePlugin(name) on the admin page).", type: 'Plugin[]', default: '[blocksPlugin()]' },
     ui: { description: "Puck's initial UI state; the right (fields) panel always stays hidden.", type: 'Partial<UiState>' },
     viewports: { description: "Puck viewports.", type: 'Viewports' },
     iframe: { description: "Puck canvas iframe options.", type: 'IframeConfig' },

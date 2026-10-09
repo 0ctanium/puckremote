@@ -6,11 +6,13 @@
  * credential-free), which proposes Puck actions; they are validated and replayed here, and this
  * side's state is sent back. All authority stays here: publishing, history and RPC handlers.
  *
- *   <PuckEditorFrame payload={payload} editorUrl={url} resolveData={…}>
- *     <MyHeader />  <PuckEditorFrame.Canvas />  <Puck.Fields />
- *   </PuckEditorFrame>
+ * By default it renders Puck's native layout (header, plugin rail, fields) with the editor frame
+ * in the center. Plugins marked with framePlugin() render their panel in the frame (the drawer,
+ * whose drag and drop goes into the canvas); the others render here.
+ *
+ *   <PuckEditorFrame payload={payload} editorUrl={url} resolveData={…} onPublish={…} />
  */
-import { createUsePuck, Puck, useGetPuck, type Data, type Overrides, type Plugin } from "@puckeditor/core";
+import { blocksPlugin, createUsePuck, outlinePlugin, Puck, useGetPuck, type Data, type Overrides, type Plugin } from "@puckeditor/core";
 import type { Manifest } from "@puck-remote/core";
 import type { RenderCtx } from "@puck-remote/sdk";
 import {
@@ -64,11 +66,47 @@ export interface PuckEditorFrameProps {
   /** Every change of the page data (this side's Puck). */
   onChange?: (data: PageData) => void;
   onError?: (message: string) => void;
-  /** Passed to this side's Puck (fields, drawer items are the editor's). */
+  /** Passed to this side's Puck (e.g. headerActions, fields). `preview` is always the frame. */
   overrides?: Partial<Overrides>;
+  /**
+   * Puck plugins in this side's rail. framePlugin(name) marks one whose panel renders in the
+   * frame. Default: [framePlugin('blocks'), outlinePlugin()] (the outline renders here).
+   */
   plugins?: Plugin[];
-  /** Your layout: place <PuckEditorFrame.Canvas /> and Puck's own components (<Puck.Fields />…). */
+  /** Puck's native Publish button. */
+  onPublish?: (data: PageData) => void;
+  /** Header title (default: the page path) and path. */
+  headerTitle?: string;
+  headerPath?: string;
+  /** Your own layout instead of Puck's native one: place <PuckEditorFrame.Canvas /> and Puck's components. */
   children?: ReactNode;
+}
+
+const framePlugins = new WeakSet<Plugin>();
+
+/**
+ * A plugin whose icon sits in this side's rail but whose panel renders in the editor frame
+ * (<PuckRemoteEditor plugins> provides it under the same name). Use it for panels that drag into
+ * the canvas, like the blocks drawer.
+ */
+export function framePlugin(name: string, opts: { label?: string; icon?: ReactNode } = {}): Plugin {
+  const plugin: Plugin = { name, label: opts.label, icon: opts.icon, render: () => <></> };
+  framePlugins.add(plugin);
+  return plugin;
+}
+
+const defaultBlocks = blocksPlugin();
+// Listed explicitly so the rail keeps Puck's order (Blocks, then Outline).
+const DEFAULT_PLUGINS = [framePlugin("blocks", { label: defaultBlocks.label, icon: defaultBlocks.icon }), outlinePlugin()];
+
+/**
+ * Where the left panel goes, from this side's Puck UI state. A frame plugin is active: this side's
+ * panel collapses and the frame shows that plugin's panel. Otherwise the panel is here and the
+ * frame shows none.
+ */
+export function frameUi(current: string | null | undefined, framePluginNames: readonly string[], leftSideBarVisible: boolean): { collapseHere: boolean; frame: { leftSideBarVisible: boolean; plugin: string | null } } {
+  if (current && framePluginNames.includes(current)) return { collapseHere: true, frame: { leftSideBarVisible, plugin: current } };
+  return { collapseHere: false, frame: { leftSideBarVisible: false, plugin: null } };
 }
 
 /** Why the frame refuses to load, or null. */
@@ -210,6 +248,7 @@ export function hostMessageHandler(o: HostHandlerOptions) {
 
 interface FrameContextValue {
   props: RefObject<PuckEditorFrameProps>;
+  framePluginNames: readonly string[];
   editorOrigin: string;
   iframe: RefObject<HTMLIFrameElement | null>;
   frameReady: boolean;
@@ -225,23 +264,20 @@ function useFrameContext(name: string): FrameContextValue {
   return ctx;
 }
 
-/** For your admin UI inside <PuckEditorFrame>. History and data: Puck's own createUsePuck(). */
+/** For your admin UI inside <PuckEditorFrame>. History, data and UI: Puck's own createUsePuck(). */
 export function usePuckEditorFrame(): {
   payload: EditorPayload;
   /** True once the editor answered and received `init`. */
   frameReady: boolean;
-  setLeftSideBarVisible: (visible: boolean) => void;
 } {
   const ctx = useFrameContext("usePuckEditorFrame()");
-  return {
-    payload: ctx.props.current!.payload,
-    frameReady: ctx.frameReady,
-    setLeftSideBarVisible: (visible) =>
-      ctx.post({ v: PROTOCOL_VERSION, type: "ui", leftSideBarVisible: visible }),
-  };
+  return { payload: ctx.props.current!.payload, frameReady: ctx.frameReady };
 }
 
 const usePuck = createUsePuck();
+
+// Puck ignores a width of 0; 1px collapses this side's panel while a frame plugin is active.
+const COLLAPSED = 1;
 
 /** Inside this side's Puck: replays the editor's actions and sends the resulting state back. */
 function EditorBridge() {
@@ -249,6 +285,10 @@ function EditorBridge() {
   const getPuck = useGetPuck();
   const data = usePuck((s) => s.appState.data);
   const itemSelector = usePuck((s) => s.appState.ui.itemSelector) as ItemSelector;
+  const currentPlugin = usePuck((s) => s.appState.ui.plugin?.current ?? null);
+  const leftSideBarVisible = usePuck((s) => s.appState.ui.leftSideBarVisible);
+  const leftSideBarWidth = usePuck((s) => s.appState.ui.leftSideBarWidth ?? null);
+  const savedWidth = useRef<number | null>(null);
   const ack = useRef(0);
   const lastSent = useRef<string | null>(null);
   const [resync, setResync] = useState(0);
@@ -279,6 +319,20 @@ function EditorBridge() {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [ctx, getPuck, post, setFrameReady]);
+
+  // The left panel: here for this side's plugins, in the frame for frame plugins.
+  const names = ctx.framePluginNames;
+  useEffect(() => {
+    const ui = frameUi(currentPlugin, names, leftSideBarVisible);
+    const dispatch = getPuck().dispatch;
+    if (ui.collapseHere && leftSideBarWidth !== COLLAPSED) {
+      savedWidth.current = leftSideBarWidth;
+      dispatch({ type: "setUi", ui: { leftSideBarWidth: COLLAPSED }, recordHistory: false });
+    } else if (!ui.collapseHere && leftSideBarWidth === COLLAPSED) {
+      dispatch({ type: "setUi", ui: { leftSideBarWidth: savedWidth.current }, recordHistory: false });
+    }
+    if (frameReady) post({ v: PROTOCOL_VERSION, type: "ui", ...ui.frame });
+  }, [currentPlugin, leftSideBarVisible, leftSideBarWidth, names, frameReady, post, getPuck]);
 
   useEffect(() => {
     if (!frameReady) return;
@@ -329,16 +383,8 @@ function Canvas({ title = "Page editor", className, style }: { title?: string; c
   );
 }
 
-function DefaultLayout() {
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", height: "100%" }}>
-      <Canvas />
-      <aside style={{ overflow: "auto", borderLeft: "1px solid #e2e8f0" }}>
-        <Puck.Fields />
-      </aside>
-    </div>
-  );
-}
+/** Puck's center area (native layout) holds the editor frame instead of a canvas. */
+const FramePreview = () => <Canvas style={{ minHeight: "100%" }} />;
 
 export function PuckEditorFrame(props: PuckEditorFrameProps) {
   const { payload, options = {}, fields } = props;
@@ -348,6 +394,23 @@ export function PuckEditorFrame(props: PuckEditorFrameProps) {
   const [frameReady, setFrameReady] = useState(false);
   const editorOrigin = props.editorOrigin ?? safeOrigin(props.editorUrl);
   const manifest = payload.manifest as Manifest;
+  const plugins = props.plugins ?? DEFAULT_PLUGINS;
+  const framePluginNames = useMemo(() => plugins.filter((p) => framePlugins.has(p) && p.name).map((p) => p.name!), [plugins]);
+  // Stable identity: Puck remounts overrides that change.
+  const overrides = useMemo(() => {
+    const AppPuck = props.overrides?.puck;
+    return {
+      ...props.overrides,
+      preview: FramePreview,
+      // Wraps both the native layout and custom children: the bridge lives inside Puck either way.
+      puck: ({ children }: { children: ReactNode }) => (
+        <>
+          <EditorBridge />
+          {AppPuck ? <AppPuck>{children}</AppPuck> : children}
+        </>
+      ),
+    };
+  }, [props.overrides]);
 
   const config = useMemo(() => {
     // Placeholder renders: this side shows fields, never a canvas.
@@ -381,13 +444,14 @@ export function PuckEditorFrame(props: PuckEditorFrameProps) {
   const value = useMemo<FrameContextValue>(
     () => ({
       props: latest,
+      framePluginNames,
       editorOrigin,
       iframe,
       frameReady,
       setFrameReady,
       post: (m) => iframe.current?.contentWindow?.postMessage(m, editorOrigin),
     }),
-    [editorOrigin, frameReady],
+    [editorOrigin, frameReady, framePluginNames],
   );
 
   return (
@@ -397,12 +461,16 @@ export function PuckEditorFrame(props: PuckEditorFrameProps) {
         config={config}
         data={payload.data as unknown as Data}
         onChange={(data) => latest.current.onChange?.(data as unknown as PageData)}
+        onPublish={(data) => latest.current.onPublish?.(data as unknown as PageData)}
+        headerTitle={props.headerTitle ?? `/${payload.slug === "home" ? "" : payload.slug}`}
+        headerPath={props.headerPath}
         permissions={options.permissions}
-        overrides={props.overrides}
-        plugins={props.plugins}
+        overrides={overrides}
+        plugins={plugins}
+        // No canvas here: the center area holds the editor frame (its own viewport and zoom controls).
+        iframe={{ enabled: false }}
       >
-        <EditorBridge />
-        {props.children ?? <DefaultLayout />}
+        {props.children}
       </Puck>
     </FrameContext.Provider>
   );

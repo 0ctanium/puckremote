@@ -6,13 +6,13 @@ description: Two Puck instances, on two sites. Your admin page holds the data, t
 Puck is split in two ([D-0325](/docs/internal/decisions#D-0325)):
 
 - **Your admin page** (`https://admin.example.com`) runs a Puck built from the manifest alone:
-  fields, defaults, categories, `visibleIf`. It holds the **page data, the history and the fields
-  panel**, and your header, Publish button and plugins live next to it. **No theme code runs
-  there.**
-- **The editor frame** (another site, e.g. `https://editor.example.net`) runs Puck with the theme's
-  real components: the **canvas, the drawer and the outline**, where drag and drop happens. It
-  holds **no credentials**: it never authenticates, never calls your backend and never sees a
-  secret.
+  fields, defaults, categories, `visibleIf`. It shows Puck's native layout (header, plugin rail,
+  outline, fields) and holds the **page data and the history**. Your header actions, Publish and
+  plugins live there. **No theme code runs there.**
+- **The editor frame** (another site, e.g. `https://editor.example.net`), in the center of that
+  layout, runs Puck with the theme's real components: the **canvas** and the **drawer** you drag
+  blocks from, plus any plugin panel marked to render in the frame. It holds **no credentials**:
+  it never authenticates, never calls your backend and never sees a secret.
 
 The frame doesn't edit the page itself: it **proposes Puck actions** (insert, move, edit, select…).
 Your admin page validates them, replays them on its own Puck, and sends its state back. Theme code

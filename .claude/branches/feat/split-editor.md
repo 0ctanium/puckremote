@@ -38,7 +38,7 @@ Keeping the old full-frame mode; a version-history plugin; fixing Puck recording
 | D-0332 | Duplicates and divergence: the admin state broadcast (its ids) replaces the frame state; no id rewriting | user-approved-plan | accepted |
 | D-0333 | <PuckRemoteEditor> forwards onAction, strips resolveData, hides header and right panel, forwards cmd-Z as intent; fields prop and change sending removed; keeps handshake, theme loading, useEditor, overrides/plugins/ui/iframe/viewports | user-approved-plan | accepted |
 | D-0334 | useEditor() unchanged; the example frame RPC map becomes { currentUser } (resolveData moves to the admin) | user-approved-plan | accepted |
-| D-0335 | <PuckEditorFrame> props: payload, editorUrl, editorOrigin?, options?, rpc?, resolveData(block, props), fields?, onChange?, onError?, overrides/plugins for the admin Puck, children; config from buildEditorConfig with placeholder renders; default layout Canvas + Puck.Fields | user-approved-plan | accepted |
+| D-0335 | <PuckEditorFrame> props: payload, editorUrl, editorOrigin?, options?, rpc?, resolveData(block, props), fields?, onChange?, onError?, overrides/plugins for the admin Puck, children; config from buildEditorConfig with placeholder renders; default layout Canvas + Puck.Fields | user-approved-plan | superseded by D-0347 |
 | D-0336 | PuckEditorFrame.Canvas: the sandboxed iframe with the existing frameProblem checks, sandbox and referrerPolicy, plus className/style/title | user-approved-plan | accepted |
 | D-0337 | /frame exports stripResolved(data) and usePuckEditorFrame() → { payload, setLeftSideBarVisible, frameReady }; apps use Puck createUsePuck for history and data | user-approved-plan | accepted |
 | D-0338 | Example: ClientEditor with header (path, theme, user, undo/redo, left panel toggle, status/dirty, Publish); rpc.ts { currentUser }; EditorPage reduced to <PuckRemoteEditor> | user-approved-plan | accepted |
@@ -47,6 +47,21 @@ Keeping the old full-frame mode; a version-history plugin; fixing Puck recording
 | D-0341 | Split editor docs: concepts/editor, guides/editor-app rewrite, next-js snippets, editor-protocol, editor-lifecycle, threat-model, packaging, testing, research page link | user-approved-plan | accepted |
 | D-0342 | Split editor on feat/split-editor with its ADR | user-approved-plan | accepted |
 | D-0343 | Plan item B1 listed D-0231 and D-0251 as superseded by mistake: useEditor() and the shared module registration remain valid; only D-0192 (and D-0209, D-0194, D-0230 by their own items) is superseded | agent-unreviewed | needs-review |
+| D-0344 | Admin page uses Puck's native header; actions added through the headerActions override; Puck's Publish button calls a new onPublish prop | user | accepted |
+| D-0345 | The plugin rail is on the admin page; framePlugin(name, { label, icon }) marks a plugin whose panel renders in the frame; defaults: admin [framePlugin(blocks), outlinePlugin()], frame [blocksPlugin()] | user | accepted |
+| D-0346 | The viewport/zoom toolbar stays in the frame; the admin's canvas controls are hidden | user | accepted |
+| D-0347 | <PuckEditorFrame> renders Puck's native layout by default (frame in the preview area); children still replace it with a custom composition | user | accepted |
+| D-0348 | Feasibility gate: admin preview override hosting the frame (iframe disabled) and a frame plugin panel without the rail; stop and ask if it needs CSS on Puck internals or fails | user-approved-plan | accepted |
+| D-0349 | ui message becomes { leftSideBarVisible, plugin: string \| null } (plugin up to 64 chars); PROTOCOL_VERSION stays 2 | user-approved-plan | accepted |
+| D-0350 | Admin: framePlugin returns a Puck plugin with an empty render; an effect maps ui.plugin.current and leftSideBarVisible to the admin left panel and the frame ui message; new props onPublish, headerTitle, headerPath (default /slug) | user-approved-plan | accepted |
+| D-0351 | Frame: <PuckRemoteEditor plugins> defaults to [blocksPlugin()]; its left panel shows the plugin named by the ui message (hidden on null); rail hidden; header and fields stay removed | user-approved-plan | accepted |
+| D-0352 | Example: native layout, headerActions override with status, user and Log out next to Puck Publish; publish via onPublish | user-approved-plan | accepted |
+| D-0353 | Tests: ui message with plugin, pure frameUi(current, framePluginNames, leftVisible) mapping; browser checklist for rail, drawer in frame, outline on admin, native header | user-approved-plan | accepted |
+| D-0354 | Docs: editor-app guide (native layout, framePlugin, header overrides, onPublish, custom layout), concepts/editor, editor-protocol, editor-lifecycle, testing | user-approved-plan | accepted |
+| D-0355 | Native-layout work continues on feat/split-editor in the same ADR | user-approved-plan | accepted |
+| D-0356 | Frame hides Puck's plugin rail by registering its panel plugin under Puck's 'legacy-side-bar' name (no CSS); one place to update if Puck changes that detection | user | accepted |
+| D-0357 | Correction: the native-layout plan named D-0327 and D-0331 as superseded; the default layout was D-0335 (superseded by D-0347); the ui message (D-0329) is extended by D-0349, not replaced | agent-unreviewed | needs-review |
+| D-0358 | While a frame plugin is active the admin collapses its left panel to ui.leftSideBarWidth = 1 (Puck ignores 0) and restores the previous width afterwards; the rail keeps its native active state | user | accepted |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -86,6 +101,24 @@ concepts/editor, concepts/origins, guides/editor-app (rewritten), installation, 
   - the left panel toggle works;
   - no unsaved status after load.
 - A synthetic drag didn't drop (too fast for dnd-kit); drag, duplicate, array items and publishing twice are left for the owner to check.
+
+## Follow-up: Puck's native layout on the admin page (D-0344 to D-0358)
+- `<PuckEditorFrame>` now renders Puck's native layout by default: header with title, undo/redo and Publish (`onPublish`); the plugin rail; the outline; the fields.
+- The frame sits in the `preview` override, and the admin has no Puck canvas (`iframe.enabled: false`). Custom children are still supported.
+- `framePlugin(name)` marks rail plugins whose panel renders in the frame. The defaults are `framePlugin('blocks')` and `outlinePlugin()`.
+- The frame hides Puck's rail by naming its single panel plugin `legacy-side-bar`. It shows the plugin named by the `ui` message (`{ leftSideBarVisible, plugin }`).
+- While a frame plugin is active, the admin collapses its own panel to 1px (Puck ignores 0) and restores the width afterwards.
+- Findings while checking feasibility:
+  - Puck hides both panels if the window is under 638px wide when it loads (seen once with a narrow browser pane);
+  - Puck moves a plugin that replaces a default one to the end of the rail, so the default list includes `outlinePlugin()` explicitly to keep Blocks first.
+- Checked in the browser by the agent:
+  - the rail is on the admin page, Blocks first;
+  - with Blocks active, the drawer is in the frame and the admin panel collapses;
+  - with Outline active, the outline is on the admin page, the frame's drawer is hidden, and selecting a block in the outline shows its fields;
+  - an edit shows "Unpublished changes", and Puck's native undo removes it;
+  - Puck's native Publish works ("Published …", same theme id for identical content).
+- Tests: editor 20, including `frameUi` and the `ui` message.
+- A core worker watchdog test failed once while the dev server was running, then passed twice. It's timing-based and unrelated.
 
 ## Investigation Notes
 See `chore/two-puck-spike` (research page `internal/quality/research-two-puck` on that branch). Found here: Puck records load-time `resolveData` as undo steps on the admin side (now a known gap).

@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createFrameSync, initProblem, toFrameAction } from "../src/react.tsx";
 import { placeholderTheme, stripResolved, withoutResolveData } from "../src/config.tsx";
-import { frameProblem, hostMessageHandler } from "../src/frame.tsx";
+import { frameProblem, frameUi, hostMessageHandler } from "../src/frame.tsx";
 import {
   editorToHostSchema,
   hostToEditorSchema,
@@ -401,6 +401,23 @@ describe("editor side (<PuckRemoteEditor>)", () => {
         EDITOR,
       ),
     ).toMatch(/must not share/);
+  });
+});
+
+describe("plugin panels (rail on the admin page)", () => {
+  it("the ui message names the frame plugin to show, or null", () => {
+    expect(hostToEditorSchema.safeParse({ v: PROTOCOL_VERSION, type: "ui", leftSideBarVisible: true, plugin: "blocks" }).success).toBe(true);
+    expect(hostToEditorSchema.safeParse({ v: PROTOCOL_VERSION, type: "ui", leftSideBarVisible: false, plugin: null }).success).toBe(true);
+    expect(hostToEditorSchema.safeParse({ v: PROTOCOL_VERSION, type: "ui", leftSideBarVisible: true }).success).toBe(false);
+    expect(hostToEditorSchema.safeParse({ v: PROTOCOL_VERSION, type: "ui", leftSideBarVisible: true, plugin: "x".repeat(65) }).success).toBe(false);
+  });
+
+  it("frameUi: a frame plugin opens in the frame and collapses this side; others stay here", () => {
+    expect(frameUi("blocks", ["blocks"], true)).toEqual({ collapseHere: true, frame: { leftSideBarVisible: true, plugin: "blocks" } });
+    // The rail toggle hides the frame's panel too.
+    expect(frameUi("blocks", ["blocks"], false)).toEqual({ collapseHere: true, frame: { leftSideBarVisible: false, plugin: "blocks" } });
+    expect(frameUi("outline", ["blocks"], true)).toEqual({ collapseHere: false, frame: { leftSideBarVisible: false, plugin: null } });
+    expect(frameUi(null, ["blocks"], true)).toEqual({ collapseHere: false, frame: { leftSideBarVisible: false, plugin: null } });
   });
 });
 

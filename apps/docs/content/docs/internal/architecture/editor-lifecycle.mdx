@@ -11,8 +11,10 @@ description: From opening the admin page to publishing, step by step.
 2. **`<PuckEditorFrame>`** (admin page, browser) builds **its own Puck config from the manifest**
    ([D-0335](/docs/internal/decisions#D-0335)): `buildEditorConfig` with `placeholderTheme` (renders
    that return nothing, since this side never shows a canvas) and your `resolveData`. It renders
-   `<Puck>` with the page data, and your layout as children (`<Puck.Fields />`, your header,
-   `<PuckEditorFrame.Canvas />`). The `Canvas` runs `frameProblem`: it must be on a host origin, and
+   `<Puck>` with the page data, with no Puck canvas (`iframe.enabled: false`) and the
+   `preview` override set to the frame. By default it uses Puck's native layout (header, rail,
+   outline, fields); with children, your own layout around `<PuckEditorFrame.Canvas />`. Its
+   rail holds `framePlugin('blocks')` and `outlinePlugin()` by default. The `Canvas` runs `frameProblem`: it must be on a host origin, and
    `editorUrl`, the editor origin and `payload.origins.editor` must agree. Only then does it render
    the iframe (`sandbox="allow-scripts allow-same-origin allow-forms allow-popups"`,
    `referrerPolicy="no-referrer"`). An internal `EditorBridge` listens through
@@ -34,9 +36,14 @@ description: From opening the admin page to publishing, step by step.
      with `SlotContext` providing Puck's slot components to the SDK's `<Slot>`;
    - fields and `visibleIf` are in the config too, but the fields panel is hidden: fields are edited
      on the admin side.
-5. **UI** ([D-0326](/docs/internal/decisions#D-0326)): Puck's own layout, with the header removed
-   (`overrides.header`) and the right panel hidden (`ui.rightSideBarVisible: false`). The tabbed
-   Blocks/Outline sidebar and the canvas toolbar stay. `ctx.assets.style` URLs under the
+5. **UI**: Puck's own layout in the frame, with the header removed (`overrides.header`) and the
+   right panel hidden (`ui.rightSideBarVisible: false`). The canvas toolbar stays. The left panel
+   holds a single plugin named `legacy-side-bar`. With that name, Puck hides its plugin rail
+   ([D-0356](/docs/internal/decisions#D-0356)), and the plugin renders the frame plugin named by
+   the last `ui` message. On the admin page, `frameUi()` maps Puck's `ui.plugin.current` and
+   `leftSideBarVisible` to that message. While a frame plugin is active, the admin collapses its
+   own panel to 1px, since Puck ignores a width of 0
+   ([D-0358](/docs/internal/decisions#D-0358)). The previous width is restored afterwards. `ctx.assets.style` URLs under the
    artifact's `assetBase` are injected into Puck's canvas iframe. Theme scripts don't run in the
    editor, and `head.*` is ignored. `useEditor()` exposes `{ rpc, payload, options }` to your
    overrides and plugins.

@@ -9,7 +9,7 @@
  *   <PuckRemoteEditor allowedParents={['https://admin.example.com']} overrides={…} plugins={…} />
  *   // anywhere inside: const { rpc, payload } = useEditor()
  */
-import { Puck, useGetPuck, type Config, type Data, type Overrides, type Plugin, type PuckAction, type Viewports } from '@puckeditor/core'
+import { blocksPlugin, Puck, useGetPuck, type Config, type Data, type Overrides, type Plugin, type PuckAction, type Viewports } from '@puckeditor/core'
 import type { Manifest } from '@puck-remote/core'
 import type { RenderCtx } from '@puck-remote/sdk'
 import { registerSharedModules } from '@puck-remote/sdk/browser'
@@ -40,7 +40,7 @@ export interface HostConnection {
   intent(intent: 'undo' | 'redo'): void
   /** The host's state. The latest one is kept until a listener subscribes. */
   onState(listener: (m: StateMessage) => void): () => void
-  onUi(listener: (ui: { leftSideBarVisible: boolean }) => void): () => void
+  onUi(listener: (ui: { leftSideBarVisible: boolean; plugin: string | null }) => void): () => void
   error(message: string): void
   close(): void
 }
@@ -60,7 +60,8 @@ export function connectToHost(opts: {
   let nextId = 1
   const pending = new Map<number, { resolve(v: unknown): void; reject(e: Error): void }>()
   const stateListeners = new Set<(m: StateMessage) => void>()
-  const uiListeners = new Set<(ui: { leftSideBarVisible: boolean }) => void>()
+  const uiListeners = new Set<(ui: { leftSideBarVisible: boolean; plugin: string | null }) => void>()
+  let lastUi: { leftSideBarVisible: boolean; plugin: string | null } | null = null
   let lastState: StateMessage | null = null
   const send = (m: EditorToHost) => {
     if (parentOrigin) win.parent.postMessage(m, parentOrigin)
@@ -98,7 +99,8 @@ export function connectToHost(opts: {
         for (const l of stateListeners) l(lastState)
         return
       case 'ui':
-        for (const l of uiListeners) l({ leftSideBarVisible: m.leftSideBarVisible })
+        lastUi = { leftSideBarVisible: m.leftSideBarVisible, plugin: m.plugin }
+        for (const l of uiListeners) l(lastUi)
         return
       case 'error':
         return opts.onProblem(`host: ${m.message}`)
@@ -129,6 +131,7 @@ export function connectToHost(opts: {
     },
     onUi(listener) {
       uiListeners.add(listener)
+      if (lastUi) listener(lastUi)
       return () => uiListeners.delete(listener)
     },
     error: (message) => send({ v: PROTOCOL_VERSION, type: 'error', message: message.slice(0, 2000) }),
@@ -225,6 +228,10 @@ export interface PuckRemoteEditorProps {
    * panel is the host's: it lives in <PuckEditorFrame>, so field overrides belong there.
    */
   overrides?: Partial<Overrides>
+  /**
+   * Plugins whose panel renders here, selected from the admin page's rail (framePlugin there,
+   * same name). Default: [blocksPlugin()], the drawer you drag from into the canvas.
+   */
   plugins?: Plugin[]
   /** Puck UI state; the right (fields) panel always stays hidden. */
   ui?: PuckProps['ui']
@@ -284,8 +291,45 @@ function CanvasStyles({ document: doc, children }: { document?: Document; childr
 // The header (title, undo/redo, Publish) is the host's: Puck's own is removed.
 const NoHeader = () => <></>
 
+const DEFAULT_FRAME_PLUGINS = [blocksPlugin()]
+
+/** The frame plugin whose panel shows, as chosen in the admin page's rail. */
+function createPanelStore() {
+  let current: string | null = null
+  const listeners = new Set<() => void>()
+  return {
+    get: () => current,
+    set(name: string | null) {
+      if (name === current) return
+      current = name
+      listeners.forEach((l) => l())
+    },
+    subscribe(l: () => void) {
+      listeners.add(l)
+      return () => {
+        listeners.delete(l)
+      }
+    },
+  }
+}
+type PanelStore = ReturnType<typeof createPanelStore>
+
+/**
+ * The left panel's single plugin. Named like Puck's legacy sidebar plugin so that Puck hides its
+ * plugin rail (the rail is the admin page's); it renders the frame plugin the admin selected.
+ */
+function panelPlugin(store: PanelStore, plugins: Plugin[]): Plugin {
+  function Panel() {
+    const name = useSyncExternalStore(store.subscribe, store.get, store.get)
+    const plugin = plugins.find((p) => p.name === name)
+    const Render = plugin?.render
+    return Render ? <Render /> : <></>
+  }
+  return { name: 'legacy-side-bar', render: Panel }
+}
+
 /** Inside Puck: applies the host's state and UI, and forwards undo/redo shortcuts to the host. */
-function HostBridge({ connection, sync }: { connection: HostConnection; sync: ReturnType<typeof createFrameSync> }) {
+function HostBridge({ connection, sync, panel }: { connection: HostConnection; sync: ReturnType<typeof createFrameSync>; panel: PanelStore }) {
   const getPuck = useGetPuck()
   useEffect(() => {
     const offState = connection.onState((m) => {
@@ -295,12 +339,15 @@ function HostBridge({ connection, sync }: { connection: HostConnection; sync: Re
       if (JSON.stringify(appState.data) !== JSON.stringify(m.data)) dispatch({ type: 'setData', data: m.data as unknown as Data, recordHistory: false })
       if (JSON.stringify(appState.ui.itemSelector ?? null) !== JSON.stringify(m.itemSelector)) dispatch({ type: 'setUi', ui: { itemSelector: m.itemSelector }, recordHistory: false })
     })
-    const offUi = connection.onUi((ui) => getPuck().dispatch({ type: 'setUi', ui, recordHistory: false }))
+    const offUi = connection.onUi((ui) => {
+      panel.set(ui.plugin)
+      getPuck().dispatch({ type: 'setUi', ui: { leftSideBarVisible: ui.leftSideBarVisible && ui.plugin !== null }, recordHistory: false })
+    })
     return () => {
       offState()
       offUi()
     }
-  }, [connection, sync, getPuck])
+  }, [connection, sync, panel, getPuck])
 
   // Undo/redo belong to the host's history: forward the shortcut instead of running Puck's own.
   useEffect(() => {
@@ -393,6 +440,10 @@ function ReadyEditor(p: PuckRemoteEditorProps & { payload: EditorPayload; option
     return transformConfig ? transformConfig(built) : built
   }, [payload, options, theme, transformConfig])
   const sync = useMemo(() => createFrameSync(), [connection])
+  const panel = useMemo(() => createPanelStore(), [connection])
+  const appPlugins = p.plugins ?? DEFAULT_FRAME_PLUGINS
+  // The panel plugin first (Puck sorts it first anyway); the app's plugins keep their overrides.
+  const plugins = useMemo(() => [panelPlugin(panel, appPlugins), ...appPlugins], [panel, appPlugins])
   const onAction = useMemo(
     () => (action: PuckAction) => {
       const m = sync.local(action)
@@ -409,13 +460,14 @@ function ReadyEditor(p: PuckRemoteEditorProps & { payload: EditorPayload; option
       ...p.overrides,
       puck: ({ children }: { children: ReactNode }) => (
         <>
-          <HostBridge connection={connection} sync={sync} />
+          <HostBridge connection={connection} sync={sync} panel={panel} />
           {AppPuck ? <AppPuck>{children}</AppPuck> : children}
         </>
       ),
     }
-  }, [p.overrides, connection, sync])
-  const ui = useMemo(() => ({ ...p.ui, rightSideBarVisible: false }), [p.ui])
+  }, [p.overrides, connection, sync, panel])
+  // Hidden until the admin page says which panel to show.
+  const ui = useMemo(() => ({ leftSideBarVisible: false, ...p.ui, rightSideBarVisible: false }), [p.ui])
   const value = useMemo(() => ({ rpc: connection.rpc, payload, options }), [connection, payload, options])
   return (
     <EditorContext.Provider value={value}>
@@ -425,7 +477,7 @@ function ReadyEditor(p: PuckRemoteEditorProps & { payload: EditorPayload; option
         onAction={onAction}
         permissions={options.permissions}
         overrides={overrides}
-        plugins={p.plugins}
+        plugins={plugins}
         ui={ui}
         viewports={p.viewports}
         iframe={p.iframe}

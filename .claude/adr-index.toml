@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 344
+next_decision = 359
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -185,7 +185,7 @@ created = "2026-10-09"
 title = "Split editor: admin Puck holds the data, frame Puck syncs by actions"
 description = "Split editor: admin Puck holds the data, frame Puck syncs by actions"
 tags = [ "editor", "security", "protocol" ]
-decisions = [ "D-0325", "D-0326", "D-0327", "D-0328", "D-0329", "D-0330", "D-0331", "D-0332", "D-0333", "D-0334", "D-0335", "D-0336", "D-0337", "D-0338", "D-0339", "D-0340", "D-0341", "D-0342", "D-0343" ]
+decisions = [ "D-0325", "D-0326", "D-0327", "D-0328", "D-0329", "D-0330", "D-0331", "D-0332", "D-0333", "D-0334", "D-0335", "D-0336", "D-0337", "D-0338", "D-0339", "D-0340", "D-0341", "D-0342", "D-0343", "D-0344", "D-0345", "D-0346", "D-0347", "D-0348", "D-0349", "D-0350", "D-0351", "D-0352", "D-0353", "D-0354", "D-0355", "D-0356", "D-0357", "D-0358" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -3014,8 +3014,9 @@ title = "<PuckEditorFrame> props: payload, editorUrl, editorOrigin?, options?, r
 adr = "feat/split-editor"
 date = "2026-10-09"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "api" ]
+superseded_by = "D-0347"
 
 [decisions.D-0336]
 title = "PuckEditorFrame.Canvas: the sandboxed iframe with the existing frameProblem checks, sandbox and referrerPolicy, plus className/style/title"
@@ -3080,6 +3081,127 @@ date = "2026-10-09"
 provenance = "agent-unreviewed"
 status = "needs-review"
 tags = [ "process" ]
+
+[decisions.D-0344]
+title = "Admin page uses Puck's native header; actions added through the headerActions override; Puck's Publish button calls a new onPublish prop"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0345]
+title = "The plugin rail is on the admin page; framePlugin(name, { label, icon }) marks a plugin whose panel renders in the frame; defaults: admin [framePlugin(blocks), outlinePlugin()], frame [blocksPlugin()]"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui", "api" ]
+
+[decisions.D-0346]
+title = "The viewport/zoom toolbar stays in the frame; the admin's canvas controls are hidden"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0347]
+title = "<PuckEditorFrame> renders Puck's native layout by default (frame in the preview area); children still replace it with a custom composition"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "api" ]
+supersedes = [ "D-0335" ]
+
+[decisions.D-0348]
+title = "Feasibility gate: admin preview override hosting the frame (iframe disabled) and a frame plugin panel without the rail; stop and ask if it needs CSS on Puck internals or fails"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "research" ]
+
+[decisions.D-0349]
+title = "ui message becomes { leftSideBarVisible, plugin: string | null } (plugin up to 64 chars); PROTOCOL_VERSION stays 2"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+
+[decisions.D-0350]
+title = "Admin: framePlugin returns a Puck plugin with an empty render; an effect maps ui.plugin.current and leftSideBarVisible to the admin left panel and the frame ui message; new props onPublish, headerTitle, headerPath (default /slug)"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "api" ]
+
+[decisions.D-0351]
+title = "Frame: <PuckRemoteEditor plugins> defaults to [blocksPlugin()]; its left panel shows the plugin named by the ui message (hidden on null); rail hidden; header and fields stay removed"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0352]
+title = "Example: native layout, headerActions override with status, user and Log out next to Puck Publish; publish via onPublish"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0353]
+title = "Tests: ui message with plugin, pure frameUi(current, framePluginNames, leftVisible) mapping; browser checklist for rail, drawer in frame, outline on admin, native header"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0354]
+title = "Docs: editor-app guide (native layout, framePlugin, header overrides, onPublish, custom layout), concepts/editor, editor-protocol, editor-lifecycle, testing"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0355]
+title = "Native-layout work continues on feat/split-editor in the same ADR"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0356]
+title = "Frame hides Puck's plugin rail by registering its panel plugin under Puck's 'legacy-side-bar' name (no CSS); one place to update if Puck changes that detection"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0357]
+title = "Correction: the native-layout plan named D-0327 and D-0331 as superseded; the default layout was D-0335 (superseded by D-0347); the ui message (D-0329) is extended by D-0349, not replaced"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "process" ]
+
+[decisions.D-0358]
+title = "While a frame plugin is active the admin collapses its left panel to ui.leftSideBarWidth = 1 (Puck ignores 0) and restores the previous width afterwards; the rail keeps its native active state"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]
