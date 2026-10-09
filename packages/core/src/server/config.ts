@@ -72,6 +72,8 @@ export interface Routes {
   theme: string;
   /** Prefix of the app's editor route, when the app serves the editor itself (only on origins.editor). */
   editor: string;
+  /** Prefix of the app's admin pages; host origins serve them at their root (`/x` → `<admin>/x`). */
+  admin: string;
 }
 
 type DeepPartial<T> = {
@@ -113,7 +115,7 @@ export function defineConfig<C extends PuckRemoteConfig>(config: C): C {
   return config;
 }
 
-export const DEFAULT_ROUTES: Routes = { theme: "/cdn", editor: "/editor" };
+export const DEFAULT_ROUTES: Routes = { theme: "/cdn", editor: "/editor", admin: "/admin" };
 
 function resolveSecurity(
   input: Pick<PuckRemoteConfig, "security">,

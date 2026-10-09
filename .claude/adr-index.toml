@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 282
+next_decision = 291
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -126,6 +126,16 @@ title = "Example app, data and mock API under examples/app"
 description = "Example app, data and mock API under examples/app"
 tags = [ "examples", "layout" ]
 decisions = [ "D-0273", "D-0274", "D-0275", "D-0276", "D-0277", "D-0278", "D-0279", "D-0280", "D-0281" ]
+
+[adrs."feat/origin-routing"]
+file = "branches/feat/origin-routing.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Origin-based routing: editor at /, admin pages at the admin origin root"
+description = "Origin-based routing: editor at /, admin pages at the admin origin root"
+tags = [ "next", "origins", "routing" ]
+decisions = [ "D-0282", "D-0283", "D-0284", "D-0285", "D-0286", "D-0287", "D-0288", "D-0289", "D-0290" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -2510,6 +2520,78 @@ date = "2026-10-09"
 provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "docs" ]
+
+[decisions.D-0282]
+title = "Editor origin: only / serves the editor page (rewrite to routes.editor); every other path, /editor included, is 404; /_next/* passes through"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "next", "origins" ]
+
+[decisions.D-0283]
+title = "Host (admin) origins: every path is rewritten under the admin route; that route is 404 on other origins"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "next", "origins" ]
+
+[decisions.D-0284]
+title = "New routes.admin (default '/admin'); the rewrite is always on when origins are set"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "config", "routing" ]
+
+[decisions.D-0285]
+title = "On host origins routes.theme and /_next/* are never rewritten"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next", "origins" ]
+
+[decisions.D-0286]
+title = "Proxy 404s are plain-text Not found with cache-control no-store and the surface security headers"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next" ]
+
+[decisions.D-0287]
+title = "Editor-origin 404s carry the editor CSP headers"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next", "security" ]
+
+[decisions.D-0288]
+title = "Example app: no code change (EDITOR_URL already the editor root); CLAUDE.md, README and quick-start URLs updated; owner admin layout bug left untouched"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0289]
+title = "Proxy tests in packages/next/test/proxy.test.ts with vitest 5.0.3 as a dev dependency of @puck-remote/next; browser check"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0290]
+title = "Origin routing on feat/origin-routing from chore/examples-layout"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

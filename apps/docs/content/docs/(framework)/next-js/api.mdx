@@ -62,13 +62,19 @@ Puck's RSC renderer, and theme scripts carrying the CSP nonce.
 
 For each request the proxy:
 
-1. on `origins.editor`, rewrites every path to `routes.editor` + path (your editor page) with the
-   [editor's headers](/docs/security-headers#editor) and a fresh CSP nonce, and stops there; on
-   other origins, `routes.editor/**` answers 404;
-2. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
+1. lets Next's own files (`/_next/*`) through untouched;
+2. on `origins.editor`, rewrites `/` to `routes.editor` (your editor page) with the
+   [editor's headers](/docs/security-headers#editor) and a fresh CSP nonce. Every other path,
+   `routes.editor` itself included, answers 404 ([D-0282](/docs/internal/decisions#D-0282));
+3. on `origins.host`, rewrites every path under `routes.admin` (`/x` → `/admin/x`, `/` →
+   `/admin`), except the theme route, which the editor loads from there
+   ([D-0283](/docs/internal/decisions#D-0283));
+4. on other origins, answers 404 for `routes.editor/**`, and for `routes.admin/**` when `origins`
+   is configured;
+5. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
    Next: the admin policy on `origins.host` (frames only the editor origin), the site policy
    elsewhere;
-3. on public pages, sets `x-page-cacheable: true`, or `false` with `cache-control: no-store` and
+6. on public pages, sets `x-page-cacheable: true`, or `false` with `cache-control: no-store` and
    `x-uncacheable-blocks` when a block reads URL query parameters.
 
 ## `withPuckRemote(nextConfig?)`

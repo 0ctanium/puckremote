@@ -41,7 +41,7 @@ my-app
 |---|---|
 | `puck-remote.config.ts` | The only file that knows your backend: adapters, origins, limits ([Configuration](/docs/configuration)) |
 | `src/puck-remote.ts` | The app instance: `createPuckRemote(config)` |
-| `src/proxy.ts` | Routes the editor origin to the editor page; security headers per origin (editor, admin or site) with a CSP nonce, cache headers |
+| `src/proxy.ts` | Serves the editor page at the editor origin's root (everything else there is 404) and your `/admin` pages at the admin origin's root; security headers per origin (editor, admin or site) with a CSP nonce, cache headers |
 | `app/[[...path]]/page.tsx` | The public site (Puck RSC render) |
 | `app/admin/[[...path]]/page.tsx` | Your admin page: checks your session, embeds the editor with `<PuckEditorFrame>` |
 | `app/admin/[[...path]]/actions.ts` | Server actions the frame's `rpc` map and your Publish button call (`core.resolveBlockData`, `core.writePage`), with your auth |

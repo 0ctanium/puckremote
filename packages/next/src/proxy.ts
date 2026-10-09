@@ -1,8 +1,12 @@
 /**
  * Next.js proxy (middleware) factory. For every request:
- *  - on the editor origin (`origins.editor`), every path is rewritten to the app's editor page
- *    (`routes.editor`, rendering <PuckRemoteEditor>) with the editor's security headers: nothing
- *    else of the app is reachable there; on other origins, the editor route answers 404;
+ *  - on the editor origin (`origins.editor`), `/` is rewritten to the app's editor page
+ *    (`routes.editor`, rendering <PuckRemoteEditor>) with the editor's security headers; every
+ *    other path answers 404 (only Next's `/_next/*` files pass): nothing else of the app is
+ *    reachable there. On other origins, the editor route answers 404;
+ *  - on host (admin) origins (`origins.host`), every path is rewritten under `routes.admin`
+ *    (`/x` → `/admin/x`), except the theme route and `/_next/*`. On other origins, the admin
+ *    route answers 404;
  *  - security headers: admin origins get the admin policy (no framing, only the editor origin
  *    may be framed); every other origin gets the public-site policy (CSP with a per-request nonce);
  *  - cache headers for public pages (pages using URL query params are never cacheable).
@@ -59,19 +63,25 @@ export function createProxy(
     ...s,
     csp: { ...DEFAULT_SECURITY.csp, ...s.csp },
   } as SecurityPolicy;
-  const editorRoute = (config.routes?.editor ?? DEFAULT_ROUTES.editor).replace(
-    /\/+$/,
-    "",
-  );
+  const trim = (r: string) => r.replace(/\/+$/, "");
+  const editorRoute = trim(config.routes?.editor ?? DEFAULT_ROUTES.editor);
+  const adminRoute = trim(config.routes?.admin ?? DEFAULT_ROUTES.admin);
+  const themeRoute = trim(config.routes?.theme ?? DEFAULT_ROUTES.theme);
+  const under = (pathname: string, route: string) =>
+    pathname === route || pathname.startsWith(route + "/");
+  const notFound = (headers: Record<string, string> = {}) =>
+    new NextResponse("Not found", {
+      status: 404,
+      headers: { ...headers, "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+    });
   return async function proxy(req: NextRequest) {
     const origin = requestOrigin(req);
     const { pathname } = req.nextUrl;
     const dev = process.env.NODE_ENV !== "production";
+    // Next's own files (page chunks, HMR): never routed, whatever the matcher.
+    if (pathname.startsWith("/_next/")) return NextResponse.next();
     if (editorOrigin && origin === editorOrigin) {
-      // The editor page (<PuckRemoteEditor>), credential-free, framed by host pages only.
-      const url = req.nextUrl.clone();
-      url.pathname =
-        pathname === "/" ? editorRoute : `${editorRoute}${pathname}`;
+      // The editor page (<PuckRemoteEditor>) at `/` only, credential-free, framed by host pages only.
       const nonce = cspNonce();
       const headers = securityHeaders("editor", {
         nonce,
@@ -79,17 +89,14 @@ export function createProxy(
         policy,
         hostOrigins: admin,
       });
+      if (pathname !== "/") return notFound(headers);
+      const url = req.nextUrl.clone();
+      url.pathname = editorRoute;
       const res = NextResponse.rewrite(url, {
         request: { headers: withNonce(req.headers, nonce, headers) },
       });
       for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
       return res;
-    }
-    if (pathname === editorRoute || pathname.startsWith(editorRoute + "/")) {
-      return new NextResponse("Not found", {
-        status: 404,
-        headers: { "cache-control": "no-store" },
-      });
     }
     const surface = admin.includes(origin) ? "admin" : "site";
     const nonce = cspNonce();
@@ -99,6 +106,19 @@ export function createProxy(
       policy,
       editorOrigin,
     });
+    if (surface === "admin" && !under(pathname, themeRoute)) {
+      // Admin pages at the host origin's root: /x → <routes.admin>/x.
+      const url = req.nextUrl.clone();
+      url.pathname = pathname === "/" ? adminRoute : `${adminRoute}${pathname}`;
+      const res = NextResponse.rewrite(url, {
+        request: { headers: withNonce(req.headers, nonce, headers) },
+      });
+      for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
+      return res;
+    }
+    if (under(pathname, editorRoute)) return notFound();
+    // Admin pages only answer on host origins (when origins are configured).
+    if (admin.length && under(pathname, adminRoute)) return notFound(headers);
     const res = NextResponse.next({
       request: { headers: withNonce(req.headers, nonce, headers) },
     });

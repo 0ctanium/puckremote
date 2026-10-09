@@ -65,13 +65,14 @@ pnpm --filter host dev
 |---|---|
 | Public site | `http://localhost:3100/` (or `http://site.localhost:3100/`) |
 | Search page (uncacheable) | `http://localhost:3100/search?q=nonce` |
-| Admin page (editor frame + Publish) | `http://admin.localhost:3100/admin` |
+| Admin page (editor frame + Publish) | `http://admin.localhost:3100/editor` (served by `/admin/editor`) |
 | Editor (embedded only, served by the same app) | `http://127.0.0.1:3100/` |
 
 One app answers all three origins: `*.localhost` resolves to loopback, so the site and the admin
 pages are two origins, and `127.0.0.1` is another site for the editor. On the editor origin only
-the editor is reachable; on the admin hostname, public pages answer 404; `/admin` and `/editor`
-answer 404 elsewhere.
+the editor page is reachable, at `/`, and every other path is 404. On the admin hostname, every
+path is served from the app's `/admin` pages (`/editor` → `/admin/editor`). `/admin` and `/editor`
+answer 404 on the public site.
 
 </Step>
 <Step>

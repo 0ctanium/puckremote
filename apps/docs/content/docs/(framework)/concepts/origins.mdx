@@ -28,8 +28,10 @@ origins: { host: ['https://admin.example.com'], editor: 'https://editor.example.
 - The Next bindings answer 404 for public pages on an admin origin (theme scripts never run next
   to the admin session) and for admin pages elsewhere.
 - The theme route allows CORS for the editor origin only.
-- The Next proxy serves only the editor on the editor origin, and hides the editor route on every
-  other origin. One deployment can answer all three origins.
+- The Next proxy serves only the editor page on the editor origin, at `/`; every other path there is
+  404. On admin origins it serves your `/admin` pages at the root (`admin.example.com/x` →
+  `/admin/x`), and it hides both routes on every other origin. One deployment can answer all three
+  origins.
 
 ## Rules
 
