@@ -405,19 +405,47 @@ describe("editor side (<PuckRemoteEditor>)", () => {
 });
 
 describe("plugin panels (rail on the admin page)", () => {
-  it("the ui message names the frame plugin to show, or null", () => {
-    expect(hostToEditorSchema.safeParse({ v: PROTOCOL_VERSION, type: "ui", leftSideBarVisible: true, plugin: "blocks" }).success).toBe(true);
-    expect(hostToEditorSchema.safeParse({ v: PROTOCOL_VERSION, type: "ui", leftSideBarVisible: false, plugin: null }).success).toBe(true);
-    expect(hostToEditorSchema.safeParse({ v: PROTOCOL_VERSION, type: "ui", leftSideBarVisible: true }).success).toBe(false);
-    expect(hostToEditorSchema.safeParse({ v: PROTOCOL_VERSION, type: "ui", leftSideBarVisible: true, plugin: "x".repeat(65) }).success).toBe(false);
+  it("the ui messages: the frame plugin to show and the shared panel width, both ways", () => {
+    const ui = (o: object) => hostToEditorSchema.safeParse({ v: PROTOCOL_VERSION, type: "ui", leftSideBarVisible: true, plugin: "blocks", leftSideBarWidth: 280, ...o }).success;
+    expect(ui({})).toBe(true);
+    expect(ui({ plugin: null, leftSideBarWidth: null })).toBe(true);
+    expect(ui({ plugin: undefined })).toBe(false);
+    expect(ui({ plugin: "x".repeat(65) })).toBe(false);
+    expect(ui({ leftSideBarWidth: 2001 })).toBe(false);
+    expect(ui({ leftSideBarWidth: 12.5 })).toBe(false);
+    const report = (w: unknown) => editorToHostSchema.safeParse({ v: PROTOCOL_VERSION, type: "ui", leftSideBarWidth: w }).success;
+    expect(report(300)).toBe(true);
+    expect(report(null)).toBe(true);
+    expect(report(-1)).toBe(false);
+  });
+
+  it("a resize reported by the editor reaches onUi", async () => {
+    const widths: (number | null)[] = [];
+    const win = {};
+    const handle = hostMessageHandler({
+      editorOrigin: EDITOR,
+      source: () => win,
+      post: () => {},
+      init: () => ({ payload, options: {} }),
+      rpc: () => ({}),
+      blocks: () => [],
+      onAction: () => {},
+      onIntent: () => {},
+      onUi: (w) => widths.push(w),
+      onReady: () => {},
+      onError: () => {},
+    });
+    await handle({ origin: EDITOR, source: win, data: { v: PROTOCOL_VERSION, type: "ui", leftSideBarWidth: 320 } });
+    await handle({ origin: "https://evil.test", source: win, data: { v: PROTOCOL_VERSION, type: "ui", leftSideBarWidth: 10 } });
+    expect(widths).toEqual([320]);
   });
 
   it("frameUi: a frame plugin opens in the frame and collapses this side; others stay here", () => {
-    expect(frameUi("blocks", ["blocks"], true)).toEqual({ collapseHere: true, frame: { leftSideBarVisible: true, plugin: "blocks" } });
+    expect(frameUi("blocks", ["blocks"], true, 300)).toEqual({ collapseHere: true, frame: { leftSideBarVisible: true, plugin: "blocks", leftSideBarWidth: 300 } });
     // The rail toggle hides the frame's panel too.
-    expect(frameUi("blocks", ["blocks"], false)).toEqual({ collapseHere: true, frame: { leftSideBarVisible: false, plugin: "blocks" } });
-    expect(frameUi("outline", ["blocks"], true)).toEqual({ collapseHere: false, frame: { leftSideBarVisible: false, plugin: null } });
-    expect(frameUi(null, ["blocks"], true)).toEqual({ collapseHere: false, frame: { leftSideBarVisible: false, plugin: null } });
+    expect(frameUi("blocks", ["blocks"], false)).toEqual({ collapseHere: true, frame: { leftSideBarVisible: false, plugin: "blocks", leftSideBarWidth: null } });
+    expect(frameUi("outline", ["blocks"], true, 300)).toEqual({ collapseHere: false, frame: { leftSideBarVisible: false, plugin: null, leftSideBarWidth: 300 } });
+    expect(frameUi(null, ["blocks"], true)).toEqual({ collapseHere: false, frame: { leftSideBarVisible: false, plugin: null, leftSideBarWidth: null } });
   });
 });
 

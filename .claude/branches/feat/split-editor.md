@@ -62,6 +62,15 @@ Keeping the old full-frame mode; a version-history plugin; fixing Puck recording
 | D-0356 | Frame hides Puck's plugin rail by registering its panel plugin under Puck's 'legacy-side-bar' name (no CSS); one place to update if Puck changes that detection | user | accepted |
 | D-0357 | Correction: the native-layout plan named D-0327 and D-0331 as superseded; the default layout was D-0335 (superseded by D-0347); the ui message (D-0329) is extended by D-0349, not replaced | agent-unreviewed | needs-review |
 | D-0358 | While a frame plugin is active the admin collapses its left panel to ui.leftSideBarWidth = 1 (Puck ignores 0) and restores the previous width afterwards; the rail keeps its native active state | user | accepted |
+| D-0359 | Admin Puck uses _experimentalFullScreenCanvas so the frame fills the center area with no outer padding | user | accepted |
+| D-0360 | <PuckRemoteEditor> injects one CSS rule in the frame hiding Puck's plugin nav ([class*=PuckLayout-nav]) on all sizes; relies on Puck's class-name prefix | user | accepted |
+| D-0361 | Left panel width is synced both ways between the admin and the frame | user | accepted |
+| D-0362 | Protocol: host→editor ui gains leftSideBarWidth (int 0..2000 \| null); new editor→host ui { leftSideBarWidth } on frame resize, display-only; PROTOCOL_VERSION stays 2 | user-approved-plan | accepted |
+| D-0363 | Admin: shared width = its panel width (savedWidth while a frame plugin is active), sent with every ui message; frame-reported widths update it; null = Puck default | user-approved-plan | accepted |
+| D-0364 | Frame: applies the host width with recordHistory false; reports user resizes, skipping echoes of the last received width | user-approved-plan | accepted |
+| D-0365 | Layout polish tests: ui width messages both ways, frameUi width, host callback; browser checks at desktop and narrow widths | user-approved-plan | accepted |
+| D-0366 | Layout polish docs: editor-protocol, editor-lifecycle, editor-app guide note, testing; same ADR | user-approved-plan | accepted |
+| D-0367 | framePlugin sets Puck's mobilePanelHeight 'min-content' so on small admin screens its empty panel takes no height and the frame keeps the space (the frame shows the real panel) | agent-unreviewed | needs-review |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -119,6 +128,17 @@ concepts/editor, concepts/origins, guides/editor-app (rewritten), installation, 
   - Puck's native Publish works ("Published …", same theme id for identical content).
 - Tests: editor 20, including `frameUi` and the `ui` message.
 - A core worker watchdog test failed once while the dev server was running, then passed twice. It's timing-based and unrelated.
+
+## Follow-up: layout polish (D-0359 to D-0367)
+- The admin Puck uses `_experimentalFullScreenCanvas`, so the frame fills the center area with no side padding. Puck keeps 24px of top padding on screens 1198px and wider: its `:not(:has(controls))` rule outranks full-screen mode. This is open.
+- The frame injects `[class*="PuckLayout-nav"]{display:none}`, so it never shows Puck's rail or mobile tab bar.
+- `framePlugin` uses `mobilePanelHeight: 'min-content'` (agent choice, D-0367): on a small admin page the admin's empty panel takes no height, and the frame shows the drawer as its own bottom sheet.
+- The left panel width is shared through `ui.leftSideBarWidth` in both directions.
+- Checked in the browser:
+  - narrow admin page: the admin's tab bar shows and the frame's doesn't; Blocks shows the drawer as a bottom sheet in the frame;
+  - wide: no side padding;
+  - widening the outline to 389px keeps it at 389px after Blocks and back.
+- Not confirmed: resizing the drawer inside the frame and seeing the outline follow. The synthetic drag inside the scaled iframe didn't hit the handle; left for the owner. The protocol path is unit-tested.
 
 ## Investigation Notes
 See `chore/two-puck-spike` (research page `internal/quality/research-two-puck` on that branch). Found here: Puck records load-time `resolveData` as undo steps on the admin side (now a known gap).

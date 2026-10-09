@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 359
+next_decision = 368
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -185,7 +185,7 @@ created = "2026-10-09"
 title = "Split editor: admin Puck holds the data, frame Puck syncs by actions"
 description = "Split editor: admin Puck holds the data, frame Puck syncs by actions"
 tags = [ "editor", "security", "protocol" ]
-decisions = [ "D-0325", "D-0326", "D-0327", "D-0328", "D-0329", "D-0330", "D-0331", "D-0332", "D-0333", "D-0334", "D-0335", "D-0336", "D-0337", "D-0338", "D-0339", "D-0340", "D-0341", "D-0342", "D-0343", "D-0344", "D-0345", "D-0346", "D-0347", "D-0348", "D-0349", "D-0350", "D-0351", "D-0352", "D-0353", "D-0354", "D-0355", "D-0356", "D-0357", "D-0358" ]
+decisions = [ "D-0325", "D-0326", "D-0327", "D-0328", "D-0329", "D-0330", "D-0331", "D-0332", "D-0333", "D-0334", "D-0335", "D-0336", "D-0337", "D-0338", "D-0339", "D-0340", "D-0341", "D-0342", "D-0343", "D-0344", "D-0345", "D-0346", "D-0347", "D-0348", "D-0349", "D-0350", "D-0351", "D-0352", "D-0353", "D-0354", "D-0355", "D-0356", "D-0357", "D-0358", "D-0359", "D-0360", "D-0361", "D-0362", "D-0363", "D-0364", "D-0365", "D-0366", "D-0367" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -3201,6 +3201,78 @@ adr = "feat/split-editor"
 date = "2026-10-09"
 provenance = "user"
 status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0359]
+title = "Admin Puck uses _experimentalFullScreenCanvas so the frame fills the center area with no outer padding"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0360]
+title = "<PuckRemoteEditor> injects one CSS rule in the frame hiding Puck's plugin nav ([class*=PuckLayout-nav]) on all sizes; relies on Puck's class-name prefix"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0361]
+title = "Left panel width is synced both ways between the admin and the frame"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0362]
+title = "Protocol: host→editor ui gains leftSideBarWidth (int 0..2000 | null); new editor→host ui { leftSideBarWidth } on frame resize, display-only; PROTOCOL_VERSION stays 2"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+
+[decisions.D-0363]
+title = "Admin: shared width = its panel width (savedWidth while a frame plugin is active), sent with every ui message; frame-reported widths update it; null = Puck default"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0364]
+title = "Frame: applies the host width with recordHistory false; reports user resizes, skipping echoes of the last received width"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0365]
+title = "Layout polish tests: ui width messages both ways, frameUi width, host callback; browser checks at desktop and narrow widths"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0366]
+title = "Layout polish docs: editor-protocol, editor-lifecycle, editor-app guide note, testing; same ADR"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0367]
+title = "framePlugin sets Puck's mobilePanelHeight 'min-content' so on small admin screens its empty panel takes no height and the frame keeps the space (the frame shows the real panel)"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "agent-unreviewed"
+status = "needs-review"
 tags = [ "editor", "ui" ]
 
 [relationships.depends_on]

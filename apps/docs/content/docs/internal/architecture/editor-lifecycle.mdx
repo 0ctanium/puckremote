@@ -43,7 +43,18 @@ description: From opening the admin page to publishing, step by step.
    the last `ui` message. On the admin page, `frameUi()` maps Puck's `ui.plugin.current` and
    `leftSideBarVisible` to that message. While a frame plugin is active, the admin collapses its
    own panel to 1px, since Puck ignores a width of 0
-   ([D-0358](/docs/internal/decisions#D-0358)). The previous width is restored afterwards. `ctx.assets.style` URLs under the
+   ([D-0358](/docs/internal/decisions#D-0358)). The previous width is restored afterwards.
+   - **One panel width for both sides** ([D-0361](/docs/internal/decisions#D-0361)). The admin sends
+     its panel width with each `ui` message, and a resize of the frame's panel comes back as
+     `ui { leftSideBarWidth }`. Switching between Blocks and Outline keeps the width.
+   - **Edge to edge:** the admin Puck uses `_experimentalFullScreenCanvas`, so the center area has no
+     side padding around the frame. Puck still keeps 24px at the top on screens 1198px and wider.
+   - **No tab bar in the frame:** under 638px Puck shows its plugin nav as a bottom tab bar, and it
+     has no option for it. `<PuckRemoteEditor>` injects one rule, `[class*="PuckLayout-nav"]`, that
+     hides it in the frame only ([D-0360](/docs/internal/decisions#D-0360)). That rule relies on
+     Puck's class-name prefix. On a small admin page, the admin's own tab bar stays.
+     `framePlugin` uses `mobilePanelHeight: 'min-content'`, so its empty admin panel takes no
+     height and the frame shows the drawer as its own bottom sheet. `ctx.assets.style` URLs under the
    artifact's `assetBase` are injected into Puck's canvas iframe. Theme scripts don't run in the
    editor, and `head.*` is ignored. `useEditor()` exposes `{ rpc, payload, options }` to your
    overrides and plugins.

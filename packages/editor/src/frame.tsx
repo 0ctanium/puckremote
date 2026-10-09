@@ -90,7 +90,9 @@ const framePlugins = new WeakSet<Plugin>();
  * the canvas, like the blocks drawer.
  */
 export function framePlugin(name: string, opts: { label?: string; icon?: ReactNode } = {}): Plugin {
-  const plugin: Plugin = { name, label: opts.label, icon: opts.icon, render: () => <></> };
+  // On small screens Puck shows panels as a bottom sheet: this one is empty, so it takes no height
+  // and the frame keeps the space (the frame shows the real panel itself).
+  const plugin: Plugin = { name, label: opts.label, icon: opts.icon, render: () => <></>, mobilePanelHeight: "min-content" };
   framePlugins.add(plugin);
   return plugin;
 }
@@ -104,9 +106,15 @@ const DEFAULT_PLUGINS = [framePlugin("blocks", { label: defaultBlocks.label, ico
  * panel collapses and the frame shows that plugin's panel. Otherwise the panel is here and the
  * frame shows none.
  */
-export function frameUi(current: string | null | undefined, framePluginNames: readonly string[], leftSideBarVisible: boolean): { collapseHere: boolean; frame: { leftSideBarVisible: boolean; plugin: string | null } } {
-  if (current && framePluginNames.includes(current)) return { collapseHere: true, frame: { leftSideBarVisible, plugin: current } };
-  return { collapseHere: false, frame: { leftSideBarVisible: false, plugin: null } };
+export function frameUi(
+  current: string | null | undefined,
+  framePluginNames: readonly string[],
+  leftSideBarVisible: boolean,
+  leftSideBarWidth: number | null = null,
+): { collapseHere: boolean; frame: { leftSideBarVisible: boolean; plugin: string | null; leftSideBarWidth: number | null } } {
+  // One panel width for both sides (null: Puck's default).
+  if (current && framePluginNames.includes(current)) return { collapseHere: true, frame: { leftSideBarVisible, plugin: current, leftSideBarWidth } };
+  return { collapseHere: false, frame: { leftSideBarVisible: false, plugin: null, leftSideBarWidth } };
 }
 
 /** Why the frame refuses to load, or null. */
@@ -155,6 +163,8 @@ export interface HostHandlerOptions {
   /** A validated action to replay, or null when it was refused (resync the editor). */
   onAction: (seq: number, action: FrameAction | null) => void;
   onIntent: (intent: "undo" | "redo") => void;
+  /** The editor's panel was resized (display only). */
+  onUi?: (leftSideBarWidth: number | null) => void;
   /** Sent after `init`: the editor needs this side's current state. */
   onReady: () => void;
   onError: (message: string) => void;
@@ -212,6 +222,8 @@ export function hostMessageHandler(o: HostHandlerOptions) {
       }
       case "intent":
         return o.onIntent(m.intent);
+      case "ui":
+        return o.onUi?.(m.leftSideBarWidth);
       case "error":
         return fail(m.message);
       case "rpc": {
@@ -288,6 +300,7 @@ function EditorBridge() {
   const currentPlugin = usePuck((s) => s.appState.ui.plugin?.current ?? null);
   const leftSideBarVisible = usePuck((s) => s.appState.ui.leftSideBarVisible);
   const leftSideBarWidth = usePuck((s) => s.appState.ui.leftSideBarWidth ?? null);
+  // The shared panel width while this side's panel is collapsed for a frame plugin.
   const savedWidth = useRef<number | null>(null);
   const ack = useRef(0);
   const lastSent = useRef<string | null>(null);
@@ -309,6 +322,10 @@ function EditorBridge() {
         setResync((n) => n + 1);
       },
       onIntent: (intent) => (intent === "undo" ? getPuck().history.back() : getPuck().history.forward()),
+      // Resized in the frame: keep it for when this side's panel opens again.
+      onUi: (width) => {
+        savedWidth.current = width;
+      },
       onReady: () => {
         lastSent.current = null;
         setFrameReady(true);
@@ -323,8 +340,9 @@ function EditorBridge() {
   // The left panel: here for this side's plugins, in the frame for frame plugins.
   const names = ctx.framePluginNames;
   useEffect(() => {
-    const ui = frameUi(currentPlugin, names, leftSideBarVisible);
     const dispatch = getPuck().dispatch;
+    const sharedWidth = leftSideBarWidth === COLLAPSED ? savedWidth.current : leftSideBarWidth;
+    const ui = frameUi(currentPlugin, names, leftSideBarVisible, sharedWidth);
     if (ui.collapseHere && leftSideBarWidth !== COLLAPSED) {
       savedWidth.current = leftSideBarWidth;
       dispatch({ type: "setUi", ui: { leftSideBarWidth: COLLAPSED }, recordHistory: false });
@@ -469,6 +487,8 @@ export function PuckEditorFrame(props: PuckEditorFrameProps) {
         plugins={plugins}
         // No canvas here: the center area holds the editor frame (its own viewport and zoom controls).
         iframe={{ enabled: false }}
+        // Edge to edge: the frame's canvas has its own padding.
+        _experimentalFullScreenCanvas
       >
         {props.children}
       </Puck>

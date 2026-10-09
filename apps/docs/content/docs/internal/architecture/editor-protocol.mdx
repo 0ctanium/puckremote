@@ -18,7 +18,8 @@ the admin validates them, replays them on its own Puck and answers with its **st
 | editor → host | `action` | `seq` (1, 2, 3…), `action` (a `FrameAction`, below) |
 | host → editor | `state` | `data` (the full page, with `__data`), `itemSelector` (the selection or `null`), `ack` (last action applied) |
 | editor → host | `intent` | `undo` or `redo` (⌘Z / ⇧⌘Z pressed in the frame) |
-| host → editor | `ui` | `leftSideBarVisible`, `plugin` (the frame plugin whose panel to show, or `null`) |
+| editor → host | `ui` | `leftSideBarWidth` (you resized the frame's panel; display only) |
+| host → editor | `ui` | `leftSideBarVisible`, `plugin` (the frame plugin whose panel to show, or `null`), `leftSideBarWidth` (the shared panel width, px or `null` for Puck's default) |
 | editor → host | `rpc` | `id`, `method` (`^[A-Za-z][A-Za-z0-9._:-]{0,63}$`), `params` (JSON, plus File/Blob values) |
 | host → editor | `rpc:result` | `id`, then `ok: true, value` or `ok: false, error` |
 | either | `error` | `message` (≤ 2000 chars) |

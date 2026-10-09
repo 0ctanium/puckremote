@@ -3,8 +3,8 @@
  * data, the history and the fields) and the editor iframe (<PuckRemoteEditor>: canvas, drawer,
  * outline; theme code runs there). Typed, versioned messages; both sides validate everything.
  *
- *   editor → host   ready, action { seq, action }, intent { undo | redo }, rpc, error
- *   host → editor   init, state { data, itemSelector, ack }, ui { leftSideBarVisible, plugin }, rpc:result, error
+ *   editor → host   ready, action { seq, action }, intent { undo | redo }, ui { leftSideBarWidth }, rpc, error
+ *   host → editor   init, state { data, itemSelector, ack }, ui { leftSideBarVisible, plugin, leftSideBarWidth }, rpc:result, error
  *
  * The editor proposes Puck actions; the host validates and replays them on its own Puck, then
  * sends its state back. Only JSON travels, except RPC params, which may also carry File/Blob
@@ -95,13 +95,15 @@ export type EditorToHost =
   | { v: V; type: "ready" }
   | { v: V; type: "action"; seq: number; action: FrameAction }
   | { v: V; type: "intent"; intent: "undo" | "redo" }
+  /** The editor's left panel was resized (display only; the width is shared with the host's panel). */
+  | { v: V; type: "ui"; leftSideBarWidth: number | null }
   | { v: V; type: "rpc"; id: number; method: string; params: unknown }
   | { v: V; type: "error"; message: string };
 
 export type HostToEditor =
   | { v: V; type: "init"; payload: EditorPayload; options: EditorOptions }
   | { v: V; type: "state"; data: PageData; itemSelector: ItemSelector; ack: number }
-  | { v: V; type: "ui"; leftSideBarVisible: boolean; plugin: string | null }
+  | { v: V; type: "ui"; leftSideBarVisible: boolean; plugin: string | null; leftSideBarWidth: number | null }
   | { v: V; type: "rpc:result"; id: number; ok: true; value: unknown }
   | { v: V; type: "rpc:result"; id: number; ok: false; error: string }
   | { v: V; type: "error"; message: string };
@@ -138,6 +140,8 @@ const rpcId = z.number().int().nonnegative();
 const index = z.number().int().nonnegative().max(100_000);
 const zone = z.string().max(500);
 const itemSelector = z.object({ index, zone: zone.optional() }).nullable();
+/** A left panel width in px; null is Puck's default. */
+const panelWidth = z.number().int().min(0).max(2000).nullable();
 
 /**
  * Frame actions (B6). `z.object` strips unknown keys, so only these fields are ever replayed.
@@ -210,6 +214,7 @@ export const editorToHostSchema = z.discriminatedUnion("type", [
   z.strictObject({ v, type: z.literal("ready") }),
   z.strictObject({ v, type: z.literal("action"), seq: z.number().int().positive(), action: frameActionSchema }),
   z.strictObject({ v, type: z.literal("intent"), intent: z.enum(["undo", "redo"]) }),
+  z.strictObject({ v, type: z.literal("ui"), leftSideBarWidth: panelWidth }),
   z.strictObject({
     v,
     type: z.literal("rpc"),
@@ -230,7 +235,7 @@ export const hostToEditorSchema = z.union([
   }),
   z.strictObject({ v, type: z.literal("state"), data: pageDataSchema, itemSelector, ack: z.number().int().nonnegative() }),
   // `plugin`: the frame plugin whose panel the editor shows (null: none).
-  z.strictObject({ v, type: z.literal("ui"), leftSideBarVisible: z.boolean(), plugin: z.string().min(1).max(64).nullable() }),
+  z.strictObject({ v, type: z.literal("ui"), leftSideBarVisible: z.boolean(), plugin: z.string().min(1).max(64).nullable(), leftSideBarWidth: panelWidth }),
   z.strictObject({
     v,
     type: z.literal("rpc:result"),

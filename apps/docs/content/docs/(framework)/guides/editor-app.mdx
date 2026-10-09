@@ -63,7 +63,8 @@ import { framePlugin } from '@puck-remote/editor/frame';
 ```
 
 When a frame plugin is active, the admin page collapses its own panel and the frame shows that
-plugin's panel next to the canvas. The editor page provides the real panel under the same name
+plugin's panel next to the canvas. Both panels share one width: resizing either one resizes the
+other. The editor page provides the real panel under the same name
 (`<PuckRemoteEditor plugins>`, below). The canvas toolbar (viewports, zoom) stays in the frame,
 next to the canvas it measures.
 

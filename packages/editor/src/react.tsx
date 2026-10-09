@@ -9,12 +9,12 @@
  *   <PuckRemoteEditor allowedParents={['https://admin.example.com']} overrides={…} plugins={…} />
  *   // anywhere inside: const { rpc, payload } = useEditor()
  */
-import { blocksPlugin, Puck, useGetPuck, type Config, type Data, type Overrides, type Plugin, type PuckAction, type Viewports } from '@puckeditor/core'
+import { blocksPlugin, createUsePuck, Puck, useGetPuck, type Config, type Data, type Overrides, type Plugin, type PuckAction, type Viewports } from '@puckeditor/core'
 import type { Manifest } from '@puck-remote/core'
 import type { RenderCtx } from '@puck-remote/sdk'
 import { registerSharedModules } from '@puck-remote/sdk/browser'
 import * as React from 'react'
-import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from 'react'
 import { buildEditorConfig, withoutResolveData, type ThemeModule } from './config.tsx'
 import { hostToEditorSchema, LIMITS, measure, PROTOCOL_VERSION, type EditorOptions, type EditorPayload, type EditorToHost, type FrameAction, type HostToEditor, type ItemSelector, type RpcHandlers, type TypedRpc } from './protocol.ts'
 
@@ -32,6 +32,7 @@ export function initProblem(payload: EditorPayload, parentOrigin: string, selfOr
 export type Rpc = (method: string, params?: unknown) => Promise<unknown>
 
 type StateMessage = Extract<HostToEditor, { type: 'state' }>
+type HostUi = { leftSideBarVisible: boolean; plugin: string | null; leftSideBarWidth: number | null }
 
 export interface HostConnection {
   rpc: Rpc
@@ -40,7 +41,9 @@ export interface HostConnection {
   intent(intent: 'undo' | 'redo'): void
   /** The host's state. The latest one is kept until a listener subscribes. */
   onState(listener: (m: StateMessage) => void): () => void
-  onUi(listener: (ui: { leftSideBarVisible: boolean; plugin: string | null }) => void): () => void
+  onUi(listener: (ui: HostUi) => void): () => void
+  /** Report a resize of this side's panel (the width is shared with the host's panel). */
+  panelWidth(width: number | null): void
   error(message: string): void
   close(): void
 }
@@ -60,8 +63,8 @@ export function connectToHost(opts: {
   let nextId = 1
   const pending = new Map<number, { resolve(v: unknown): void; reject(e: Error): void }>()
   const stateListeners = new Set<(m: StateMessage) => void>()
-  const uiListeners = new Set<(ui: { leftSideBarVisible: boolean; plugin: string | null }) => void>()
-  let lastUi: { leftSideBarVisible: boolean; plugin: string | null } | null = null
+  const uiListeners = new Set<(ui: HostUi) => void>()
+  let lastUi: HostUi | null = null
   let lastState: StateMessage | null = null
   const send = (m: EditorToHost) => {
     if (parentOrigin) win.parent.postMessage(m, parentOrigin)
@@ -99,7 +102,7 @@ export function connectToHost(opts: {
         for (const l of stateListeners) l(lastState)
         return
       case 'ui':
-        lastUi = { leftSideBarVisible: m.leftSideBarVisible, plugin: m.plugin }
+        lastUi = { leftSideBarVisible: m.leftSideBarVisible, plugin: m.plugin, leftSideBarWidth: m.leftSideBarWidth }
         for (const l of uiListeners) l(lastUi)
         return
       case 'error':
@@ -124,6 +127,7 @@ export function connectToHost(opts: {
       }),
     action: (seq, action) => send({ v: PROTOCOL_VERSION, type: 'action', seq, action }),
     intent: (intent) => send({ v: PROTOCOL_VERSION, type: 'intent', intent }),
+    panelWidth: (width) => send({ v: PROTOCOL_VERSION, type: 'ui', leftSideBarWidth: width }),
     onState(listener) {
       stateListeners.add(listener)
       if (lastState) listener(lastState)
@@ -291,6 +295,25 @@ function CanvasStyles({ document: doc, children }: { document?: Document; childr
 // The header (title, undo/redo, Publish) is the host's: Puck's own is removed.
 const NoHeader = () => <></>
 
+const usePuck = createUsePuck()
+
+/**
+ * Puck shows its plugin nav (a rail on desktop, a tab bar under 638px) from its own layout, with no
+ * option to turn it off; the nav is the host's. This rule hides it in the editor frame only. It
+ * relies on Puck's class-name prefix (`PuckLayout-nav`): update it if Puck renames that class.
+ */
+const HIDE_PUCK_NAV = '[class*="PuckLayout-nav"]{display:none!important}'
+
+function useHidePuckNav() {
+  useEffect(() => {
+    const style = document.createElement('style')
+    style.dataset.puckRemote = 'hide-nav'
+    style.textContent = HIDE_PUCK_NAV
+    document.head.appendChild(style)
+    return () => style.remove()
+  }, [])
+}
+
 const DEFAULT_FRAME_PLUGINS = [blocksPlugin()]
 
 /** The frame plugin whose panel shows, as chosen in the admin page's rail. */
@@ -331,6 +354,14 @@ function panelPlugin(store: PanelStore, plugins: Plugin[]): Plugin {
 /** Inside Puck: applies the host's state and UI, and forwards undo/redo shortcuts to the host. */
 function HostBridge({ connection, sync, panel }: { connection: HostConnection; sync: ReturnType<typeof createFrameSync>; panel: PanelStore }) {
   const getPuck = useGetPuck()
+  // The panel width is shared with the host's panel: report your resizes, not the host's echoes.
+  const width = usePuck((s) => s.appState.ui.leftSideBarWidth ?? null)
+  const hostWidth = useRef<number | null | undefined>(undefined)
+  useEffect(() => {
+    if (hostWidth.current === undefined || width === hostWidth.current) return
+    hostWidth.current = width
+    connection.panelWidth(width)
+  }, [width, connection])
   useEffect(() => {
     const offState = connection.onState((m) => {
       // The host hasn't seen all our actions yet: its state is older than ours.
@@ -341,7 +372,8 @@ function HostBridge({ connection, sync, panel }: { connection: HostConnection; s
     })
     const offUi = connection.onUi((ui) => {
       panel.set(ui.plugin)
-      getPuck().dispatch({ type: 'setUi', ui: { leftSideBarVisible: ui.leftSideBarVisible && ui.plugin !== null }, recordHistory: false })
+      hostWidth.current = ui.leftSideBarWidth
+      getPuck().dispatch({ type: 'setUi', ui: { leftSideBarVisible: ui.leftSideBarVisible && ui.plugin !== null, leftSideBarWidth: ui.leftSideBarWidth }, recordHistory: false })
     })
     return () => {
       offState()
@@ -468,6 +500,7 @@ function ReadyEditor(p: PuckRemoteEditorProps & { payload: EditorPayload; option
   }, [p.overrides, connection, sync, panel])
   // Hidden until the admin page says which panel to show.
   const ui = useMemo(() => ({ leftSideBarVisible: false, ...p.ui, rightSideBarVisible: false }), [p.ui])
+  useHidePuckNav()
   const value = useMemo(() => ({ rpc: connection.rpc, payload, options }), [connection, payload, options])
   return (
     <EditorContext.Provider value={value}>
