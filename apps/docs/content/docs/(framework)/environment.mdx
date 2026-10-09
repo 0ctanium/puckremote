@@ -25,9 +25,18 @@ Render workers get an **empty environment**: nothing from the host process reach
 | `PUCK_REMOTE_MOCK_API_ORIGIN` | `http://localhost:4010` | Mock API origin |
 | `PUCK_REMOTE_ALLOW_DEV_ORIGINS` | — | Lets a production build reach the mock API over http (local testing only) |
 | `EVENTS_API_KEY` | a dev key | Secret bound to the mock API origin |
+| `ADMIN_SESSION_SECRET` | a dev-only value | Signs the admin session cookie; **required in production** (without it no session is accepted) |
 
-The example has **no auth**: its admin page and server actions are open. Add your own session
-check in a real app.
+The example has a **demo login** at `/login` on the admin origin: username `admin`, password
+`admin`, hard-coded for the demo only ([D-0301](/docs/internal/decisions#D-0301)). It shows the
+pattern a real app follows with its own users:
+
+- The session is a stateless cookie signed with HMAC-SHA256 (`examples/app/src/auth.ts`), named
+  `admin_session`. It's `HttpOnly`, `SameSite=Strict` and host-only (no `Domain`), so neither the
+  public site nor the editor origin ever receives it. It expires after 8 hours.
+- Every admin page calls `requireSession()`, which redirects to `/login`.
+- Every server action calls `requireSession({ redirect: false })`, which throws `unauthorized`.
+  Server actions are public POST endpoints, so a page or layout check alone doesn't protect them.
 
 ## Mock API
 

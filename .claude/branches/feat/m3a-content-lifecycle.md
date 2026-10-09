@@ -173,7 +173,7 @@ as real client components in it.
 | D-0237 | Tests: CLI checks the browser bundle has no bare imports and reads the globals; editor parity loads the theme through the globals; protocol tests stay; server tests removed; headers test covers the editor CSP | user-approved-plan | accepted |
 | D-0238 | origins.admin is renamed origins.host ({ host: string[], editor: string }); the editor protocol's payload schema follows; same checks as before | user | accepted |
 | D-0239 | Next bindings use factories: createThemeHandler() and loadEditorPage(); createEditorRpcRoute is removed (apps call core.resolveBlockData from their own transport); loadPage 404s on host origins and loadEditor outside them | user | accepted |
-| D-0240 | Example app: server actions (resolveData, publish) and a ClientEditor; no auth in the example (docs say real apps add their session check); host origin admin.localhost:3100; the editor page renders <PuckRemoteEditor> with a header badge override | user | accepted |
+| D-0240 | Example app: server actions (resolveData, publish) and a ClientEditor; no auth in the example (docs say real apps add their session check); host origin admin.localhost:3100; the editor page renders <PuckRemoteEditor> with a header badge override | user | superseded by D-0301 |
 | D-0241 | Generated .d.ts files accidentally committed in packages/editor/src are removed (no .gitignore change) | user | accepted |
 | D-0242 | Core builds with tsconfig.build.json (src only), so its tests' cross-package imports never make the declaration build write .d.ts files into other packages' sources | user | accepted |
 <!-- decisions:end -->

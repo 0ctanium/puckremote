@@ -13,7 +13,8 @@ description: The checklist for a production deployment.
 3. **Authenticate everything that acts.** Your admin pages, the server actions or routes behind
    the frame's `rpc` map, and your publish action check your own session: the core has no auth.
    Server actions are reachable from the editor origin too, where theme code runs
-   ([D-0187](/docs/internal/decisions#D-0187)).
+   ([D-0187](/docs/internal/decisions#D-0187)). The example app's `src/auth.ts` shows the pattern
+   (signed host-only cookie, a check in every page and action); replace its hard-coded demo user.
 4. **Forward the addressed host.** Behind your own reverse proxy, forward
    `X-Forwarded-Host`/`X-Forwarded-Proto` (or preserve `Host`).
 5. **Rendering.** The default `workerPoolRenderer()` runs theme code in permission-restricted

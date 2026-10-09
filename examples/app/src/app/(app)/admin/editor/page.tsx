@@ -1,3 +1,4 @@
+import { requireSession } from "@/auth.ts";
 import { remote } from "@/puck-remote.ts";
 import { ClientEditor } from "./ClientEditor.tsx";
 
@@ -10,6 +11,7 @@ const EDITOR_URL =
 export default async function AdminPage(props: {
   params: Promise<{ path?: string[] }>;
 }) {
+  await requireSession();
   const payload = await remote.loadEditor(props);
   return <ClientEditor payload={payload} editorUrl={EDITOR_URL} />;
 }

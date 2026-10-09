@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 291
+next_decision = 302
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -136,6 +136,16 @@ title = "Origin-based routing: editor at /, admin pages at the admin origin root
 description = "Origin-based routing: editor at /, admin pages at the admin origin root"
 tags = [ "next", "origins", "routing" ]
 decisions = [ "D-0282", "D-0283", "D-0284", "D-0285", "D-0286", "D-0287", "D-0288", "D-0289", "D-0290" ]
+
+[adrs."feat/example-login"]
+file = "branches/feat/example-login.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Demo login for the example app's admin"
+description = "Demo login for the example app's admin"
+tags = [ "examples", "security", "auth" ]
+decisions = [ "D-0291", "D-0292", "D-0293", "D-0294", "D-0295", "D-0296", "D-0297", "D-0298", "D-0299", "D-0300", "D-0301" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -2187,9 +2197,10 @@ title = "Example app: server actions (resolveData, publish) and a ClientEditor; 
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "editor" ]
 supersedes = [ "D-0215", "D-0235" ]
+superseded_by = "D-0301"
 
 [decisions.D-0241]
 title = "Generated .d.ts files accidentally committed in packages/editor/src are removed (no .gitignore change)"
@@ -2592,6 +2603,95 @@ date = "2026-10-09"
 provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "process" ]
+
+[decisions.D-0291]
+title = "Example login credentials hard-coded admin/admin (timingSafeEqual), demo only"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples", "auth" ]
+
+[decisions.D-0292]
+title = "Example session: stateless HMAC-signed cookie, no dependency"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples", "auth" ]
+
+[decisions.D-0293]
+title = "Fix (app)/admin/layout.tsx to a default export (nothing else changed)"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0294]
+title = "Token base64url(JSON {u, exp}).base64url(HMAC-SHA256), timingSafeEqual, 8 h expiry checked server-side"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth" ]
+
+[decisions.D-0295]
+title = "Cookie admin_session: HttpOnly, SameSite=Strict, Path=/, host-only (no Domain), Secure in production, Max-Age 8 h"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth", "security" ]
+
+[decisions.D-0296]
+title = "ADMIN_SESSION_SECRET env; fixed dev fallback; production without it fails closed"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth", "config" ]
+
+[decisions.D-0297]
+title = "examples/app/src/auth.ts (createSession, getSession, requireSession) called by every admin page (redirect /login) and server action (throw unauthorized); proxy unchanged"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth" ]
+
+[decisions.D-0298]
+title = "Login page/actions under (app)/admin/login, /admin redirects to /editor, logout button in the admin header, logged-in /login redirects to /editor"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0299]
+title = "Example login verified in the browser and with curl (no new test runner)"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0300]
+title = "Docs: environment, quick-start, threat-model, deploying, docs map; credentials stated as demo-only"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0301]
+title = "Example app: server actions (resolveData, publish) and a ClientEditor; demo login (admin/admin, signed session cookie) protects admin pages and actions; host origin admin.localhost:3100; the editor page renders <PuckRemoteEditor> with a header badge override"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples", "auth" ]
+supersedes = [ "D-0240" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

@@ -76,8 +76,10 @@ Each layer assumes the previous one can fail.
 - Authorization is entirely the app's: a server action or route behind the frame's `rpc` map, or a
   publish action, that forgets its session check is open to anyone. The editor origin serves the
   app's JS chunks, and theme code running there can call the app's server actions and routes,
-  without the admin session ([D-0234](/docs/internal/decisions#D-0234)). The example app has no auth at
-  all ([D-0240](/docs/internal/decisions#D-0240)).
+  without the admin session ([D-0234](/docs/internal/decisions#D-0234)). The example app shows the
+  pattern with a demo login: a host-only signed session cookie checked by every admin page and
+  every server action ([D-0301](/docs/internal/decisions#D-0301)). Its hard-coded `admin`/`admin`
+  credentials are for the demo only.
 - The editor origin's isolation depends on it being another **site**; a subdomain of the app's
   registrable domain could receive `Domain=` cookies.
 

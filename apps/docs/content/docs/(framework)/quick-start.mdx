@@ -65,7 +65,8 @@ pnpm --filter host dev
 |---|---|
 | Public site | `http://localhost:3100/` (or `http://site.localhost:3100/`) |
 | Search page (uncacheable) | `http://localhost:3100/search?q=nonce` |
-| Admin page (editor frame + Publish) | `http://admin.localhost:3100/editor` (served by `/admin/editor`) |
+| Admin login (demo: `admin` / `admin`) | `http://admin.localhost:3100/login` |
+| Admin page (editor frame + Publish) | `http://admin.localhost:3100/editor` (served by `/admin/editor`, requires the login) |
 | Editor (embedded only, served by the same app) | `http://127.0.0.1:3100/` |
 
 One app answers all three origins: `*.localhost` resolves to loopback, so the site and the admin

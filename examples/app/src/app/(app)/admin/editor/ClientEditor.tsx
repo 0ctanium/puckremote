@@ -5,6 +5,7 @@ import {
   type PuckEditorFrameProps,
 } from "@puck-remote/editor/frame";
 import { useState } from "react";
+import { logout } from "../login/actions";
 import { resolveData, publish } from "./actions";
 
 const rpc: PuckEditorFrameProps["rpc"] = { resolveData };
@@ -78,6 +79,9 @@ export function ClientEditor({
         <button type="button" disabled={!data || busy} onClick={handlePublish}>
           Publish
         </button>
+        <form action={logout}>
+          <button type="submit">Log out</button>
+        </form>
       </header>
       <div style={{ flex: 1, minHeight: 0 }}>
         <PuckEditorFrame

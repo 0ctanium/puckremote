@@ -1,12 +1,16 @@
 "use server";
 import { normalizeSlug, PageError } from "@puck-remote/core";
+import { requireSession } from "@/auth.ts";
 import { remote } from "@/puck-remote.ts";
+
+// Server actions are public POST endpoints: each one checks the session itself.
 
 export async function resolveData(params: {
   slug?: string;
   block?: string;
   props?: Record<string, unknown>;
 }) {
+  await requireSession({ redirect: false });
   const { slug, block, props } = params ?? {};
   const s = normalizeSlug(slug);
   if (!s || typeof block !== "string" || !props || typeof props !== "object")
@@ -21,6 +25,7 @@ export async function publish(params: {
   data?: unknown;
   base?: string;
 }) {
+  await requireSession({ redirect: false });
   const { slug, data, base } = params ?? {};
   const s = normalizeSlug(slug);
   if (!s || typeof base !== "string") throw new Error("invalid params");
