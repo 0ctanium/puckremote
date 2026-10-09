@@ -46,7 +46,7 @@ my-app
 | `app/admin/[[...path]]/page.tsx` | Your admin page: checks your session, embeds the editor with `<PuckEditorFrame>` |
 | `app/admin/[[...path]]/actions.ts` | Server actions the frame's `rpc` map and your Publish button call (`core.resolveBlockData`, `core.writePage`), with your auth |
 | `app/editor/[[...path]]/page.tsx` | The editor page (`<PuckRemoteEditor>`), only reachable on `origins.editor`; customize it freely |
-| `app/theme/[[...path]]/route.ts` | Theme files (`/theme/<id>/assets/**`, `/theme/<id>/bundle.browser.js`) |
+| `app/cdn/[[...path]]/route.ts` | Theme files (`/cdn/assets/**`, `/cdn/bundle.browser.js`, `/cdn/bundle.islands.js`, versioned by `?v=`) |
 | `next.config.ts` | Keeps isolated-vm and the core external to the server bundle |
 
 ## The app instance

@@ -3,16 +3,20 @@ title: HTTP API
 description: The theme route served by the core.
 ---
 
-The core answers one route, `routes.theme` (default `/theme`). Everything else (admin pages, RPCs,
+The core answers one route, `routes.theme` (default `/cdn`). Everything else (admin pages, RPCs,
 publishing) is your app's, so it uses your app's own session ([D-0187](/docs/internal/decisions#D-0187)).
 
 ## Theme route
 
 | Method & path | Response |
 |---|---|
-| `GET\|HEAD /theme/<id>/assets/**` | The file if listed in that artifact's manifest and hash-valid; `immutable`; otherwise `404` |
-| `GET\|HEAD /theme/<id>/bundle.browser.js` | The theme's browser bundle (ESM), same checks |
-| `GET\|HEAD /theme/<id>/bundle.islands.js` | The theme's islands bundle (ESM, loaded by public pages with islands), same checks |
+| `GET\|HEAD /cdn/assets/**?v=<v>` | The file whose manifest sha256 starts with `v`, from the current or an older artifact, hash-valid; `immutable` |
+| `GET\|HEAD /cdn/assets/**` (no or unknown `v`) | The current artifact's file; `no-cache` with an `etag`, `304` on `If-None-Match` |
+| `GET\|HEAD /cdn/bundle.browser.js?v=<v>` | The theme's browser bundle (ESM, for the editor), same rules |
+| `GET\|HEAD /cdn/bundle.islands.js?v=<v>` | The theme's islands bundle (ESM, loaded by public pages with islands), same rules |
+
+Files that aren't in the manifest return `404`. So does the old layout with an artifact id in the
+path ([D-0270](/docs/internal/decisions#D-0270)).
 
 `bundle.js`, `manifest.json` and `pages/**` are never served (`404`). Other methods get `405`.
 With `origins` configured, served files carry `access-control-allow-origin: <editor origin>` and

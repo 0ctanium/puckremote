@@ -157,11 +157,13 @@ export interface PuckRemoteEditorProps {
   onError?: (message: string) => void
 }
 
-function assetUrlFor(assetBase: string) {
+/** Same URLs as the public site: assetBase + path + `?v=` (first 12 hex chars of the file's sha256). */
+function assetUrlFor(assetBase: string, files: Record<string, string>) {
   return (path: string) => {
     const clean = String(path).replace(/^\/+/, '')
     if (clean.split('/').some((seg) => seg === '..' || seg === '.') || /[\\?#]|:\/\//.test(clean)) throw new Error(`invalid asset path: ${path}`)
-    return assetBase + clean
+    const sha = Object.hasOwn(files, `assets/${clean}`) ? files[`assets/${clean}`] : null
+    return assetBase + clean + (sha ? `?v=${sha.slice(0, 12)}` : '')
   }
 }
 
@@ -256,7 +258,7 @@ function ReadyEditor(p: PuckRemoteEditorProps & { payload: EditorPayload; option
       nonce: '',
       page: { slug: payload.slug },
       site: { name: payload.site.name },
-      assetUrl: assetUrlFor(payload.assetBase),
+      assetUrl: assetUrlFor(payload.assetBase, (payload.manifest as Manifest).files ?? {}),
       assets: { script() {}, style: (url) => addStyle(url, payload.assetBase) },
       head: { title() {}, meta() {} },
     }

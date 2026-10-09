@@ -51,7 +51,8 @@ export function ctx(overrides: Partial<CtxInput> = {}): CtxInput {
     nonce: 'n0nce0000000000000000000000000000',
     page: { slug: 'home' },
     site: { name: 'Test' },
-    assetBase: '/theme/test/assets/',
+    assetBase: '/cdn/assets/',
+    assetVersions: {},
     ...overrides,
   }
 }

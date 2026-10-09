@@ -9,8 +9,8 @@ import type { Manifest } from './manifest-schema.ts'
 import { collectInstances, renderProps, restoreMissing, rewriteMissing, ROOT_ID, type Instance, type PageData } from './page-tree.ts'
 import { readPage, stripResolved } from './pages.ts'
 import { resolvePageData, type ResolveStats } from './query/resolver.ts'
-import { assetBase, ISLAND_LIMITS, mergeEffects, newNonce, renderInIsolate, type Effect, type Island } from './render.ts'
-import { themeBase } from '../shared/urls.ts'
+import { assetBase, assetVersions, ISLAND_LIMITS, mergeEffects, newNonce, renderInIsolate, type Effect, type Island } from './render.ts'
+import { themeFileUrl } from '../shared/urls.ts'
 
 export interface RenderedBlock {
   ok: boolean
@@ -71,10 +71,11 @@ export async function preparePage(host: Host, slug: string, query: Record<string
     const effects: Effect[][] = []
     let failures = 0
     let islandCount = 0
+    const versions = assetVersions(manifest.files)
     const tRender = performance.now()
     for (const inst of instances) {
       if (!inst.meta) continue
-      let r = await renderOne(inst, byInstance.get(inst.id) ?? {}, host, slug, id, locale, session!)
+      let r = await renderOne(inst, byInstance.get(inst.id) ?? {}, host, slug, versions, locale, session!)
       if (r.ok && islandCount + r.islands.length > ISLAND_LIMITS.maxPerPage) {
         r = { ok: false, kind: 'invalid-output', error: `more than ${ISLAND_LIMITS.maxPerPage} islands on the page`, ms: r.ms, nonce: r.nonce, effects: [] }
       }
@@ -98,8 +99,8 @@ export async function preparePage(host: Host, slug: string, query: Record<string
       slug,
       data,
       rendered,
-      islandsUrl: islandCount && manifest.files['bundle.islands.js'] ? `${themeBase(host.config.routes.theme, id)}bundle.islands.js` : undefined,
-      head: mergeEffects(effects, assetBase(host.config.routes.theme, id), host.config.security),
+      islandsUrl: islandCount && manifest.files['bundle.islands.js'] ? themeFileUrl(host.config.routes.theme, 'bundle.islands.js', manifest.files['bundle.islands.js']) : undefined,
+      head: mergeEffects(effects, assetBase(host.config.routes.theme), host.config.security),
       cacheable: uncacheableBlocks.length === 0,
       uncacheableBlocks,
       stats: { data: stats, renderMs: performance.now() - tRender, blocks: Object.keys(rendered).length, failures, contextMs },
@@ -109,7 +110,7 @@ export async function preparePage(host: Host, slug: string, query: Record<string
   }
 }
 
-async function renderOne(inst: Instance, data: Record<string, unknown>, host: Host, slug: string, artifact: string, locale: string, session: RenderSession) {
+async function renderOne(inst: Instance, data: Record<string, unknown>, host: Host, slug: string, versions: Record<string, string>, locale: string, session: RenderSession) {
   const nonce = newNonce()
   const r = await renderInIsolate(session, inst.kind, inst.name, renderProps(inst.props, inst.meta), data, {
     isEditing: false,
@@ -117,7 +118,8 @@ async function renderOne(inst: Instance, data: Record<string, unknown>, host: Ho
     nonce,
     page: { slug },
     site: { name: host.config.site.name },
-    assetBase: assetBase(host.config.routes.theme, artifact),
+    assetBase: assetBase(host.config.routes.theme),
+    assetVersions: versions,
   })
   return r.ok ? { ...r, nonce, kind: undefined } : { ...r, nonce, effects: [] as Effect[] }
 }

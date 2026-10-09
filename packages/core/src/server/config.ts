@@ -113,7 +113,7 @@ export function defineConfig<C extends PuckRemoteConfig>(config: C): C {
   return config;
 }
 
-export const DEFAULT_ROUTES: Routes = { theme: "/theme", editor: "/editor" };
+export const DEFAULT_ROUTES: Routes = { theme: "/cdn", editor: "/editor" };
 
 function resolveSecurity(
   input: Pick<PuckRemoteConfig, "security">,

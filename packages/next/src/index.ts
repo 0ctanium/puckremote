@@ -47,7 +47,7 @@ export interface PuckRemote {
    * Calls notFound() outside origins.editor; createProxy rewrites that origin to this page.
    */
   loadEditorPage(): Promise<{ allowedParents: string[] }>;
-  /** GET and HEAD for `<routes.theme>/[[...path]]/route.ts` (theme assets and the browser bundle). */
+  /** GET and HEAD for `<routes.theme>/[[...path]]/route.ts` (default `/cdn`: theme assets and bundles, `?v=` versioned). */
   createThemeHandler(): {
     GET: (req: Request) => Promise<Response>;
     HEAD: (req: Request) => Promise<Response>;

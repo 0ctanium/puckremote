@@ -57,7 +57,7 @@ first use.
       description: "Data for one block in draft mode (the editor's resolveData). Only the block name and its props come from the caller. Throws UnknownBlockError.",
       type: '(slug: string, block: string, props: Record<string, unknown>) => Promise<{ data; usesRequestParams }>',
     },
-    handleTheme: { description: "Serves /theme/<id>/assets/**, /theme/<id>/bundle.browser.js and /theme/<id>/bundle.islands.js (GET, HEAD).", type: '(request: Request) => Promise<Response>' },
+    handleTheme: { description: "Serves /cdn/assets/**, /cdn/bundle.browser.js and /cdn/bundle.islands.js, versioned by ?v= (GET, HEAD).", type: '(request: Request) => Promise<Response>' },
     host: { description: "The stateful services (artifact loader, data source, HTTP client). Advanced use.", type: '() => Promise<Host>' },
     config: { description: "The resolved configuration, defaults applied.", type: 'HostConfig' },
   }}
@@ -88,7 +88,7 @@ first use.
     slug: { description: "The page.", type: 'string' },
     manifest: { description: "The artifact's manifest (JSON).", type: 'Manifest' },
     data: { description: "The page, or an empty page with the root defaults.", type: 'PageData' },
-    bundleUrl: { description: "Absolute URL of bundle.browser.js on the first host origin.", type: 'string' },
+    bundleUrl: { description: "Absolute URL of bundle.browser.js on the first host origin, with ?v=.", type: 'string' },
     assetBase: { description: "Absolute URL prefix of the assets.", type: 'string' },
     origins: { description: "Host (admin) and editor origins, checked by both sides.", type: '{ host: string[]; editor: string }' },
     site: { description: "Site name and locale (for the blocks' render context).", type: '{ name; locale }' },

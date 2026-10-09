@@ -49,6 +49,28 @@ Timers are `unref`'d.
 creates the data and HTTP sources.
 The renderer is chosen here, not in `config.ts`, so the config entry never imports isolated-vm.
 
+## Theme file URLs
+
+`handleTheme` resolves `<routes.theme>/<path>?v=<v>` with `ThemeFiles` (`static-files.ts`):
+
+1. It reads the pointer. If the current artifact's `files[path]` starts with `v`, it serves that
+   file, `immutable`.
+2. Otherwise it looks up a per-process `path + v → artifact id` index. The index is built lazily
+   from `artifacts.list()` and each manifest; manifests are cached forever, since artifacts are
+   immutable. On a miss the index is refreshed, at most once every 10 s, and right away after the
+   pointer changes ([D-0266](/docs/internal/decisions#D-0266)). Random `v`s therefore can't force
+   repeated store scans.
+3. Otherwise, or without `v`, it serves the current artifact's file with `no-cache` and an `etag`
+   ([D-0267](/docs/internal/decisions#D-0267)).
+
+Bytes are always checked against the manifest's full sha256. URLs are built by `themeFileUrl` and
+`assetVersions` (`shared/urls.ts`). The host passes `assetVersions` in the isolate's ctx input, so
+`ctx.assetUrl` appends `?v=`; the editor computes the same map from `manifest.files`
+([D-0268](/docs/internal/decisions#D-0268)). Themes built with an older SDK ignore `assetVersions`,
+so their asset URLs have no `v` and are served as the current file.
+
+<Source path="packages/core/src/server/static-files.ts" />
+<Source path="packages/core/src/shared/urls.ts" />
 <Source path="packages/core/src/server/artifact-loader.ts" />
 <Source path="packages/core/src/server/host.ts" />
 <Source path="packages/artifacts-fs/src/index.ts" />

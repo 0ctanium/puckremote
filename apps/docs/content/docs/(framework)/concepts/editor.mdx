@@ -16,7 +16,7 @@ sequenceDiagram
   participant S as Your server
   E->>H: ready
   H->>E: init (page, manifest, theme URLs, options)
-  E->>S: GET /theme/<id>/bundle.browser.js (CORS)
+  E->>S: GET /cdn/bundle.browser.js?v=… (CORS)
   E->>E: rebuild the Puck config, mount Puck
   E->>H: rpc resolveData (block, props)
   H->>S: your transport, e.g. a server action (with the admin session)

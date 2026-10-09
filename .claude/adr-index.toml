@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 262
+next_decision = 273
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -106,6 +106,16 @@ title = "Interactive theme components on public pages (islands)"
 description = "Interactive theme components on public pages (islands)"
 tags = [ "render", "islands", "sdk", "cli" ]
 decisions = [ "D-0243", "D-0244", "D-0245", "D-0246", "D-0247", "D-0248", "D-0249", "D-0250", "D-0251", "D-0252", "D-0253", "D-0254", "D-0255", "D-0256", "D-0257", "D-0258", "D-0259", "D-0260", "D-0261" ]
+
+[adrs."feat/cdn-urls"]
+file = "branches/feat/cdn-urls.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Shopify-like theme file URLs (/cdn/<path>?v=<hash>)"
+description = "Shopify-like theme file URLs (/cdn/<path>?v=<hash>)"
+tags = [ "assets", "routes", "caching" ]
+decisions = [ "D-0262", "D-0263", "D-0264", "D-0265", "D-0266", "D-0267", "D-0268", "D-0269", "D-0270", "D-0271", "D-0272" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -478,8 +488,9 @@ title = "Theme files served at /theme/v<N>/assets/** (and bundle at /theme/v<N>/
 adr = "chore/package-split"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "routes", "assets" ]
+superseded_by = "D-0262"
 
 [decisions.D-0047]
 title = "createCore memoized on globalThis by config.id so all route bundles share one runtime"
@@ -2328,6 +2339,95 @@ date = "2026-10-08"
 provenance = "agent-unreviewed"
 status = "needs-review"
 tags = [ "islands", "docs" ]
+
+[decisions.D-0262]
+title = "Theme file URLs are <routes.theme>/<path>?v=<version> (no artifact id in the path) for assets/**, bundle.browser.js and bundle.islands.js; replaces the /theme/<id>/ layout of D-0197"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "assets", "routes" ]
+supersedes = [ "D-0046" ]
+
+[decisions.D-0263]
+title = "DEFAULT_ROUTES.theme is /cdn"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "routes", "config" ]
+
+[decisions.D-0264]
+title = "A v from an older artifact is served from that artifact (lookup by content hash)"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "assets", "caching" ]
+
+[decisions.D-0265]
+title = "v is the first 12 hex characters of the file sha256 from manifest.files; bytes still verified against the full hash"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets" ]
+
+[decisions.D-0266]
+title = "Lookup: current artifact first, then a per-process path+v index built lazily from artifacts.list(), refreshed on pointer change and at most once per 10 s on a miss"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets", "performance" ]
+
+[decisions.D-0267]
+title = "Matching v: immutable 1-year cache; no or unknown v: current file with no-cache + etag (304 on If-None-Match); missing file 404"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets", "caching" ]
+
+[decisions.D-0268]
+title = "Host passes assetVersions (assets/** path to v) in CtxInput; ctx.assetUrl appends ?v when known; the editor builds the same map from manifest.files"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets", "sdk" ]
+
+[decisions.D-0269]
+title = "themeFileUrl(route, path, sha256) replaces themeBase/themeAssetBase; effect URLs still checked by the assetBase prefix"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets" ]
+
+[decisions.D-0270]
+title = "No migration: old /<route>/<id>/ URLs answer 404"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets", "routes" ]
+
+[decisions.D-0271]
+title = "CDN URL tests: routes (current, older, missing/unknown v, 304, 404s, refresh throttle), rendering, editor payload, browser"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0272]
+title = "Internal names: ThemeFiles class, INDEX_REFRESH_MS, VERSION_LENGTH, a refreshes counter for tests; SDK CtxInput.assetVersions optional so themes built with an older SDK still render (unversioned URLs)"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "assets" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

@@ -12,6 +12,8 @@ export interface CtxInput {
   page: { slug: string }
   site: { name: string }
   assetBase: string
+  /** Versions of the theme's assets (path below assets/ → v), appended by ctx.assetUrl. */
+  assetVersions: Record<string, string>
 }
 
 const str = z.string().max(2048)
@@ -54,7 +56,7 @@ export type RenderResult =
 export const newNonce = () => randomBytes(16).toString('hex')
 
 /** Public URL prefix of an artifact version's assets, e.g. /theme/v3/assets/. */
-export { themeAssetBase as assetBase } from '../shared/urls.ts'
+export { assetVersions, themeAssetBase as assetBase } from '../shared/urls.ts'
 
 export async function renderInIsolate(
   session: RenderSession,

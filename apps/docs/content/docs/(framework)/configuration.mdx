@@ -38,7 +38,7 @@ See [Core › Adapters](/docs/core/adapters) for each contract and the built-in 
       type: 'string[]',
     },
     'origins.editor': { description: "Origin of your editor page (<PuckRemoteEditor>). Must not be a host origin; use another site in production.", type: 'string' },
-    'routes.theme': { description: "Prefix of the theme route (assets and the editor's browser bundle); asset URLs given to blocks follow it.", type: 'string', default: "'/theme'" },
+    'routes.theme': { description: "Prefix of the theme route (assets and bundles, versioned by ?v=); asset URLs given to blocks follow it.", type: 'string', default: "'/cdn'" },
     'routes.editor': { description: "Prefix of the app's editor page; the Next proxy rewrites origins.editor there and hides it elsewhere.", type: 'string', default: "'/editor'" },
     id: { description: "Distinguishes runtimes when one process hosts several sites.", type: 'string', default: "'default'" },
   }}

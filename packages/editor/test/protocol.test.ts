@@ -20,8 +20,8 @@ const payload: EditorPayload = {
   slug: "home",
   manifest: { blocks: {}, root: null, categories: {} } as never,
   data: { root: { props: {} }, content: [] },
-  bundleUrl: `${ADMIN}/theme/${"a".repeat(64)}/bundle.browser.js`,
-  assetBase: `${ADMIN}/theme/${"a".repeat(64)}/assets/`,
+  bundleUrl: `${ADMIN}/cdn/bundle.browser.js?v=${"a".repeat(12)}`,
+  assetBase: `${ADMIN}/cdn/assets/`,
   origins: { host: [ADMIN], editor: EDITOR },
   site: { name: "S", locale: "en" },
 };

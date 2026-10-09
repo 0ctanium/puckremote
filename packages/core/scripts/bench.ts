@@ -52,7 +52,7 @@ async function measure(name: string, renderer: RendererFactory) {
     s.release()
   }
 
-  const ctx = { isEditing: false, locale: 'en', nonce: 'x'.repeat(32), page: { slug: 'home' }, site: { name: 'Bench' }, assetBase: `/theme/${id}/assets/` }
+  const ctx = { isEditing: false, locale: 'en', nonce: 'x'.repeat(32), page: { slug: 'home' }, site: { name: 'Bench' }, assetBase: '/cdn/assets/', assetVersions: {} }
   const data = { posts: { ok: true, data: { docs: Array.from({ length: 12 }, (_, i) => ({ title: `Post ${i}`, slug: `p${i}` })), totalDocs: 12, limit: 12 } }, events: { ok: true, data: [] }, results: { ok: true, data: { docs: [] } }, site: { ok: true, data: { tagline: 't', footer: 'f' } } }
   const renders: number[] = []
   const s = await runtime.session()

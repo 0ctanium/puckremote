@@ -58,6 +58,7 @@ your editor page. See [Customizing the editor](/docs/guides/editor-app).
 ## Theme files
 
 `content-type` from the extension (unknown types download as attachments), `nosniff`,
-`cache-control: public, max-age=31536000, immutable`. With `origins`, also
+`cache-control: public, max-age=31536000, immutable` when `?v=` matches a stored version,
+otherwise `cache-control: no-cache` with an `etag`. With `origins`, also
 `access-control-allow-origin: <editor origin>` and `cross-origin-resource-policy: cross-origin`
 (the editor is another site); otherwise `cross-origin-resource-policy: same-origin`.

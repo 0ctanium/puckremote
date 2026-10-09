@@ -28,8 +28,8 @@ import {
   type PreparedPage,
 } from "./server/public-render.ts";
 import type { RenderSession } from "./server/runtime/types.ts";
-import { fileResponse, readArtifactFile } from "./server/static-files.ts";
-import { themeAssetBase, themeBase } from "./shared/urls.ts";
+import { fileResponse, ThemeFiles } from "./server/static-files.ts";
+import { themeAssetBase, themeFileUrl } from "./shared/urls.ts";
 
 /** Everything the editor iframe needs to edit a page (JSON only; sent in the `init` message). */
 export interface EditorPayload {
@@ -83,7 +83,7 @@ export interface PuckRemoteCore {
     slug: string,
     opts?: { artifact?: ArtifactId },
   ): Promise<EditorPayload>;
-  /** `<routes.theme>/<id>/assets/**`, `bundle.browser.js` and `bundle.islands.js` (GET/HEAD); CORS for the editor origin. */
+  /** `<routes.theme>/assets/**`, `bundle.browser.js` and `bundle.islands.js`, versioned by `?v=` (GET/HEAD); CORS for the editor origin. */
   handleTheme(request: Request): Promise<Response>;
 }
 
@@ -96,6 +96,7 @@ function subpath(request: Request, prefix: string): string | null {
 }
 
 function build(config: HostConfig): PuckRemoteCore {
+  const themeFiles = new ThemeFiles(config.artifacts);
   let hostP: Promise<Host> | null = null;
   const host = () =>
     (hostP ??= (async () => {
@@ -191,8 +192,8 @@ function build(config: HostConfig): PuckRemoteCore {
         slug,
         manifest: m.manifest,
         data: rewriteMissing(stripResolved(page), m.manifest),
-        bundleUrl: `${base}${themeBase(config.routes.theme, m.id)}bundle.browser.js`,
-        assetBase: `${base}${themeAssetBase(config.routes.theme, m.id)}`,
+        bundleUrl: `${base}${themeFileUrl(config.routes.theme, "bundle.browser.js", m.manifest.files["bundle.browser.js"])}`,
+        assetBase: `${base}${themeAssetBase(config.routes.theme)}`,
         origins,
         site: config.site,
       };
@@ -204,10 +205,10 @@ function build(config: HostConfig): PuckRemoteCore {
           headers: { allow: "GET, HEAD" },
         });
       const sub = subpath(request, config.routes.theme);
-      const m =
-        sub === null ? null : /^([A-Za-z0-9._-]{1,128})\/(.+)$/.exec(sub);
+      const v = new URL(request.url).searchParams.get("v");
       const res = fileResponse(
-        m ? await readArtifactFile(config.artifacts, m[1], m[2]) : null,
+        sub ? await themeFiles.get(sub, v) : null,
+        request,
       );
       // The editor (another origin) loads the browser bundle as a module and the assets in its canvas.
       if (config.origins && res.ok) {

@@ -174,6 +174,8 @@ export interface CtxInput {
   page: { slug: string }
   site: { name: string }
   assetBase: string
+  /** Versions of the theme's assets (path below assets/ → v), appended as `?v=` by assetUrl. */
+  assetVersions?: Record<string, string>
 }
 
 export type Effect =

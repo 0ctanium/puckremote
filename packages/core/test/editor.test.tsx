@@ -83,7 +83,7 @@ describe('16. parity: the editor shows exactly what the public site renders', ()
     const h = await testHost({ theme: 'example', mockOrigin: api.origin, pages: { home: PAGE } })
     const { manifest } = h.host.store.get()
     const pub = (await preparePage(h.host, 'home', {}))!
-    expect(pub.islandsUrl).toBe(`/theme/${pub.artifact}/bundle.islands.js`)
+    expect(pub.islandsUrl).toBe(`/cdn/bundle.islands.js?v=${manifest.files['bundle.islands.js'].slice(0, 12)}`)
     const publicHtml = renderToString(<Render config={buildRscConfig(manifest)} data={pub.data} metadata={{ rendered: pub.rendered, islandsUrl: pub.islandsUrl }} />)
 
     // Editor state: page data with __data from resolveData (public mode, to compare like for like).
@@ -103,7 +103,7 @@ describe('16. parity: the editor shows exactly what the public site renders', ()
       })
     inject(withData.content)
     ;(withData.root.props as any)[RESERVED_DATA_PROP] = byInstance.get('root')
-    const editorConfig = buildEditorConfig(manifest, theme, { ctx: ctx(`/theme/${pub.artifact}/assets/`), resolve: async () => ({}) })
+    const editorConfig = buildEditorConfig(manifest, theme, { ctx: ctx(`/cdn/assets/`), resolve: async () => ({}) })
     const editorHtml = renderToString(<Render config={editorConfig} data={withData as any} />)
     expect(normalize(editorHtml)).toBe(normalize(publicHtml))
     expect(publicHtml).toContain('Puck meetup')
@@ -118,7 +118,7 @@ describe('18. resolveData output never persists', () => {
     const { manifest, id } = h.host.store.get()
     const deps = { manifest, config: h.host.config, source: h.host.source, http: h.host.http, site: h.host.config.site, session: () => h.host.store.get().runtime.session() }
     const editorConfig = buildEditorConfig(manifest, theme, {
-      ctx: ctx('/theme/x/assets/'),
+      ctx: ctx("/cdn/assets/"),
       resolve: async (block, props) => (await resolveBlock(blockDataSchema.parse({ block, props, slug: 'home' }), deps)).data,
     })
     // Exactly what the editor holds after resolveData ran for every block (incl. nested slots).

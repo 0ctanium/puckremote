@@ -37,7 +37,7 @@ describe('islands', () => {
     expect(r.ok).toBe(true)
     expect(r.html).toBe(`<div data-puck-island="i0" data-nonce="${r.nonce}"></div>`)
     expect(r.islands).toEqual([{ key: 'i0', id: ID, props: { label: 'hi' }, hydrate: 'idle', html: '<button type="button">hi<!-- --> <!-- -->0</button>' }])
-    expect(p.islandsUrl).toBe(`/theme/${p.artifact}/bundle.islands.js`)
+    expect(p.islandsUrl).toBe(`/cdn/bundle.islands.js?v=${p.manifest.files['bundle.islands.js'].slice(0, 12)}`)
     expect(html).toBe(`<div id="root"><div data-puck-island="${ID}" style="display:contents"><button type="button">hi<!-- --> <!-- -->0</button></div></div>`)
     // Server rendering never loads the bundle nor registers shared modules.
     expect((globalThis as Record<string, unknown>).__puckRemoteModules).toBeUndefined()

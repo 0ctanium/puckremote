@@ -19,6 +19,9 @@ import {
   type PuckRemoteCore,
 } from "../src/index.ts";
 import { inProcessRenderer } from "../src/server/runtime/in-process.ts";
+import { fileResponse, INDEX_REFRESH_MS, ThemeFiles } from "../src/server/static-files.ts";
+import type { ArtifactStore } from "@puck-remote/sdk/host";
+import { createHash } from "node:crypto";
 import { buildExample, counterStore, REPO_ROOT, withPages } from "./helpers.ts";
 
 let core: PuckRemoteCore;
@@ -54,14 +57,17 @@ describe("createCore", () => {
   });
 
   it("handleTheme serves assets and the browser bundle, never the isolate bundle, manifest or pages", async () => {
+    const files = (await core.host()).store.get().manifest.files;
+    const v = (p: string) => files[p].slice(0, 12);
     const css = await core.handleTheme(
-      req(`/_remote/theme/${first}/assets/theme.css`),
+      req(`/_remote/theme/assets/theme.css?v=${v("assets/theme.css")}`),
     );
     expect(css.status).toBe(200);
     expect(css.headers.get("content-type")).toContain("text/css");
+    expect(css.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
     // The editor (another origin) imports the browser bundle as a module: CORS for it only.
     const browser = await core.handleTheme(
-      req(`/_remote/theme/${first}/bundle.browser.js`),
+      req(`/_remote/theme/bundle.browser.js?v=${v("bundle.browser.js")}`),
     );
     expect(browser.status).toBe(200);
     expect(browser.headers.get("access-control-allow-origin")).toBe(
@@ -71,14 +77,15 @@ describe("createCore", () => {
       "cross-origin",
     );
     for (const p of [
-      `/_remote/theme/${first}/bundle.js`,
-      `/_remote/theme/${first}/manifest.json`,
-      `/_remote/theme/${first}/pages/home.json`,
-      `/_remote/theme/${first}/assets/../manifest.json`,
-      `/_remote/theme/${first}/assets/%2e%2e/manifest.json`,
-      `/_remote/theme/${"0".repeat(64)}/bundle.browser.js`,
-      `/_remote/theme/../bundle.browser.js`,
-      `/theme/${first}/assets/theme.css`,
+      `/_remote/theme/bundle.js`,
+      `/_remote/theme/manifest.json`,
+      `/_remote/theme/pages/home.json`,
+      `/_remote/theme/assets/../manifest.json`,
+      `/_remote/theme/assets/%2e%2e/manifest.json`,
+      `/_remote/theme/assets/nope.css`,
+      // The old layout (artifact id in the path) is gone (D-0270).
+      `/_remote/theme/${first}/assets/theme.css`,
+      `/theme/assets/theme.css`,
     ]) {
       const r = await core.handleTheme(req(p));
       expect(r.status, p).toBe(404);
@@ -87,7 +94,7 @@ describe("createCore", () => {
     expect(
       (
         await core.handleTheme(
-          req(`/_remote/theme/${first}/assets/theme.css`, { method: "POST" }),
+          req(`/_remote/theme/assets/theme.css`, { method: "POST" }),
         )
       ).status,
     ).toBe(405);
@@ -98,7 +105,7 @@ describe("createCore", () => {
     expect(page?.artifact).toBe(first);
     expect(
       page?.head.styles.some((s) =>
-        s.startsWith(`/_remote/theme/${first}/assets/`),
+        /^\/_remote\/theme\/assets\/theme\.css\?v=[0-9a-f]{12}$/.test(s),
       ),
     ).toBe(true);
     expect(await core.preparePage("nope")).toBeNull();
@@ -227,11 +234,9 @@ describe("editor entry points", () => {
     const p = await core.editorPayload("home");
     expect(p.artifact).toBe(first);
     expect(p.bundleUrl).toBe(
-      `http://admin.test/_remote/theme/${first}/bundle.browser.js`,
+      `http://admin.test/_remote/theme/bundle.browser.js?v=${p.manifest.files["bundle.browser.js"].slice(0, 12)}`,
     );
-    expect(p.assetBase).toBe(
-      `http://admin.test/_remote/theme/${first}/assets/`,
-    );
+    expect(p.assetBase).toBe(`http://admin.test/_remote/theme/assets/`);
     expect(p.origins).toEqual(ORIGINS);
     expect(Object.keys(p.manifest.blocks)).toContain("hero");
     expect(JSON.parse(JSON.stringify(p))).toEqual(p); // JSON only: it crosses postMessage
@@ -289,6 +294,58 @@ describe("origins config", () => {
   });
 });
 
+describe("theme file versions (?v=)", () => {
+  const sha = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
+  /** The example artifact with another theme.css (manifest hash updated). */
+  async function variant(store: ArtifactStore, base: string, css: string) {
+    const manifest = JSON.parse(new TextDecoder().decode((await store.readFile(base, "manifest.json"))!));
+    const files: Record<string, Uint8Array> = {};
+    for (const rel of Object.keys(manifest.files)) files[rel] = (await store.readFile(base, rel))!;
+    files["assets/theme.css"] = new TextEncoder().encode(css);
+    manifest.files["assets/theme.css"] = sha(css);
+    files["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest));
+    return { id: await store.writeArtifact(files), v: sha(css).slice(0, 12) };
+  }
+
+  it("serves current and older versions immutably, anything else as the current file with an etag", async () => {
+    const store = fsArtifactStore({ dir: path.join(dir, "versions") });
+    const { id: a } = await publish({ distDir: (await buildExample()).outDir, artifacts: store, quiet: true });
+    await store.writePointer(a);
+    const old = await variant(store, a, "body{color:red}");
+    const cur = await variant(store, a, "body{color:blue}");
+    await store.writePointer(cur.id);
+    let now = 0;
+    const tf = new ThemeFiles(store, () => now);
+    const text = async (p: string, v: string | null) => {
+      const r = await tf.get(p, v);
+      return r && { css: new TextDecoder().decode(r.file.body), immutable: r.immutable };
+    };
+    expect(await text("assets/theme.css", cur.v)).toEqual({ css: "body{color:blue}", immutable: true });
+    expect(tf.refreshes).toBe(0); // the current artifact never needs the index
+    // A page rendered before the publish still gets its own version (D-0264).
+    expect(await text("assets/theme.css", old.v)).toEqual({ css: "body{color:red}", immutable: true });
+    expect(tf.refreshes).toBe(1);
+    // No v (e.g. a relative url() in CSS) or an unknown one: the current file, revalidated.
+    expect(await text("assets/theme.css", null)).toEqual({ css: "body{color:blue}", immutable: false });
+    expect(await text("assets/theme.css", "0".repeat(12))).toEqual({ css: "body{color:blue}", immutable: false });
+    expect(await text("assets/theme.css", "not-a-version")).toEqual({ css: "body{color:blue}", immutable: false });
+    expect(await tf.get("assets/missing.css", cur.v)).toBeNull();
+    // Random versions can't make it rescan the store more than once per INDEX_REFRESH_MS.
+    for (let i = 0; i < 50; i++) await tf.get("assets/theme.css", i.toString(16).padStart(12, "f"));
+    expect(tf.refreshes).toBe(1);
+    now += INDEX_REFRESH_MS;
+    await tf.get("assets/theme.css", "f".repeat(12));
+    expect(tf.refreshes).toBe(2);
+
+    const res = fileResponse(await tf.get("assets/theme.css", null), new Request("http://h.test/"));
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+    const etag = res.headers.get("etag")!;
+    expect(etag).toBe(`"${sha("body{color:blue}")}"`);
+    const again = fileResponse(await tf.get("assets/theme.css", null), new Request("http://h.test/", { headers: { "if-none-match": etag } }));
+    expect(again.status).toBe(304);
+  });
+});
+
 describe("any ArtifactStore: ids are opaque", () => {
   it("renders, reads and writes pages with a counter-id store", async () => {
     const store = counterStore();
@@ -321,10 +378,18 @@ describe("any ArtifactStore: ids are opaque", () => {
     expect(
       (await c.readPage("home", { artifact: "a2" }))?.data.root.props?.title,
     ).toBe("Two");
-    expect((await c.editorPayload("home")).bundleUrl).toBe(
-      "http://admin.test/theme/a1/bundle.browser.js",
+    // A page save is a new artifact, but unchanged files keep their URLs (D-0262).
+    const before = (await c.preparePage("home"))!.head;
+    await store.writePointer(w.id);
+    await (await c.host()).store.reload();
+    const after = (await c.preparePage("home"))!;
+    expect(after.artifact).toBe("a2");
+    expect(after.head.styles).toEqual(before.styles);
+    expect(after.head.scripts).toEqual(before.scripts);
+    expect((await c.editorPayload("home")).bundleUrl).toMatch(
+      /^http:\/\/admin\.test\/cdn\/bundle\.browser\.js\?v=[0-9a-f]{12}$/,
     );
-    const asset = await c.handleTheme(req("/theme/a1/assets/theme.css"));
+    const asset = await c.handleTheme(req("/cdn/assets/theme.css"));
     expect(asset.status).toBe(200);
     (await c.host()).store.close();
   });

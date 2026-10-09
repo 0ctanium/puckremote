@@ -35,7 +35,7 @@ Bindings for other frameworks (the fetch-style handlers make them possible).
 | D-0043 | Keep @sdk separate and thin (bundled into themes); the engine is a separate package | user-approved-plan | accepted |
 | D-0044 | Split into a framework-agnostic core and thin Next.js bindings | user | accepted |
 | D-0045 | App reduced to wiring: proxy, public catch-all page, editor page, api/[[...path]], theme/[[...path]] | user | accepted |
-| D-0046 | Theme files served at /theme/v<N>/assets/** (and bundle at /theme/v<N>/bundle.js, later removed) | user-approved-plan | accepted |
+| D-0046 | Theme files served at /theme/v<N>/assets/** (and bundle at /theme/v<N>/bundle.js, later removed) | user-approved-plan | superseded by D-0262 |
 | D-0047 | createCore memoized on globalThis by config.id so all route bundles share one runtime | user-approved-plan | accepted |
 | D-0048 | App config resolves data paths from process.cwd() (import.meta.dirname is undefined in Next server bundles) | agent-unreviewed | needs-review |
 <!-- decisions:end -->

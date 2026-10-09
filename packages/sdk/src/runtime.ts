@@ -47,7 +47,8 @@ function makeCtx(input: CtxInput, effects: Effect[]): RenderCtx {
       if (clean.split('/').some((seg) => seg === '..' || seg === '.') || /[\\?#]|:\/\//.test(clean)) {
         throw new Error(`invalid asset path: ${path}`)
       }
-      return input.assetBase + clean
+      const v = input.assetVersions && Object.hasOwn(input.assetVersions, clean) ? input.assetVersions[clean] : null
+      return input.assetBase + clean + (v ? `?v=${encodeURIComponent(v)}` : '')
     },
     assets: {
       script(url: string, opts: ScriptOptions = {}) {

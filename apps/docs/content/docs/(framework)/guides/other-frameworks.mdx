@@ -28,7 +28,7 @@ const core = createCore(config);
 
 export async function handle(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
-  if (pathname.startsWith('/theme/')) return core.handleTheme(request);
+  if (pathname.startsWith('/cdn/')) return core.handleTheme(request);
   // pages: core.preparePage(...) / core.editorPayload(...) inside your renderer
   return new Response('Not found', { status: 404 });
 }
