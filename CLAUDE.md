@@ -44,7 +44,7 @@ approved in the session, and a session cannot end with code changes lacking docs
 | Package lint | `pnpm lint:pkg` |
 | Publish example theme | `pnpm --filter theme release` |
 | Mock API (4010) | `pnpm --filter mock-api start` |
-| Host app (3100) | `pnpm --filter host dev` (site `localhost:3100`, editor `editor.localhost:3100/editor`) |
+| Host app (3100) | `pnpm --filter host dev` (site `localhost:3100`, admin `admin.localhost:3100/editor`, editor `127.0.0.1:3100/`) |
 | Docs (3200) | `pnpm docs:dev`, `pnpm docs:build` |
 | Decisions | `pnpm adr new | decision | review | search | list | show | archive | check` |
 | Docs/ADR check | `node scripts/check-docs-adr.mjs` |
@@ -56,7 +56,8 @@ processes have served stale builds before.
 
 - `packages/sdk` (theme API + `/host` contracts), `packages/cli`, `packages/core` (engine),
   `packages/next` (bindings), `packages/{source-mock,pages-fs,artifacts-fs}` (adapters).
-- `apps/host` (example app), `apps/docs` (Fumadocs), `examples/theme`, `mock/api-server`.
+- `apps/docs` (Fumadocs), `examples/app` (example app, with its data in `examples/app/data` and the
+  mock API in `examples/app/mock/api-server`), `examples/theme`.
 - `.claude/`: decision records (`ADR-SYSTEM-GUIDE.md`, `adr-index.toml`, `branches/`, `merged/`),
   skills, hooks.
 - Docs roots: `(framework)` (usage, Next.js), `core` (engine + adapters), `cli`, `sdk`,

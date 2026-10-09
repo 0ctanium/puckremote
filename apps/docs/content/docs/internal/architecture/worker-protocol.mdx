@@ -10,7 +10,7 @@ host after `__toRequest` returns (tested with the IPC tap).
 
 | Message | Meaning |
 |---|---|
-| `{ t: 'load', id, version, bundle, limits }` | Compile a version's bundle (once per worker and version) |
+| `{ t: 'load', id, version, bundle, limits }` | Compile an artifact's bundle (once per worker and artifact; `version` carries the artifact id) |
 | `{ t: 'open', id, version, sid }` | Open a session: a fresh isolate context |
 | `{ t: 'call', id, sid, entry, args }` | Call `__render`, `__toRequest` or `__fromResponse` with string args |
 | `{ t: 'release', sid }` | Release a session (no reply) |

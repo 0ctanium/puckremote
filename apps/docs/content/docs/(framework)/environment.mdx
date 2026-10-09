@@ -7,24 +7,39 @@ description: Variables read by the packages, the example app, the mock API and t
 
 | Variable | Read by | Effect |
 |---|---|---|
-| `NODE_ENV` | core | `production` enables the guards (auth, origins required; `devAllowAll` throws) and disables dev CSP relaxations |
+| `NODE_ENV` | core | `production` disables dev CSP relaxations |
 | `NODE_OPTIONS=--no-node-snapshot` | Node | Required by isolated-vm on Node ≥ 20; set by every script and in CI |
 | `PUCK_REMOTE_ARTIFACTS_DIR` | CLI | Default for `--artifacts` |
 
 Render workers get an **empty environment**: nothing from the host process reaches them.
 
-## Example app (`apps/host`)
+## Example app (`examples/app`)
 
 | Variable | Default | Effect |
 |---|---|---|
 | `PORT` | `3100` | Dev/start port and default origins |
-| `PUCK_REMOTE_ROOT` | `<cwd>/../..` | Repository root (artifacts, data) |
-| `PUCK_REMOTE_SITE_ORIGINS` | `http://localhost:<PORT>,http://site.localhost:<PORT>` | Comma-separated site origins |
-| `PUCK_REMOTE_EDITOR_ORIGINS` | `http://editor.localhost:<PORT>` | Comma-separated editor origins |
-| `PUCK_REMOTE_ADMIN_TOKEN` | — | `sharedSecretAuth` secret in production (bearer or `puck_remote_token` cookie) |
+| `PUCK_REMOTE_ROOT` | `<cwd>` (the app directory) | Where `data/artifacts` and `data/cms.json` live |
+| `PUCK_REMOTE_ADMIN_ORIGINS` | `http://admin.localhost:<PORT>` | Comma-separated host (admin) origins (`origins.host`) |
+| `PUCK_REMOTE_EDITOR_ORIGIN` | `http://127.0.0.1:<PORT>` | The editor's origin (`origins.editor`); this app serves its editor page there |
+| `PUCK_REMOTE_EDITOR_URL` | `<editor origin>/` | URL the admin page loads in the frame |
 | `PUCK_REMOTE_MOCK_API_ORIGIN` | `http://localhost:4010` | Mock API origin |
 | `PUCK_REMOTE_ALLOW_DEV_ORIGINS` | — | Lets a production build reach the mock API over http (local testing only) |
 | `EVENTS_API_KEY` | a dev key | Secret bound to the mock API origin |
+| `ADMIN_SESSION_SECRET` | a dev-only value | Signs the admin session cookie; **required in production** (without it no session is accepted) |
+
+The example has a **demo login** at `/login` on the admin origin: username `admin`, password
+`admin`, hard-coded for the demo only ([D-0301](/docs/internal/decisions#D-0301)). It shows the
+pattern a real app follows with its own users:
+
+- The session is a stateless cookie signed with HMAC-SHA256 (`examples/app/src/auth.ts`), named
+  `admin_session`. It's `HttpOnly`, `SameSite=Strict` and host-only (no `Domain`), so neither the
+  public site nor the editor origin ever receives it. It expires after 8 hours.
+- Every admin page calls `requireSession()`, which redirects to `/login`. That includes the dashboard
+  at `/`, which shows the current theme and links to the editor.
+- The admin layout's sidebar (links, signed-in user, Log out) only *reads* the session: the layout
+  also wraps `/login`, and a layout check doesn't protect a page, which renders in parallel with it.
+- Every server action calls `requireSession({ redirect: false })`, which throws `unauthorized`.
+  Server actions are public POST endpoints, so a page or layout check alone doesn't protect them.
 
 ## Mock API
 

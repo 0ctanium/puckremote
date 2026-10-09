@@ -1,14 +1,15 @@
 ---
 title: Programmatic API
-description: Use build, publish and activate from Node, with any artifact store.
+description: Use build, publish, pull and activate from Node, with any artifact store.
 ---
 
 ```ts
-import { activate, build, publish } from '@puck-remote/cli';
+import { activate, build, publish, pull } from '@puck-remote/cli';
 
+await pull({ cwd: 'my-theme', artifacts: myS3Store });
 await build({ cwd: 'my-theme', outDir: 'dist', quiet: true });
-await publish({ distDir: 'my-theme/dist', artifacts: myS3Store }); // any ArtifactStore
-await activate(myS3Store, 3);
+const { id } = await publish({ distDir: 'my-theme/dist', artifacts: myS3Store }); // any ArtifactStore
+await activate(myS3Store, id);
 ```
 
 ## `build(options)`
@@ -22,6 +23,8 @@ await activate(myS3Store, 3);
 />
 
 Returns `{ manifest, outDir }`. Throws `BuildError` with a path-prefixed message.
+`BROWSER_EXTERNALS` lists the imports `bundle.browser.js` and `bundle.islands.js` leave to the page
+(`BROWSER_MODULES_GLOBAL` names the global they read them from).
 
 ## `publish(options)`
 
@@ -33,13 +36,26 @@ Returns `{ manifest, outDir }`. Throws `BuildError` with a path-prefixed message
   }}
 />
 
-Returns `{ version }`.
+Returns `{ id }`, the id the store gave the artifact, which is now current.
 
-## `activate(artifacts, version)`
+## `pull(options)`
+
+<TypeTable
+  type={{
+    cwd: { description: "Theme folder; pages go to <cwd>/pages.", type: 'string', required: true },
+    artifacts: { description: "An ArtifactStore, or a directory path.", type: 'ArtifactStore | string', required: true },
+    artifact: { description: "An artifact id.", type: 'string', default: 'the current artifact' },
+    quiet: { description: "No console output.", type: 'boolean', default: 'false' },
+  }}
+/>
+
+Returns `{ id, pages }` (the files written). Throws when nothing was published.
+
+## `activate(artifacts, id)`
 
 <TypeTable
   type={{
     artifacts: { description: "An ArtifactStore, or a directory path.", type: 'ArtifactStore | string', required: true },
-    version: { description: "An existing version.", type: 'number', required: true },
+    id: { description: "An existing artifact id.", type: 'string', required: true },
   }}
 />

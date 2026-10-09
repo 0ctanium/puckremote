@@ -1,27 +1,38 @@
 /**
- * POST /api/blocks/resolve — the editor's data RPC. The client sends ONLY which block and its
- * props; the query spec always comes from the server-side manifest. Runs in 'draft' mode.
+ * Data for one block in draft mode: the editor's resolveData, called by the host app's RPC
+ * handler. The caller sends ONLY which block and its props; the query spec always comes from the
+ * server-side manifest.
  */
 import { z } from 'zod'
 import type { Manifest } from './manifest-schema.ts'
 import { resolvePageData, type QueryResult, type ResolveDeps } from './query/resolver.ts'
 
-const bodySchema = z.object({
-  blockType: z.string().max(100),
+// z.object (not strictObject) silently drops anything else the caller sends: spec, data, query, mode…
+export const blockDataSchema = z.object({
+  slug: z.string().max(200),
+  block: z.string().max(100),
   props: z.record(z.string(), z.unknown()),
-  slug: z.string().max(200).default('home'),
 })
-// z.object (not strictObject) silently drops anything else the client sends: spec, data, query, mode…
 
-export async function handleResolve(
-  body: unknown,
+export interface BlockDataResult {
+  data: Record<string, QueryResult>
+  usesRequestParams: boolean
+}
+
+export class UnknownBlockError extends Error {
+  constructor(block: string) {
+    super(`unknown block ${block}`)
+    this.name = 'UnknownBlockError'
+  }
+}
+
+export async function resolveBlock(
+  input: z.infer<typeof blockDataSchema>,
   deps: Omit<ResolveDeps, 'manifest'> & { manifest: Manifest; site: { name: string; locale: string } },
-): Promise<{ status: number; json: { data?: Record<string, QueryResult>; error?: string; usesRequestParams?: boolean } }> {
-  const parsed = bodySchema.safeParse(body)
-  if (!parsed.success) return { status: 400, json: { error: 'invalid body' } }
-  const { blockType, props, slug } = parsed.data
-  const meta = blockType === 'root' ? deps.manifest.root : Object.hasOwn(deps.manifest.blocks, blockType) ? deps.manifest.blocks[blockType] : null
-  if (!meta) return { status: 404, json: { error: 'unknown block' } }
+): Promise<BlockDataResult> {
+  const { block, props, slug } = input
+  const meta = block === 'root' ? deps.manifest.root : Object.hasOwn(deps.manifest.blocks, block) ? deps.manifest.blocks[block] : null
+  if (!meta) throw new UnknownBlockError(block)
   const { byInstance } = await resolvePageData(
     {
       instances: [{ id: 'rpc', props: { ...meta.defaultProps, ...props }, meta }],
@@ -31,5 +42,5 @@ export async function handleResolve(
     },
     deps,
   )
-  return { status: 200, json: { data: byInstance.get('rpc') ?? {}, usesRequestParams: meta.usesRequestParams } }
+  return { data: byInstance.get('rpc') ?? {}, usesRequestParams: meta.usesRequestParams }
 }

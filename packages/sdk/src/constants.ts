@@ -1,7 +1,7 @@
 // Shared, data-only contract between the SDK, the CLI and the host.
 // The host re-declares these in its zod schema; it never imports developer code.
 
-export const SDK_MAJOR = 1
+export const SDK_MAJOR = 3
 
 export const FIELD_TYPES = [
   'text',
@@ -40,3 +40,14 @@ export const EFFECT_LIMITS = {
 
 export const PAGE_REF_KEYS = ['slug', 'locale'] as const
 export const SITE_REF_KEYS = ['locale', 'name'] as const
+
+/** When an island hydrates on public pages (the reserved `hydrate` prop). The first is the default. */
+export const HYDRATE_MODES = ['load', 'idle', 'visible'] as const
+
+/** Caps for islands (theme client components). */
+export const ISLAND_LIMITS = {
+  /** JSON size of one island's props. */
+  maxPropsBytes: 64 * 1024,
+  /** Islands on one page. */
+  maxPerPage: 200,
+} as const

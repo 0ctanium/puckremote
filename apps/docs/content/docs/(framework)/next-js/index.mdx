@@ -8,7 +8,7 @@ icon: Triangle
 `notFound()`, React `cache()`, the proxy). All logic stays in `@puck-remote/core`.
 
 ```npm
-npm install @puck-remote/next @puck-remote/core
+npm install @puck-remote/next @puck-remote/core @puck-remote/editor
 ```
 
 ## Files
@@ -23,12 +23,15 @@ my-app
     └── app
         ├── [[...path]]
         │   └── page.tsx
+        ├── admin
+        │   └── [[...path]]
+        │       ├── page.tsx
+        │       ├── ClientEditor.tsx
+        │       └── actions.ts
         ├── editor
         │   └── [[...path]]
-        │       └── page.tsx
-        ├── api
-        │   └── [[...path]]
-        │       └── route.ts
+        │       ├── page.tsx
+        │       └── EditorPage.tsx
         └── theme
             └── [[...path]]
                 └── route.ts
@@ -38,11 +41,12 @@ my-app
 |---|---|
 | `puck-remote.config.ts` | The only file that knows your backend: adapters, origins, limits ([Configuration](/docs/configuration)) |
 | `src/puck-remote.ts` | The app instance: `createPuckRemote(config)` |
-| `src/proxy.ts` | Per-hostname routing, security headers with a CSP nonce, cache headers |
+| `src/proxy.ts` | Serves the editor page at the editor origin's root (everything else there is 404) and your `/admin` pages at the admin origin's root; security headers per origin (editor, admin or site) with a CSP nonce, cache headers |
 | `app/[[...path]]/page.tsx` | The public site (Puck RSC render) |
-| `app/editor/[[...path]]/page.tsx` | The Puck editor |
-| `app/api/[[...path]]/route.ts` | Editor API: pages, data, block rendering, artifact reload |
-| `app/theme/[[...path]]/route.ts` | Theme assets (`/theme/v<N>/assets/**`) |
+| `app/admin/[[...path]]/page.tsx` | Your admin page: checks your session, renders `<PuckEditorFrame>` (the page data, history and fields) around the editor frame |
+| `app/admin/[[...path]]/actions.ts` | Server actions the frame's `rpc` map and your Publish button call (`core.resolveBlockData`, `core.writePage`), with your auth |
+| `app/editor/[[...path]]/page.tsx` | The editor page (`<PuckRemoteEditor>`: canvas, drawer, outline), only reachable on `origins.editor` |
+| `app/cdn/[[...path]]/route.ts` | Theme files (`/cdn/assets/**`, `/cdn/bundle.browser.js`, `/cdn/bundle.islands.js`, versioned by `?v=`) |
 | `next.config.ts` | Keeps isolated-vm and the core external to the server bundle |
 
 ## The app instance
@@ -51,9 +55,7 @@ my-app
 import { createPuckRemote } from '@puck-remote/next';
 import config from '../puck-remote.config';
 
-export const remote = createPuckRemote(config, {
-  // loginUrl: '/login', // optional: where unauthenticated editor visitors go
-});
+export const remote = createPuckRemote(config);
 ```
 
 ## Proxy
@@ -84,25 +86,14 @@ export default async function Page(props: PageProps) {
 }
 ```
 
-```tsx title="src/app/editor/[[...path]]/page.tsx"
-import { EditorClient } from '@puck-remote/next';
-import { remote } from '@/puck-remote';
-
-export default async function Editor(props: { params: Promise<{ path?: string[] }> }) {
-  return <EditorClient {...await remote.loadEditor(props)} />;
-}
-```
-
-```ts tab="api/[[...path]]/route.ts"
-import { remote } from '@/puck-remote';
-
-export const { GET, POST } = remote.api;
-```
+The admin and editor pages are shown in [Installation](/docs/installation#add-the-app-files) and
+[Customizing the editor](/docs/guides/editor-app); the example app (`examples/app`) has complete
+versions with a Publish button and an editor customization.
 
 ```ts tab="theme/[[...path]]/route.ts"
 import { remote } from '@/puck-remote';
 
-export const { GET, HEAD } = remote.theme;
+export const { GET, HEAD } = remote.createThemeHandler();
 ```
 
 ## Next config
@@ -111,7 +102,7 @@ export const { GET, HEAD } = remote.theme;
 import { withPuckRemote } from '@puck-remote/next/config';
 
 export default withPuckRemote({
-  allowedDevOrigins: ['*.localhost'],
+  allowedDevOrigins: ['*.localhost', '127.0.0.1'], // admin.localhost, and the editor on 127.0.0.1
 });
 ```
 
@@ -119,8 +110,9 @@ The core forks render workers from its own files, so it must not be bundled.
 
 ## Hostnames in development
 
-Use `localhost:<port>` for the site and `editor.localhost:<port>` for the editor; `*.localhost`
-resolves to loopback. Set `origins` accordingly (the example app reads them from
-[environment variables](/docs/environment)).
+Use `localhost:<port>` for the site and `admin.localhost:<port>` for admin pages; `*.localhost`
+resolves to loopback. Use another site for the editor, for example `127.0.0.1:<port>`: the same
+app serves it there. Set
+`origins` accordingly (the example app reads them from [environment variables](/docs/environment)).
 
 Next: the [API reference](/docs/next-js/api), or [Deploying safely](/docs/guides/deploying).

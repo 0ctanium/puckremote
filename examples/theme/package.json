@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "puck-remote build",
-    "publish": "puck-remote publish --artifacts ../../artifacts",
-    "release": "puck-remote build && puck-remote publish --artifacts ../../artifacts",
-    "typecheck": "tsc -p ."
+    "publish": "puck-remote publish --artifacts ../app/data/artifacts",
+    "release": "puck-remote build && puck-remote publish --artifacts ../app/data/artifacts",
+    "typecheck": "tsc -p .",
+    "pull": "puck-remote pull --artifacts ../app/data/artifacts"
   },
   "dependencies": {
     "@puck-remote/sdk": "workspace:*",

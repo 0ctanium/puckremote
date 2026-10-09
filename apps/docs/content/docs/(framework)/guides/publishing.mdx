@@ -1,0 +1,64 @@
+---
+title: Pages and publishing
+description: Pages live in the theme, like Shopify templates; saving a page creates an artifact; publishing workflows are plugins.
+---
+
+Pages are part of the theme ([D-0188](/docs/internal/decisions#D-0188)). A theme repo has a `pages/`
+folder next to its blocks, and every artifact carries the pages it was published with:
+
+```files
+my-theme
+├── blocks
+│   └── hero.tsx
+├── root.tsx
+└── pages
+    ├── home.json
+    └── blog
+        └── launch.json
+```
+
+`pages/<slug>.json` is Puck page data. The build checks that every item uses a block of the theme
+and fails otherwise, so a page never ships with code it doesn't fit.
+
+## The two primitives
+
+The core only reads and writes pages ([D-0190](/docs/internal/decisions#D-0190), [D-0198](/docs/internal/decisions#D-0198)):
+
+```ts
+const page = await core.readPage('home') // current artifact, or { artifact: id }
+const { id } = await core.writePage('home', data, { base: page.artifact })
+```
+
+`writePage` validates and cleans the data (resolved editor data is removed), writes it into a
+**copy** of `base` (same code, same other pages) and returns the new artifact's id. It never
+changes what the site serves. Making it live is a separate step:
+
+```ts
+await core.config.artifacts.writePointer(id)
+```
+
+## Publishing workflows are plugins
+
+Everything else is your app's choice, built on these primitives:
+
+- **Save = publish** (the example app): write the page, move the pointer. It refuses when the
+  pointer moved since the editor opened, so an older base never undoes newer changes.
+- **Drafts**: write pages to artifacts without moving the pointer; keep the draft artifact id in
+  your database; publish = move the pointer.
+- **History and rollback**: artifacts are immutable, so keeping their ids is the history;
+  rollback = move the pointer back.
+
+Who may do what is checked by your app with its own session, never by the editor.
+
+## Developers and editors working together
+
+Like Shopify, the content edited in the editor lives in the theme's artifacts. Before publishing
+new code, bring those changes into the theme repo:
+
+```bash
+puck-remote pull --artifacts <store>
+```
+
+`pull` writes the current artifact's pages into `pages/`. Change blocks and the pages that use them
+together, build, and publish. Publishing uploads code **and** pages as they are in the repo, so
+pages edited since your last pull are replaced.

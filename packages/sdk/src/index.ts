@@ -1,4 +1,4 @@
-import { createElement, type ReactElement } from 'react'
+import { createContext, createElement, Fragment, useContext, type ComponentType, type ReactElement, type ReactNode } from 'react'
 import type { AnyDataSource, CollectionName, DocOf, GlobalDocOf, GlobalName } from './host.ts'
 import { renderState } from './state.ts'
 import type {
@@ -9,6 +9,7 @@ import type {
   Fields,
   FindArgs,
   FindResult,
+  HydrateMode,
   ParamRef,
   ParamValue,
   QuerySpec,
@@ -39,11 +40,52 @@ export function defineCategories<const C extends Categories>(c: C): C {
 }
 
 /**
- * Placeholder for a Puck slot. Renders an inert marker that the host swaps for the real
- * slot only when `data-nonce` matches the per-render nonce it generated.
+ * Slot content provided by the editor (Puck's slot renderers), keyed by slot name. Set by the
+ * editor bridge around each block; absent in the sandbox. Not for theme code.
  */
-export function Slot({ name }: { name: string }): ReactElement {
+export const SlotContext = createContext<Record<string, ComponentType | ReactNode> | null>(null)
+
+/**
+ * A Puck slot. In the editor it renders Puck's slot (real drag and drop). In the sandbox it
+ * renders an inert marker that the host swaps for the real slot only when `data-nonce` matches
+ * the per-render nonce it generated.
+ */
+export function Slot({ name }: { name: string }): ReactElement | null {
+  const slots = useContext(SlotContext)
+  if (slots) {
+    const content = Object.hasOwn(slots, name) ? slots[name] : null
+    if (typeof content === 'function') return createElement(content as ComponentType)
+    return createElement(Fragment, null, content as ReactNode)
+  }
   return createElement('div', { 'data-puck-slot': name, 'data-nonce': renderState.nonce ?? '' })
+}
+
+/**
+ * Internal: the CLI wraps every function export of a "use client" module with this. In the
+ * isolate it renders a marker and records the island (rendered and hydrated on public pages);
+ * anywhere else (the editor, the browser) it renders the component itself.
+ */
+export function island<P extends object>(id: string, component: ComponentType<P>): ComponentType<P & IslandProps> {
+  function Island(props: P & IslandProps) {
+    if (renderState.island) return renderState.island(id, component, props as Record<string, unknown>)
+    const { hydrate: _, ...rest } = props
+    return createElement(component, rest as P)
+  }
+  Island.displayName = `Island(${component.displayName ?? component.name ?? id})`
+  return Island
+}
+
+/** Props every island accepts at its use site. */
+export interface IslandProps {
+  /** When the island hydrates on public pages: on load (default), when idle, or when visible. */
+  hydrate?: HydrateMode
+}
+
+// The CLI turns "use client" exports into islands; this types `hydrate` at their use sites.
+declare module 'react' {
+  interface Attributes {
+    hydrate?: HydrateMode
+  }
 }
 
 // ---------------------------------------------------------------------------

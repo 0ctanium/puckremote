@@ -1,0 +1,71 @@
+{
+  "name": "@puck-remote/editor",
+  "version": "0.1.0",
+  "description": "puck-remote editor: <PuckRemoteEditor> for your editor page, <PuckEditorFrame> for your admin page, and the postMessage protocol between them.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    "./protocol": {
+      "@puck-remote/source": "./src/protocol.ts",
+      "types": "./dist/protocol.d.ts",
+      "default": "./dist/protocol.js"
+    },
+    "./frame": {
+      "@puck-remote/source": "./src/frame.tsx",
+      "types": "./dist/frame.d.ts",
+      "default": "./dist/frame.js"
+    },
+    "./react": {
+      "@puck-remote/source": "./src/react.tsx",
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.*"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p .",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "lint:pkg": "publint && attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
+  },
+  "peerDependencies": {
+    "@puck-remote/core": "workspace:*",
+    "@puck-remote/sdk": "workspace:*",
+    "@puckeditor/core": "~0.23.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@puck-remote/core": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@puck-remote/core": "workspace:*",
+    "@puck-remote/sdk": "workspace:*",
+    "@puckeditor/core": "0.23.0",
+    "@types/node": "26.6.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -5,16 +5,17 @@ description: createPuckRemote, createProxy and withPuckRemote.
 
 | Import | Exports |
 |---|---|
-| `@puck-remote/next` | `createPuckRemote`, `PuckRemotePage`, `pageMetadata`, `EditorClient`, types |
+| `@puck-remote/next` | `createPuckRemote`, `PuckRemotePage`, `pageMetadata`, types (`EditorPayload`, `PageProps`…) |
 | `@puck-remote/next/proxy` | `createProxy` |
 | `@puck-remote/next/config` | `withPuckRemote` |
 
-## `createPuckRemote(config, options?)`
+`<PuckEditorFrame>` and `<PuckRemoteEditor>` come from `@puck-remote/editor` (see [The editor](/docs/concepts/editor)).
+
+## `createPuckRemote(config)`
 
 <TypeTable
   type={{
     config: { description: "Your puck-remote config (defineConfig).", type: 'PuckRemoteConfig', required: true },
-    'options.loginUrl': { description: "Where unauthenticated editor visitors are redirected, with ?next=<editor path>. Without it, denied editor requests render the 404 page.", type: 'string' },
   }}
 />
 
@@ -23,17 +24,20 @@ Returns a `PuckRemote`:
 <TypeTable
   type={{
     loadPage: {
-      description: "Resolves data and renders every block for the page in the sandbox. Calls notFound() for unknown pages or a non-site origin. Memoized per request, so generateMetadata and the page share one render pass.",
+      description: "Resolves data and renders every block for the page in the sandbox. Calls notFound() for unknown pages and on origins.host (theme scripts never run next to the admin session). Memoized per request, so generateMetadata and the page share one render pass.",
       type: '(props: PageProps, context?: { locale?: string }) => Promise<PreparedPage>',
     },
     generateMetadata: { description: "Title, description and meta collected from blocks (ctx.head).", type: '(props: PageProps) => Promise<Metadata>' },
     loadEditor: {
-      description: "Editor props for <EditorClient>. Wrong origin or 403 → notFound(); 401 → redirect to loginUrl when set.",
-      type: '(props: { params }) => Promise<EditorProps>',
+      description: "The payload for <PuckEditorFrame> (core.editorPayload). Calls notFound() outside origins.host. Check your own session before calling it.",
+      type: '(props: { params }) => Promise<EditorPayload>',
     },
-    api: { description: "Route handlers for the editor API.", type: '{ GET, POST }' },
-    theme: { description: "Route handlers for theme assets.", type: '{ GET, HEAD }' },
-    core: { description: "The underlying engine (createCore).", type: 'PuckRemoteCore' },
+    loadEditorPage: {
+      description: "Props for <PuckRemoteEditor> on your editor page: { allowedParents: origins.host }. Calls notFound() outside origins.editor.",
+      type: '() => Promise<{ allowedParents: string[] }>',
+    },
+    createThemeHandler: { description: "Route handlers for theme files (assets and the browser bundle).", type: '() => { GET, HEAD }' },
+    core: { description: "The underlying engine (createCore): readPage, writePage, resolveBlockData…", type: 'PuckRemoteCore' },
   }}
 />
 
@@ -44,16 +48,12 @@ Puck's RSC renderer, and theme scripts carrying the CSP nonce.
 
 <TypeTable type={{ page: { description: "The result of remote.loadPage().", type: 'PreparedPage', required: true } }} />
 
-## `<EditorClient {...props} />`
-
-Client component: the Puck editor. Pass the result of `remote.loadEditor()` unchanged.
-
 ## `createProxy(config)`
 
 <TypeTable
   type={{
     config: {
-      description: "The same config object. Only artifacts, pages, routes, origins, allowSharedOrigin and security are read.",
+      description: "The same config object. Only artifacts, origins, routes and security are read.",
       type: 'PuckRemoteConfig',
       required: true,
     },
@@ -62,10 +62,20 @@ Client component: the Puck editor. Pass the result of `remote.loadEditor()` unch
 
 For each request the proxy:
 
-1. answers **404** if the request's origin doesn't serve that surface (site, editor, API, theme);
-2. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
-   Next;
-3. on public pages, sets `x-page-cacheable: true`, or `false` with `cache-control: no-store` and
+1. lets Next's own files (`/_next/*`) through untouched;
+2. on `origins.editor`, rewrites `/` to `routes.editor` (your editor page) with the
+   [editor's headers](/docs/security-headers#editor) and a fresh CSP nonce. Every other path,
+   `routes.editor` itself included, answers 404 ([D-0282](/docs/internal/decisions#D-0282));
+3. on `origins.host`, rewrites every path under `routes.admin` (`/x` → `/admin/x`, `/` →
+   `/admin`), except the theme route, which the editor loads from there. Old links already under
+   the prefix (`/admin`, `/admin/x`) get a 307 redirect to `/` or `/x`, query string kept
+   ([D-0307](/docs/internal/decisions#D-0307));
+4. on other origins, answers 404 for `routes.editor/**`, and for `routes.admin/**` when `origins`
+   is configured;
+5. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
+   Next: the admin policy on `origins.host` (frames only the editor origin), the site policy
+   elsewhere;
+6. on public pages, sets `x-page-cacheable: true`, or `false` with `cache-control: no-store` and
    `x-uncacheable-blocks` when a block reads URL query parameters.
 
 ## `withPuckRemote(nextConfig?)`

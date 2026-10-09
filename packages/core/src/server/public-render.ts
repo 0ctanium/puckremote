@@ -1,72 +1,54 @@
 /**
- * Public page pipeline (D3): load page → rewrite unknown blocks → resolve ALL data for the page
+ * Public page pipeline (D3): load the page from the current artifact → rewrite unknown blocks → resolve ALL data for the page
  * (host walker, dedupe, budget) → render root + every block in ONE fresh isolate context →
  * hand Puck's RSC <Render> a map of pre-rendered HTML. Puck components then only parse HTML.
  */
 import type { Host } from './host.ts'
 import type { RenderSession } from './runtime/types.ts'
 import type { Manifest } from './manifest-schema.ts'
-import { collectInstances, mapItems, MISSING_TYPE, renderProps, ROOT_ID, type Instance, type PageData } from './page-tree.ts'
+import { collectInstances, renderProps, restoreMissing, rewriteMissing, ROOT_ID, type Instance, type PageData } from './page-tree.ts'
 import { readPage, stripResolved } from './pages.ts'
 import { resolvePageData, type ResolveStats } from './query/resolver.ts'
-import { assetBase, mergeEffects, newNonce, renderInIsolate, type Effect } from './render.ts'
+import { assetBase, assetVersions, ISLAND_LIMITS, mergeEffects, newNonce, renderInIsolate, type Effect, type Island } from './render.ts'
+import { themeFileUrl } from '../shared/urls.ts'
 
 export interface RenderedBlock {
   ok: boolean
   html: string
   nonce: string
+  /** Islands in this block's HTML (theme client components, hydrated in the browser). */
+  islands: Island[]
   error?: string
 }
 
 /** Per-request overrides the app may pass in (e.g. from i18n routing). */
 export interface PageContext {
   locale?: string
-  /** The incoming request, when available: lets the core enforce which origins serve the site. */
-  request?: Request
 }
 
 export interface PreparedPage {
   /** CSP nonce for the page's <script> tags; set by framework bindings when they enforce a CSP. */
   scriptNonce?: string
-  version: number
+  /** The artifact the page and its blocks come from. */
+  artifact: string
   /** The artifact manifest the page was rendered with (to build the matching Puck config). */
   manifest: Manifest
   slug: string
   data: PageData
   rendered: Record<string, RenderedBlock>
+  /** The theme's islands bundle, when this page has islands. */
+  islandsUrl?: string
   head: ReturnType<typeof mergeEffects>
   cacheable: boolean
   uncacheableBlocks: string[]
   stats: { data: ResolveStats; renderMs: number; blocks: number; failures: number; contextMs: number }
 }
 
-/** D2: Puck silently drops unknown types; make them explicit so they render a fallback. */
-export function rewriteMissing(data: PageData, manifest: Manifest): PageData {
-  let n = 0
-  return mapItems(data, manifest, (item) => {
-    const id = typeof item.props.id === 'string' && item.props.id ? item.props.id : `auto-${item.type}-${n++}`
-    if (item.type === MISSING_TYPE || Object.hasOwn(manifest.blocks, item.type)) return { ...item, props: { ...item.props, id } }
-    return { type: MISSING_TYPE, props: { id, originalType: item.type, originalProps: item.props } }
-  })
-}
-
-/** Reverse of rewriteMissing, used by the editor's save path so unknown blocks are not lost. */
-export function restoreMissing(data: PageData): PageData {
-  return mapItems(data, null, (item) =>
-    item.type === MISSING_TYPE && typeof item.props.originalType === 'string'
-      ? { type: item.props.originalType, props: (item.props.originalProps as Record<string, unknown>) ?? { id: item.props.id } }
-      : item,
-  )
-}
-
 export async function preparePage(host: Host, slug: string, query: Record<string, string>, context: PageContext = {}): Promise<PreparedPage | null> {
   const artifact = host.store.get()
-  const { manifest, runtime: runner, version } = artifact
-  const page = await readPage(host.config.pages, slug)
+  const { manifest, runtime: runner, id } = artifact
+  const page = await readPage(host.config.artifacts, id, manifest, slug)
   if (!page) return null
-  const data = rewriteMissing(stripResolved(page), manifest)
-  const instances = collectInstances(data, manifest)
-  const uncacheableBlocks = [...new Set(instances.filter((i) => i.meta?.usesRequestParams).map((i) => i.name))]
 
   const tCtx = performance.now()
   let session: RenderSession | null = null
@@ -75,20 +57,29 @@ export async function preparePage(host: Host, slug: string, query: Record<string
   try {
     await getSession()
     const contextMs = performance.now() - tCtx
+    const data = rewriteMissing(stripResolved(page), manifest)
+    const instances = collectInstances(data, manifest)
+    const uncacheableBlocks = [...new Set(instances.filter((i) => i.meta?.usesRequestParams).map((i) => i.name))]
     const locale = context.locale ?? host.config.site.locale
     const env = { page: { slug, locale }, site: host.config.site, query: uncacheableBlocks.length ? query : {} }
     const { byInstance, stats } = await resolvePageData(
       { instances, env, mode: 'public' },
-      { manifest, config: host.config, source: host.source, http: host.http, cache: host.cache, session: getSession },
+      { manifest, config: host.config, source: host.source, http: host.http, session: getSession },
     )
 
     const rendered: Record<string, RenderedBlock> = {}
     const effects: Effect[][] = []
     let failures = 0
+    let islandCount = 0
+    const versions = assetVersions(manifest.files)
     const tRender = performance.now()
     for (const inst of instances) {
       if (!inst.meta) continue
-      const r = await renderOne(inst, byInstance.get(inst.id) ?? {}, host, slug, version, locale, session!)
+      let r = await renderOne(inst, byInstance.get(inst.id) ?? {}, host, slug, versions, locale, session!)
+      if (r.ok && islandCount + r.islands.length > ISLAND_LIMITS.maxPerPage) {
+        r = { ok: false, kind: 'invalid-output', error: `more than ${ISLAND_LIMITS.maxPerPage} islands on the page`, ms: r.ms, nonce: r.nonce, effects: [] }
+      }
+      if (r.ok) islandCount += r.islands.length
       if (!r.ok && ['memory', 'disposed'].includes(r.kind!)) {
         // The isolate died (OOM / watchdog). Later blocks get a fresh isolate + context.
         session!.release()
@@ -99,16 +90,17 @@ export async function preparePage(host: Host, slug: string, query: Record<string
         failures++
         console.error(`[render] block ${inst.name}#${inst.id} failed (${r.kind}): ${r.error}`)
       } else effects.push(r.effects)
-      rendered[inst.id] = { ok: r.ok, html: r.ok ? r.html : '', nonce: r.nonce, error: r.ok ? undefined : r.kind }
+      rendered[inst.id] = { ok: r.ok, html: r.ok ? r.html : '', nonce: r.nonce, islands: r.ok ? r.islands : [], error: r.ok ? undefined : r.kind }
     }
     if (uncacheableBlocks.length) console.info(`[cache] /${slug} is uncacheable: uses request params via ${uncacheableBlocks.join(', ')}`)
     return {
-      version,
+      artifact: id,
       manifest,
       slug,
       data,
       rendered,
-      head: mergeEffects(effects, assetBase(host.config.routes.theme, version), host.config.security),
+      islandsUrl: islandCount && manifest.files['bundle.islands.js'] ? themeFileUrl(host.config.routes.theme, 'bundle.islands.js', manifest.files['bundle.islands.js']) : undefined,
+      head: mergeEffects(effects, assetBase(host.config.routes.theme), host.config.security),
       cacheable: uncacheableBlocks.length === 0,
       uncacheableBlocks,
       stats: { data: stats, renderMs: performance.now() - tRender, blocks: Object.keys(rendered).length, failures, contextMs },
@@ -118,7 +110,7 @@ export async function preparePage(host: Host, slug: string, query: Record<string
   }
 }
 
-async function renderOne(inst: Instance, data: Record<string, unknown>, host: Host, slug: string, version: number, locale: string, session: RenderSession) {
+async function renderOne(inst: Instance, data: Record<string, unknown>, host: Host, slug: string, versions: Record<string, string>, locale: string, session: RenderSession) {
   const nonce = newNonce()
   const r = await renderInIsolate(session, inst.kind, inst.name, renderProps(inst.props, inst.meta), data, {
     isEditing: false,
@@ -126,9 +118,10 @@ async function renderOne(inst: Instance, data: Record<string, unknown>, host: Ho
     nonce,
     page: { slug },
     site: { name: host.config.site.name },
-    assetBase: assetBase(host.config.routes.theme, version),
+    assetBase: assetBase(host.config.routes.theme),
+    assetVersions: versions,
   })
   return r.ok ? { ...r, nonce, kind: undefined } : { ...r, nonce, effects: [] as Effect[] }
 }
 
-export { ROOT_ID }
+export { ROOT_ID, restoreMissing, rewriteMissing }

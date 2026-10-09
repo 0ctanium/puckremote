@@ -280,3 +280,43 @@ export function validateAdapter(def: unknown, file: string): { name: string; ori
   if (u.origin !== d.origin) fail(`${path}.origin`, `must be a bare origin (expected ${u.origin})`)
   return { name: d.name as string, origin: d.origin as string }
 }
+
+const PAGE_FILE = /^pages\/((?:[a-z0-9][a-z0-9-]{0,63}\/){0,4}[a-z0-9][a-z0-9-]{0,63})\.json$/
+const MISSING_TYPE = '__missing'
+
+/**
+ * A theme page (pages/<slug>.json, Puck data). Every item must be a block of this theme: a page
+ * and the code it renders with ship together, so they must agree.
+ */
+export function validatePage(file: string, source: string, blocks: Record<string, BlockMeta>, root: BlockMeta | null): Record<string, unknown> {
+  if (!PAGE_FILE.test(file)) fail(file, 'page files must be pages/<slug>.json with lowercase slug segments')
+  let page: unknown
+  try {
+    page = JSON.parse(source)
+  } catch (e) {
+    fail(file, `invalid JSON (${e instanceof Error ? e.message : e})`)
+  }
+  if (!isPlainObject(page) || !isPlainObject(page.root) || !Array.isArray(page.content)) fail(file, 'must be Puck data: { root: { props }, content: [] }')
+  const p = page as { root: { props?: unknown }; content: unknown[] }
+  if (p.root.props !== undefined && !isPlainObject(p.root.props)) fail(`${file} root.props`, 'must be an object')
+  const walk = (items: unknown[], at: string) => {
+    items.forEach((item, i) => {
+      const here = `${at}[${i}]`
+      if (!isPlainObject(item) || typeof item.type !== 'string' || !isPlainObject(item.props)) fail(`${file} ${here}`, 'must be { type, props }')
+      const { type, props } = item as { type: string; props: Record<string, unknown> }
+      if (type === MISSING_TYPE || !Object.hasOwn(blocks, type)) fail(`${file} ${here}`, `unknown block "${type}"`)
+      for (const slot of blocks[type].slots) {
+        const v = props[slot]
+        if (v === undefined) continue
+        if (!Array.isArray(v)) fail(`${file} ${here}.props.${slot}`, 'slot content must be an array')
+        walk(v as unknown[], `${here}.props.${slot}`)
+      }
+    })
+  }
+  walk(p.content, 'content')
+  for (const slot of root?.slots ?? []) {
+    const v = (p.root.props as Record<string, unknown> | undefined)?.[slot]
+    if (Array.isArray(v)) walk(v, `root.props.${slot}`)
+  }
+  return toJson(page, file) as Record<string, unknown>
+}

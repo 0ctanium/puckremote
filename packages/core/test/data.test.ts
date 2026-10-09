@@ -2,7 +2,7 @@
  * Data and network tests 7–13.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { handleResolve } from '../src/server/editor-rpc.ts'
+import { blockDataSchema, resolveBlock, UnknownBlockError } from '../src/server/editor-rpc.ts'
 import { HttpSource, isPublicAddress } from '../src/server/query/http-source.ts'
 import { QueryError } from '../src/server/query/params.ts'
 import { mockCms } from '@puck-remote/source-mock'
@@ -210,27 +210,26 @@ describe('10. budget', () => {
 })
 
 describe('11. editor RPC ignores client-supplied specs', () => {
-  it('only blockType + props are used; spec/data/mode/query in the body are ignored', async () => {
+  it('only block + props are used; spec/data/mode/query in the input are ignored', async () => {
     const h = await dataDeps({ mockOrigin: api.origin })
-    const res = await handleResolve(
-      {
-        blockType: 'latest-posts',
+    const res = await resolveBlock(
+      blockDataSchema.parse({
+        block: 'latest-posts',
         props: { count: 2 },
         slug: 'home',
         spec: { source: 'host', op: 'find', collection: 'users', args: {} },
         data: { posts: { source: 'host', op: 'find', collection: 'users', args: {} } },
         query: { source: 'http', origin: 'https://169.254.169.254', path: '/' },
         mode: 'public',
-      },
+      }),
       h.deps,
     )
-    expect(res.status).toBe(200)
-    const posts = res.json.data!.posts as { ok: true; data: { docs: Record<string, unknown>[] } }
+    const posts = res.data.posts as { ok: true; data: { docs: Record<string, unknown>[] } }
     expect(posts.ok).toBe(true)
     expect(posts.data.docs).toHaveLength(2)
-    expect(JSON.stringify(res.json)).not.toContain('admin@example.com')
-    expect(Object.keys(res.json.data!)).toEqual(['posts'])
-    expect((await handleResolve({ blockType: 'nope', props: {} }, h.deps)).status).toBe(404)
+    expect(JSON.stringify(res)).not.toContain('admin@example.com')
+    expect(Object.keys(res.data)).toEqual(['posts'])
+    await expect(resolveBlock({ block: 'nope', props: {}, slug: 'home' }, h.deps)).rejects.toThrow(UnknownBlockError)
     await h.close()
   })
 })
@@ -244,12 +243,9 @@ describe('12. draft visibility', () => {
     const titles = (r: typeof pub) => (r.byInstance.get('x')!.posts as any).data.docs.map((d: any) => d.title).join('|')
     expect(titles(pub)).not.toContain('DRAFT')
     expect(titles(draft)).toContain('DRAFT')
-    // Public again after a draft read: the cache must not leak draft data.
-    const pub2 = await resolvePageData({ instances: [{ id: 'x', props: { count: 12 }, meta }], env: env(), mode: 'public' }, h.deps)
-    expect(titles(pub2)).not.toContain('DRAFT')
-    // The editor RPC always uses draft mode.
-    const rpc = await handleResolve({ blockType: 'latest-posts', props: { count: 12 } }, h.deps)
-    expect(JSON.stringify(rpc.json)).toContain('DRAFT')
+    // The editor's block data always uses draft mode.
+    const rpc = await resolveBlock({ block: 'latest-posts', props: { count: 12 }, slug: 'home' }, h.deps)
+    expect(JSON.stringify(rpc)).toContain('DRAFT')
     await h.close()
   })
 })
@@ -306,19 +302,5 @@ describe('13. host data source policy (enforced by the host core, whatever the b
     const deep = await h.find('posts', { select: ['author'], limit: 1, depth: 5 }, ctx())
     expect(deep.docs[0].author).toEqual({ id: 'a1', name: 'Ana', bio: 'b' }) // no email: not exposed on authors
     expect(await h.findByID('posts', 'p3', { select: ['title'] }, ctx())).toEqual({ id: 'p3', title: 't3' })
-  })
-
-  it('the source change feed invalidates cached results by tag', async () => {
-    const h = await dataDeps({ mockOrigin: api.origin })
-    const meta = h.deps.manifest.blocks['latest-posts']
-    const run = () => resolvePageData({ instances: [{ id: 'x', props: { count: 1 }, meta }], env: env(), mode: 'public' }, h.deps)
-    const first = await run()
-    expect((await run()).stats.cacheHits).toBe(1)
-    h.cms.admin.upsert('posts', { id: 'new', title: 'Brand new', slug: 'new', publishedAt: '2030-01-01', status: 'published', author: 'a1' })
-    const after = await run()
-    expect(after.stats.cacheHits).toBe(0)
-    expect(JSON.stringify(after.byInstance.get('x'))).toContain('Brand new')
-    expect(first.byInstance.get('x')).not.toEqual(after.byInstance.get('x'))
-    await h.close()
   })
 })

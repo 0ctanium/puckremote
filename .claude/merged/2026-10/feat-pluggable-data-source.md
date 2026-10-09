@@ -38,10 +38,10 @@ A real Payload adapter (planned for M3).
 | D-0036 | Each collection declares its policy (fields, filters, sort, limits, depth, tags); the host core enforces it and the plugin receives a normalized query | user | accepted |
 | D-0037 | Theme queries typed via Register module augmentation plus source<S>() (find<Adapter>() is impossible without partial inference) | agent-unreviewed | needs-review |
 | D-0038 | Populated relations are projected with the target collection policy; depth clamped to maxDepth | agent-unreviewed | needs-review |
-| D-0039 | Page storage is a pluggable PageStore; concrete plugins are wired only in the app config | user | accepted |
-| D-0040 | Example plugins as separate packages: source-mock (in-memory CMS) and pages-fs (JSON files) | agent-unreviewed | needs-review |
+| D-0039 | Page storage is a pluggable PageStore; concrete plugins are wired only in the app config | user | superseded by D-0188 |
+| D-0040 | Example plugins as separate packages: source-mock (in-memory CMS) and pages-fs (JSON files) | agent-unreviewed | superseded by D-0188 |
 | D-0041 | QuerySpec source renamed payload → host; sdkMajor bumped 0 → 1 (older artifacts rejected) | agent-unreviewed | needs-review |
-| D-0042 | Draft results are never cached; the source change feed invalidates cache tags | agent-unreviewed | needs-review |
+| D-0042 | Draft results are never cached; the source change feed invalidates cache tags | agent-unreviewed | superseded by D-0187 |
 <!-- decisions:end -->
 
 ## Decision Record

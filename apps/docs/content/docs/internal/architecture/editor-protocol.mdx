@@ -1,0 +1,95 @@
+---
+title: Editor protocol
+description: The typed, versioned postMessage protocol between the admin page's Puck and the editor frame's Puck.
+---
+
+Both sides import the same module, `@puck-remote/editor/protocol`. Every message carries `v: 2`
+(`PROTOCOL_VERSION`, [D-0328](/docs/internal/decisions#D-0328)) and a `type`, and is validated with
+zod by the receiver.
+
+The admin page holds the page data, the history and the fields. The frame proposes **actions**;
+the admin validates them, replays them on its own Puck and answers with its **state**
+([D-0329](/docs/internal/decisions#D-0329)).
+
+| Direction | `type` | Fields |
+|---|---|---|
+| editor → host | `ready` | — |
+| host → editor | `init` | `payload` (`EditorPayload`), `options` (JSON only: `permissions`, `locales`, `categories`, `flags`, `extra`) |
+| editor → host | `action` | `seq` (1, 2, 3…), `action` (a `FrameAction`, below) |
+| host → editor | `state` | `data` (the full page, with `__data`), `itemSelector` (the selection or `null`), `ack` (last action applied) |
+| editor → host | `intent` | `undo` or `redo` (⌘Z / ⇧⌘Z pressed in the frame) |
+| editor → host | `ui` | `leftSideBarWidth` (you resized the frame's panel; display only) |
+| host → editor | `ui` | `leftSideBarVisible`, `plugin` (the frame plugin whose panel to show, or `null`), `leftSideBarWidth` (the shared panel width, px or `null` for Puck's default) |
+| editor → host | `rpc` | `id`, `method` (`^[A-Za-z][A-Za-z0-9._:-]{0,63}$`), `params` (JSON, plus File/Blob values) |
+| host → editor | `rpc:result` | `id`, then `ok: true, value` or `ok: false, error` |
+| either | `error` | `message` (≤ 2000 chars) |
+
+## Actions
+
+`FrameAction` is the subset of Puck's actions the frame may propose
+([D-0330](/docs/internal/decisions#D-0330)). Unknown keys are dropped.
+
+| Action | Validated fields | Permission |
+|---|---|---|
+| `insert` | `componentType` (a manifest block or `__missing`), `destinationIndex`, `destinationZone`, `id?` | `insert` |
+| `duplicate` | `sourceIndex`, `sourceZone` | `duplicate` |
+| `reorder`, `move` | indexes (integers ≥ 0) and zones | `drag` |
+| `remove` | `index`, `zone` | `delete` |
+| `replace` | `destinationIndex`, `destinationZone`, `data` (a page item) | `edit` |
+| `replaceRoot` | `root` | `edit` |
+| `setUi` | `ui.itemSelector` only (the selection); other UI state stays local | — |
+
+A refused action (bad shape, unknown block, permission set to `false` in `options`, larger than
+1 MB) is reported through `onError` **and still acknowledged**. The next `state` then puts the
+frame back in line with the admin's page.
+
+## Ordering and echoes
+
+[D-0331](/docs/internal/decisions#D-0331):
+
+- The frame numbers its actions. The admin answers each change of its state with `ack` = the last
+  action it applied.
+- The frame applies a `state` only if `ack` ≥ its own last `seq`, so edits still in flight are never
+  overwritten by an older state.
+- The frame applies states with `recordHistory: false`, and the actions Puck emits for those
+  dispatches are not sent back. That's how echoes are recognized: by origin, not by comparing
+  content (comparing content loses legitimate edits, see the
+  [spike results](/docs/internal/decisions#D-0325)).
+- Every `state` is the admin's whole page, so it also corrects any divergence. For example, a
+  `duplicate` creates ids independently on each side, and the admin's ids win
+  ([D-0332](/docs/internal/decisions#D-0332)).
+
+## Rules
+
+- **Origin and source:** the host accepts a message only if `event.origin` is the editor origin
+  **and** `event.source` is its own iframe's window. `<PuckRemoteEditor>` accepts one only if
+  `event.source` is `window.parent` and `event.origin` is an allowed parent; the first `init` pins
+  it.
+- **Explicit target origin** on every `postMessage`, never `*`. The editor posts `ready` to each
+  allowed parent origin; the browser drops the ones that don't match.
+- **Allow-listed RPC:** the editor calls `useEditor().rpc(method, params)`. The host only runs
+  methods present in the frame's `rpc` map (own properties); unknown methods get
+  `unknown method <name>`. Theme code can call them too, so only list harmless methods there.
+  `resolveData` isn't one of them: the admin's Puck calls it directly.
+- **Limits** (`LIMITS`):
+  - RPC requests and results: 1 MB of JSON;
+  - File/Blob values: 10 MB per request;
+  - RPCs: 20 per second (token bucket);
+  - actions: 1 MB each, not rate-limited (dragging can be fast, and the admin is the authority);
+  - page data: 2 MB. A page that grows past it is rolled back on the admin side.
+
+  `measure()` counts JSON bytes and Blob bytes, and rejects anything else (functions, class
+  instances, cycles).
+- **Results** must be JSON: a handler returning a Blob or something too large answers
+  `result too large or not JSON`.
+
+## Why `init` carries URLs, not code
+
+Functions can't be structured-cloned, and the editor must not trust code from the parent anyway.
+`init` carries the manifest (JSON) and the URL of `bundle.browser.js`. The editor checks that the
+URL is on a host origin and imports it, so the code it runs is the artifact's, served by the host's
+theme route with hash verification.
+
+<Source path="packages/editor/src/protocol.ts" />
+<Source path="packages/editor/src/frame.tsx" />
+<Source path="packages/editor/src/react.tsx" />

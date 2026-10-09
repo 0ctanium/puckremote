@@ -1,22 +1,18 @@
 ---
 title: Contract tests
-description: Check your own adapters with the same test suites the built-in ones pass.
+description: Check your own artifact store with the same test suite the built-in one passes.
 ---
 
-`@puck-remote/core/testing` exports vitest suites for the storage contracts.
+`@puck-remote/core/testing` exports a vitest suite for the storage contract.
 
 ```ts title="my-store.test.ts"
-import { artifactStoreContract, cacheStoreContract, pageStoreContract } from '@puck-remote/core/testing';
+import { artifactStoreContract } from '@puck-remote/core/testing';
 
 artifactStoreContract('s3', async () => s3ArtifactStore({ bucket: await freshBucket() }));
-pageStoreContract('postgres', async () => pgPageStore({ schema: await freshSchema() }));
-cacheStoreContract('redis', async () => redisCache({ prefix: crypto.randomUUID() }));
 ```
 
-Each factory must return a **fresh, empty** store.
+The factory must return a **fresh, empty** store.
 
 | Suite | Checks |
 |---|---|
-| `pageStoreContract(name, make)` | Missing pages return null; JSON round-trips; overwrite; nested slugs are listed |
-| `artifactStoreContract(name, make)` | Starts empty; versions are immutable and listed in order; pointer moves and refuses missing versions; unsafe paths never resolve |
-| `cacheStoreContract(name, make)` | Misses are undefined; JSON values (null included); TTL expiry; tag invalidation only hits matching entries |
+| `artifactStoreContract(name, make)` | Starts empty; `writeArtifact` returns a URL-safe id per artifact; files are readable by id and artifacts never change; the pointer moves and refuses unknown ids; unsafe paths never resolve. No id format is assumed |

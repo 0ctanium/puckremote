@@ -1,13 +1,14 @@
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { build } from './build.ts'
-import { activate, publish } from './publish.ts'
+import { activate, publish, pull } from './publish.ts'
 import { BuildError } from './validate.ts'
 
 const USAGE = `usage:
   puck-remote build   [--cwd .] [--out dist]
   puck-remote publish [--cwd .] [--out dist] --artifacts <dir>
-  puck-remote activate <version> --artifacts <dir>     (rollback = activate an older version)`
+  puck-remote pull    [--cwd .] --artifacts <dir> [--artifact <id>]   (pages → <cwd>/pages)
+  puck-remote activate <id> --artifacts <dir>          (rollback = activate an older artifact)`
 
 async function main() {
   const { values, positionals } = parseArgs({
@@ -16,6 +17,7 @@ async function main() {
       cwd: { type: 'string', default: process.cwd() },
       out: { type: 'string', default: 'dist' },
       artifacts: { type: 'string', default: process.env.PUCK_REMOTE_ARTIFACTS_DIR },
+      artifact: { type: 'string' },
     },
   })
   const cwd = path.resolve(values.cwd!)
@@ -31,11 +33,13 @@ async function main() {
     case 'publish':
       await publish({ distDir: path.resolve(cwd, values.out!), artifacts: artifactsDir() })
       break
+    case 'pull':
+      await pull({ cwd, artifacts: artifactsDir(), artifact: values.artifact })
+      break
     case 'activate': {
-      const v = Number(arg)
-      if (!Number.isInteger(v) || v < 1) throw new Error('activate needs a version number')
-      await activate(artifactsDir(), v)
-      console.log(`[puck-remote activate] current → v${v}`)
+      if (!arg) throw new Error('activate needs an artifact id')
+      await activate(artifactsDir(), arg)
+      console.log(`[puck-remote activate] current → ${arg}`)
       break
     }
     default:

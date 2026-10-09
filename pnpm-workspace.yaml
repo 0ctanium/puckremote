@@ -2,7 +2,7 @@ packages:
   - packages/*
   - apps/*
   - examples/*
-  - mock/*
+  - examples/app/mock/*
   - spike
 allowBuilds:
   isolated-vm: true

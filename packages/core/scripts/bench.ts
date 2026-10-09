@@ -5,9 +5,8 @@
  */
 import path from 'node:path'
 import { fsArtifactStore } from '@puck-remote/artifacts-fs'
-import { fsPageStore } from '@puck-remote/pages-fs'
 import { mockCms } from '@puck-remote/source-mock'
-import { devAllowAll, resolveConfig } from '../src/server/config.ts'
+import { resolveConfig } from '../src/server/config.ts'
 import { createHost } from '../src/server/host.ts'
 import { preparePage } from '../src/server/public-render.ts'
 import { renderInIsolate } from '../src/server/render.ts'
@@ -22,17 +21,16 @@ const ms = (n: number) => `${n.toFixed(2)} ms`
 const quiet = { error() {}, warn() {}, info() {} }
 console.info = () => {}
 
-const root = path.resolve(import.meta.dirname, '../../..')
+// The example app's data (examples/app/data).
+const root = path.resolve(import.meta.dirname, '../../../examples/app/data')
 const MOCK = 'http://localhost:4010'
 
 async function measure(name: string, renderer: RendererFactory) {
   const host = createHost(
     resolveConfig({
       artifacts: fsArtifactStore({ dir: path.join(root, 'artifacts') }),
-      auth: devAllowAll(),
       renderer,
-      source: mockCms({ dataFile: path.join(root, 'data', 'cms.json') }),
-      pages: fsPageStore({ dir: path.join(root, 'data', 'pages') }),
+      source: mockCms({ dataFile: path.join(root, 'cms.json') }),
       http: { allowedOrigins: [MOCK], insecureDevOrigins: [MOCK] },
       secrets: { EVENTS_API_KEY: { value: 'dev-events-key-7f3a9c', origins: [MOCK] } },
     }),
@@ -40,7 +38,7 @@ async function measure(name: string, renderer: RendererFactory) {
   ;(host.store as unknown as { log: unknown }).log = quiet
   const r = await host.store.reload()
   if (!r.ok) throw new Error(r.error)
-  const { runtime, manifest, version } = host.store.get()
+  const { runtime, manifest, id } = host.store.get()
 
   let t = performance.now()
   const first = await runtime.session()
@@ -55,7 +53,7 @@ async function measure(name: string, renderer: RendererFactory) {
     s.release()
   }
 
-  const ctx = { isEditing: false, locale: 'en', nonce: 'x'.repeat(32), page: { slug: 'home' }, site: { name: 'Bench' }, assetBase: `/theme/v${version}/assets/` }
+  const ctx = { isEditing: false, locale: 'en', nonce: 'x'.repeat(32), page: { slug: 'home' }, site: { name: 'Bench' }, assetBase: '/cdn/assets/', assetVersions: {} }
   const data = { posts: { ok: true, data: { docs: Array.from({ length: 12 }, (_, i) => ({ title: `Post ${i}`, slug: `p${i}` })), totalDocs: 12, limit: 12 } }, events: { ok: true, data: [] }, results: { ok: true, data: { docs: [] } }, site: { ok: true, data: { tagline: 't', footer: 'f' } } }
   const renders: number[] = []
   const s = await runtime.session()

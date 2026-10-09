@@ -35,7 +35,8 @@ pnpm --filter host dev
 ```
 
 - Public site: http://localhost:3100/
-- Editor: http://editor.localhost:3100/editor
+- Admin (editor frame): http://admin.localhost:3100/editor (log in with admin / admin, demo only)
+- Editor (embedded only): http://127.0.0.1:3100/
 
 ```bash
 pnpm test

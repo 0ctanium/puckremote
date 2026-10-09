@@ -5,34 +5,31 @@ description: What each import path of @puck-remote/core provides, and where it i
 
 | Import | Content | Loads the sandbox? |
 |---|---|---|
-| `@puck-remote/core` | `createCore`, renderers, auth helpers, errors, types | yes (lazily) |
-| `@puck-remote/core/config` | `defineConfig`, `devAllowAll`, `sharedSecretAuth`, `memoryCache` | no |
-| `@puck-remote/core/edge` | Request classification, security headers, page cacheability | no |
+| `@puck-remote/core` | `createCore`, renderers, errors, types | yes (lazily) |
+| `@puck-remote/core/config` | `defineConfig`, `resolveOrigins` | no |
+| `@puck-remote/core/edge` | Security headers, request origin, page cacheability | no |
 | `@puck-remote/core/react` | `PuckRemotePage`, `pageMetadata` (server components) | no |
-| `@puck-remote/core/editor` | `EditorClient` (client component) | no |
-| `@puck-remote/core/testing` | Adapter contract test suites (vitest) | no |
+| `@puck-remote/core/testing` | The artifact store contract test suite (vitest) | no |
 
 Use `/config` in your config file and `/edge` in middleware or proxies: they never import
-isolated-vm.
+isolated-vm. The editor lives in its own package, `@puck-remote/editor`
+(`/protocol`, `/frame`, `/bridge`; see [The editor](/docs/concepts/editor)).
 
 ## `@puck-remote/core`
 
-`createCore`, `defineConfig`, `resolveConfig`, `DEFAULT_ROUTES`, `normalizeSlug`,
-`AccessDeniedError`, `CSRF_HEADER`, `devAllowAll`, `sharedSecretAuth`, `classifyRequest`,
-`surfaceOf`, `WrongSurfaceError`, `memoryCache`, `inProcessRenderer`, `workerPoolRenderer`,
-`bubblewrap`, `workerLaunchOptions`, and the types.
+`createCore`, `defineConfig`, `resolveConfig`, `DEFAULT_ROUTES`, `normalizeSlug`, `ConfigError`,
+`PageError`, `MAX_PAGE_BYTES`, `UnknownBlockError`, `inProcessRenderer`, `workerPoolRenderer`,
+`bubblewrap`, `workerLaunchOptions`, and the types (`EditorPayload`, `EditorOrigins`, `PageData`,
+`Manifest`…).
 
 ## `@puck-remote/core/edge`
 
 <TypeTable
   type={{
-    classifyRequest: { description: "Which surface (site, editor, api, theme) a request targets, its origin, and whether that origin serves it.", type: '(request, { routes, origins }) => { surface; origin; allowed }' },
     requestOrigin: { description: "The origin the client addressed (X-Forwarded-Host/Proto, then Host).", type: '(request: Request) => string' },
-    surfaceOf: { description: "Surface of a pathname.", type: '(pathname: string, routes: Routes) => Surface' },
-    securityHeaders: { description: "Response headers (CSP and others) for a surface.", type: '(surface, { nonce, dev?, policy? }) => Record<string, string>' },
+    securityHeaders: { description: "Response headers (CSP and others) for public pages ('site'), admin pages ('admin', on origins.host) or the editor page ('editor').", type: "(surface, { nonce, dev?, policy?, editorOrigin?, hostOrigins? }) => Record<string, string>" },
     cspNonce: { description: "A fresh 128-bit nonce (Web Crypto).", type: '() => string' },
-    pageCacheability: { description: "Whether a page can be cached, without starting the sandbox.", type: '({ artifacts, pages }, slug) => Promise<{ cacheable; blocks } | null>' },
-    resolveSurfaces: { description: "Routes, origins and security policy resolved from a config (for middleware).", type: '(config) => { routes; origins; security }' },
+    pageCacheability: { description: "Whether a page of the current artifact can be cached, without starting the sandbox.", type: '({ artifacts }, slug) => Promise<{ cacheable; blocks } | null>' },
     normalizeSlug: { description: "Validates and normalizes a slug ('' → 'home').", type: '(parts: string | string[]) => string | null' },
     normalizeOrigin: { description: "Canonical scheme://host[:port].", type: '(origin: string) => string' },
     DEFAULT_SECURITY: { description: "Default security policy.", type: 'SecurityPolicy' },
@@ -43,11 +40,6 @@ isolated-vm.
 
 - `<PuckRemotePage page={page} />`: renders a `PreparedPage` (server component).
 - `pageMetadata(page)`: `{ title, description, other }`, compatible with Next's `Metadata`.
-
-## `@puck-remote/core/editor`
-
-- `<EditorClient {...editorProps} />`: the Puck editor (client component). Blocks are rendered
-  on the server through the API; no theme JavaScript runs in the browser.
 
 ## `@puck-remote/core/testing`
 

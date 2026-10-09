@@ -174,6 +174,8 @@ export interface CtxInput {
   page: { slug: string }
   site: { name: string }
   assetBase: string
+  /** Versions of the theme's assets (path below assets/ → v), appended as `?v=` by assetUrl. */
+  assetVersions?: Record<string, string>
 }
 
 export type Effect =
@@ -182,9 +184,24 @@ export type Effect =
   | { kind: 'script'; url: string; opts: ScriptOptions }
   | { kind: 'style'; url: string }
 
+/** One island (an export of a "use client" module) rendered in the isolate. */
+export interface IslandRecord {
+  /** Marker key, unique within the block render. */
+  key: string
+  /** "<theme-relative path>#<export>". */
+  id: string
+  props: Record<string, unknown>
+  hydrate: HydrateMode
+  /** Server render of the component, hydrated in the browser. */
+  html: string
+}
+
+export type HydrateMode = 'load' | 'idle' | 'visible'
+
 export interface RenderOutput {
   html: string
   effects: Effect[]
+  islands: IslandRecord[]
 }
 
 // ---------------------------------------------------------------------------

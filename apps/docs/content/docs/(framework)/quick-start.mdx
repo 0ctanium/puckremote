@@ -38,8 +38,8 @@ Packages ship compiled ESM; `pnpm dev` keeps them rebuilding in watch mode.
 pnpm --filter theme release
 ```
 
-This runs `puck-remote build && puck-remote publish` and creates `artifacts/v1` and
-`artifacts/current.json`.
+This runs `puck-remote build && puck-remote publish` and creates `examples/app/data/artifacts/<id>` and
+`examples/app/data/artifacts/current.json`.
 
 </Step>
 <Step>
@@ -61,25 +61,38 @@ It listens on `http://localhost:4010` and backs the theme's `events` adapter.
 pnpm --filter host dev
 ```
 
-| Surface | URL |
+| What | URL |
 |---|---|
 | Public site | `http://localhost:3100/` (or `http://site.localhost:3100/`) |
 | Search page (uncacheable) | `http://localhost:3100/search?q=nonce` |
-| Editor | `http://editor.localhost:3100/editor` |
+| Admin login (demo: `admin` / `admin`) | `http://admin.localhost:3100/login` |
+| Admin dashboard (signed-in user, current theme, editor link, Log out) | `http://admin.localhost:3100/` |
+| Admin page (editor frame + Publish) | `http://admin.localhost:3100/editor` (served by `/admin/editor`, requires the login) |
+| Editor (embedded only, served by the same app) | `http://127.0.0.1:3100/` |
 
-`*.localhost` resolves to loopback, so the site and the editor are two origins on one app. On the
-site hostname, `/editor` and `/api/*` answer 404.
+One app answers all three origins: `*.localhost` resolves to loopback, so the site and the admin
+pages are two origins, and `127.0.0.1` is another site for the editor. On the editor origin only
+the editor page is reachable, at `/`, and every other path is 404. On the admin hostname, every
+path is served from the app's `/admin` pages (`/editor` → `/admin/editor`). `/admin` and `/editor`
+answer 404 on the public site.
 
 </Step>
 <Step>
 
 ### Change the theme
 
-Edit a block in `examples/theme/blocks`, then run `pnpm --filter theme release` again. The host
-picks up the new version within 2 seconds, with no restart. Roll back with:
+Pages edited in the admin page live in the published artifacts. Bring them into the theme first:
 
 ```bash
-cd examples/theme && ./node_modules/.bin/puck-remote activate 1 --artifacts ../../artifacts
+pnpm --filter theme pull
+```
+
+Edit a block in `examples/theme/blocks` (and the pages in `examples/theme/pages` that use it), then
+run `pnpm --filter theme release` again. The host picks up the new artifact within 2 seconds, with
+no restart. Roll back by activating an older artifact id (see `ls examples/app/data/artifacts`):
+
+```bash
+cd examples/theme && ./node_modules/.bin/puck-remote activate <id> --artifacts ../app/data/artifacts
 ```
 
 </Step>
@@ -94,8 +107,8 @@ puck-repository-poc
 │   ├── cli
 │   ├── core
 │   ├── next
+│   ├── editor
 │   ├── artifacts-fs
-│   ├── pages-fs
 │   └── source-mock
 ├── apps
 │   ├── host
@@ -111,15 +124,16 @@ puck-repository-poc
 | Path | Content |
 |---|---|
 | `packages/sdk` | `@puck-remote/sdk`: theme API and host contracts |
-| `packages/cli` | `@puck-remote/cli`: build, publish, activate |
+| `packages/cli` | `@puck-remote/cli`: build, publish, pull, activate |
 | `packages/core` | `@puck-remote/core`: the engine |
 | `packages/next` | `@puck-remote/next`: Next.js bindings |
-| `packages/artifacts-fs`, `pages-fs`, `source-mock` | File-based and example adapters |
-| `apps/host` | Example Next.js app |
+| `packages/editor` | `@puck-remote/editor`: `<PuckRemoteEditor>` (editor page), `<PuckEditorFrame>` (admin page), protocol |
+| `packages/artifacts-fs`, `source-mock` | File-based and example adapters |
+| `examples/app` | Example Next.js app (public site, admin page, editor), with its data |
 | `apps/docs` | This documentation |
-| `examples/theme` | Example theme (the "developer repo") |
-| `mock/api-server` | External API stand-in |
-| `artifacts`, `data` | Published theme versions (git-ignored); pages and seed data |
+| `examples/theme` | Example theme (the "developer repo"), with its pages |
+| `examples/app/mock/api-server` | External API stand-in |
+| `examples/app/data` | Published theme artifacts (`artifacts/`, git-ignored) and CMS seed data (`cms.json`) |
 
 ## Useful commands
 
@@ -131,6 +145,5 @@ puck-repository-poc
 | Benchmarks | `pnpm --filter @puck-remote/core bench` |
 | Docs | `pnpm docs:dev` (port 3200) |
 
-In development the editor is open (`devAllowAll()`). A production build refuses to start without
-an `auth` adapter; the example uses `sharedSecretAuth` with `PUCK_REMOTE_ADMIN_TOKEN` (see
-[Environment](/docs/environment)).
+Auth belongs to the app. In development the example's admin page and RPC route are open; in
+production they require `PUCK_REMOTE_ADMIN_TOKEN` (see [Environment](/docs/environment)).

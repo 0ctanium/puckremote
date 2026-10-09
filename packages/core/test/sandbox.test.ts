@@ -12,8 +12,8 @@ import { buildEvil, ctx, quietLog, testConfig } from './helpers.ts'
 
 type Make = (bundle: string, cfg?: HostConfig) => RenderRuntime
 const RUNTIMES: [string, Make][] = [
-  ['in-process', (bundle, cfg = testConfig()) => inProcessRenderer({ log: quietLog })({ version: 1, bundle, limits: cfg.isolate })],
-  ['worker-pool', (bundle, cfg = testConfig()) => workerPoolRenderer({ size: 1, log: quietLog })({ version: 1, bundle, limits: cfg.isolate })],
+  ['in-process', (bundle, cfg = testConfig()) => inProcessRenderer({ log: quietLog })({ id: "test", bundle, limits: cfg.isolate })],
+  ['worker-pool', (bundle, cfg = testConfig()) => workerPoolRenderer({ size: 1, log: quietLog })({ id: "test", bundle, limits: cfg.isolate })],
 ]
 
 describe.each(RUNTIMES)('%s runtime', (runtimeName, make) => {

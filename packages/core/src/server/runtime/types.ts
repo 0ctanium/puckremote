@@ -36,4 +36,4 @@ export interface RenderRuntime {
 }
 
 /** Creates the runtime for one artifact version. Configured via `renderer` in the host config. */
-export type RendererFactory = (artifact: { version: number; bundle: string; limits: IsolateLimits }) => RenderRuntime
+export type RendererFactory = (artifact: { id: string; bundle: string; limits: IsolateLimits }) => RenderRuntime

@@ -2,8 +2,8 @@
  * `@puck-remote/sdk/host` — contracts for TRUSTED host plugins (they run in Node, chosen by the host
  * operator, never shipped by themes):
  *
- *  - DataSource: where `find` / `findByID` / `global` queries go. Any database, CMS or API.
- *  - PageStore:  where Puck page JSON is persisted.
+ *  - DataSource:    where `find` / `findByID` / `global` queries go. Any database, CMS or API.
+ *  - ArtifactStore: where theme artifacts (code and pages) are stored.
  *
  * The host core enforces each collection's declared policy (exposed fields, filter operators,
  * sorting, limits, depth, output projection) BEFORE and AFTER calling the plugin, so a plugin
@@ -59,8 +59,6 @@ export interface CollectionDef<D = RawDoc> {
   /** Exposed fields. Anything not listed is never selectable, filterable, sortable or returned. */
   fields: { [K in keyof D & string]?: CollectionField }
   limits?: { default?: number; max?: number; maxDepth?: number }
-  /** Cache tags for results of this collection. Default: [`collection:<name>`]. */
-  tags?: string[]
   find(query: NormalizedFind, ctx: SourceContext): Promise<{ docs: RawDoc[]; totalDocs: number }>
   findByID?(id: string, query: Pick<NormalizedFind, 'select' | 'depth'>, ctx: SourceContext): Promise<RawDoc | null>
   /** Phantom: the document type, used for typing theme queries. */
@@ -70,7 +68,6 @@ export interface CollectionDef<D = RawDoc> {
 export interface GlobalDef<D = RawDoc> {
   /** Exposed fields; output is projected to these. */
   fields: { [K in keyof D & string]?: CollectionField }
-  tags?: string[]
   get(ctx: SourceContext): Promise<RawDoc | null>
   readonly [__doc]?: D
 }
@@ -82,8 +79,6 @@ export interface DataSource<
   name: string
   collections: C
   globals: G
-  /** Optional change feed: the host invalidates its query cache for the emitted tags. */
-  subscribe?(onChange: (tags: string[]) => void): () => void
 }
 
 export type AnyDataSource = DataSource<Record<string, CollectionDef<any>>, Record<string, GlobalDef<any>>>
@@ -104,86 +99,30 @@ export function defineDataSource<const C extends Record<string, CollectionDef<an
 }
 
 // ---------------------------------------------------------------------------
-// Page storage
+// Artifact storage (theme code + pages)
 // ---------------------------------------------------------------------------
 
-/** Persists Puck page JSON. The host validates and strips resolved data before `put`. */
-export interface PageStore {
-  get(slug: string): Promise<unknown | null>
-  put(slug: string, data: unknown): Promise<void>
-  list(): Promise<string[]>
-}
-
-// ---------------------------------------------------------------------------
-// Artifact storage
-// ---------------------------------------------------------------------------
+/** Opaque artifact id, chosen by the store (a content hash, a counter, a database key…). */
+export type ArtifactId = string
 
 /**
- * Stores published theme artifacts: immutable versions (manifest.json, bundle.js, assets/**)
- * plus a pointer to the active version. The host verifies hashes and validates manifests
- * itself, so a store only moves bytes. Paths are POSIX, relative, and pre-validated by the host.
+ * Stores theme artifacts: immutable sets of files (manifest.json, bundles, assets/**, and the
+ * theme's pages as pages/<slug>.json, like a Shopify theme) plus a pointer to the current one.
+ * The host verifies hashes and validates manifests itself, so a store only moves bytes. Paths
+ * are POSIX, relative, and pre-validated by the host.
  */
 export interface ArtifactStore {
-  /** Active version, or null if nothing was ever published. */
-  readPointer(): Promise<number | null>
-  /** Atomically switch the active version (publish and rollback). */
-  writePointer(version: number): Promise<void>
-  listVersions(): Promise<number[]>
-  /** File bytes of a version, or null if missing. */
-  readFile(version: number, path: string): Promise<Uint8Array | null>
-  /** Write a complete version. Must not become visible until fully written. */
-  writeVersion(version: number, files: Record<string, Uint8Array>): Promise<void>
+  /** Current artifact, or null if nothing was ever published. */
+  readPointer(): Promise<ArtifactId | null>
+  /** Atomically switch the current artifact (going live, rollback). */
+  writePointer(id: ArtifactId): Promise<void>
+  list(): Promise<ArtifactId[]>
+  /** File bytes of an artifact, or null if missing. */
+  readFile(id: ArtifactId, path: string): Promise<Uint8Array | null>
+  /** Store a complete artifact and return its id. Must not become visible until fully written. */
+  writeArtifact(files: Record<string, Uint8Array>): Promise<ArtifactId>
   /** Optional change feed for the pointer. Without it, the host polls readPointer(). */
   watch?(onChange: () => void): () => void
-}
-
-// ---------------------------------------------------------------------------
-// Cache storage
-// ---------------------------------------------------------------------------
-
-/** Shared cache for query results (and later rendered output). Values are JSON-serializable. */
-export interface CacheStore {
-  get(key: string): Promise<unknown | undefined>
-  set(key: string, value: unknown, options: { ttlMs?: number; tags?: string[] }): Promise<void>
-  /** Drop every entry carrying any of these tags. */
-  invalidateTags(tags: string[]): Promise<void>
-}
-
-// ---------------------------------------------------------------------------
-// Authentication / authorization
-// ---------------------------------------------------------------------------
-
-/** Everything the host may ask permission for. */
-export type Action =
-  | 'editor:open'
-  | 'page:read-draft'
-  | 'page:write'
-  | 'page:publish'
-  | 'artifact:publish'
-  | 'artifact:activate'
-
-export const ACTIONS: readonly Action[] = ['editor:open', 'page:read-draft', 'page:write', 'page:publish', 'artifact:publish', 'artifact:activate']
-
-/** Whoever is making the request. Adapters may attach anything under `data`. */
-export interface Principal {
-  id: string
-  name?: string
-  data?: Record<string, unknown>
-}
-
-/**
- * Framework- and backend-agnostic auth: only the standard Request is involved, so it works with
- * Payload sessions, cookies, bearer tokens, Mongo users…
- */
-export interface AuthAdapter {
-  /** Identify the caller, or null if anonymous. */
-  authenticate(request: Request): Promise<Principal | null>
-  /** Decide whether the principal may perform `action` (on `resource`, when relevant). */
-  authorize(principal: Principal, action: Action, resource?: { slug?: string }): boolean | Promise<boolean>
-}
-
-export function defineAuth<A extends AuthAdapter>(auth: A): A {
-  return auth
 }
 
 // ---------------------------------------------------------------------------

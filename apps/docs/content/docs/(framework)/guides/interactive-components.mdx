@@ -1,0 +1,85 @@
+---
+title: Interactive components
+description: Use state and event handlers in theme components on public pages, with "use client" islands.
+---
+
+A block's `render` runs in the sandbox and produces HTML. To make part of a block interactive on the
+public site (a counter, a carousel, a form with local state), put that part in a module that starts
+with `"use client"`. Its exports become **islands**: rendered to HTML in the sandbox like the rest
+of the page, then hydrated in the visitor's browser ([D-0243](/docs/internal/decisions#D-0243)).
+
+```tsx title="blocks/components/counter.tsx"
+"use client";
+import { useState } from "react";
+
+export function Counter({ start = 0 }: { start?: number }) {
+  const [count, setCount] = useState(start);
+  return <button onClick={() => setCount((c) => c + 1)}>Count: {count}</button>;
+}
+```
+
+```tsx title="blocks/card.tsx"
+import { defineBlock } from "@puck-remote/sdk";
+import { Counter } from "./components/counter";
+
+export default defineBlock({
+  fields: { title: { type: "text" } },
+  render: (props) => (
+    <article>
+      <h3>{props.title}</h3>
+      <Counter start={1} hydrate="visible" />
+    </article>
+  ),
+});
+```
+
+The `render` function itself stays synchronous and pure. Only the island's own code runs in the
+browser.
+
+## Rules
+
+- **Where.** Any module in your theme (not in `node_modules`) whose first statement is
+  `"use client"`. Every function export of it is an island. Other exports (constants) are left as
+  they are.
+- **Props are JSON.** Strings, numbers, booleans, `null`, arrays and plain objects. No functions,
+  elements, `children`, dates or class instances: the props travel to the browser as JSON. A
+  violation fails the block, like any render error.
+- **Limits.** 64 KB of props per island and 200 islands per page
+  ([D-0248](/docs/internal/decisions#D-0248)).
+- **No slots inside islands.** Put the island inside the block, next to its `<Slot>`s, not around them.
+- **The first render must match.** The browser hydrates the HTML the sandbox produced, so the first
+  render must not depend on `window`, the time or randomness. Read those in `useEffect`.
+
+## When an island hydrates
+
+Set the reserved `hydrate` prop where you use the island
+([D-0246](/docs/internal/decisions#D-0246)). It is removed before your component receives its props.
+
+<TypeTable
+  type={{
+    "'load'": { description: "As soon as the page has loaded (the default)." },
+    "'idle'": { description: "When the browser is idle (requestIdleCallback)." },
+    "'visible'": { description: "When the island comes within 200px of the viewport." },
+  }}
+/>
+
+The islands bundle is downloaded only on pages that have islands, and only when the first island
+hydrates.
+
+## In the editor
+
+In the editor, islands are plain components: they render and respond immediately, whatever their
+`hydrate` value.
+
+## What gets built
+
+`puck-remote build` writes `bundle.islands.js` next to `bundle.js` when the theme has islands (see
+[build output](/docs/cli/build-output)). It contains only the `"use client"` modules and what they
+import, not your blocks. Like the editor's bundle, it shares the page's React instead of
+shipping its own.
+
+## Trust
+
+Island code runs on your public site, with the same trust as theme client scripts
+(`ctx.assets.script`). Review it like any third-party script.
+It never runs with the admin's session ([trust model](/docs/concepts/trust-model)).

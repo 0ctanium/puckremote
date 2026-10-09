@@ -1,31 +1,47 @@
 ---
-title: Artifacts and versions
-description: What a published theme version contains, how it is verified, activated and rolled back.
+title: Artifacts and themes
+description: What a published theme contains (code and pages, like a Shopify theme), how it is identified, verified, activated and rolled back.
 ---
 
-An **artifact** is one immutable, published version of a theme:
+An **artifact** is one immutable, published state of a theme: its code **and its pages**, like a
+Shopify theme carries its sections and its `templates/*.json` together
+([D-0188](/docs/internal/decisions#D-0188)). Because a page always ships with the code it was made for,
+there are no content migrations: changing a block's fields and the pages that use it is one
+change, published at once.
 
 ```files
 artifacts
 ├── current.json
-├── v1
+├── 1d361ac2d6ec…
 │   ├── manifest.json
 │   ├── bundle.js
-│   └── assets
-│       └── theme.css
-└── v2
-    ├── manifest.json
-    ├── bundle.js
-    └── assets
-        └── theme.css
+│   ├── bundle.browser.js
+│   ├── bundle.islands.js
+│   ├── assets
+│   │   └── theme.css
+│   └── pages
+│       ├── home.json
+│       └── search.json
+└── e1cf82a1deba…
 ```
 
 | File | Content |
 |---|---|
-| `manifest.json` | Blocks, root, fields, queries, adapters, categories, and the sha256 of every file |
-| `bundle.js` | One script: isolate shims, React, `react-dom/server`, the SDK runtime and the theme code |
+| `manifest.json` | Blocks, root, fields, queries, adapters, categories, and the sha256 of every other file (pages included) |
+| `bundle.js` | The theme for the server sandbox: isolate shims, React, `react-dom/server`, the SDK runtime and the theme code |
+| `bundle.browser.js` | The theme for the editor: ESM, React and the SDK left to the editor |
+| `bundle.islands.js` | Only the theme's `"use client"` modules, hydrated on public pages ([interactive components](/docs/guides/interactive-components)); absent without islands |
 | `assets/**` | CSS, client scripts, images |
-| `current.json` | `{"version": N}`: the active version |
+| `pages/<slug>.json` | Puck page data |
+| `current.json` | The current artifact's id |
+
+## Ids
+
+An artifact id is an **opaque string chosen by the store** ([D-0189](/docs/internal/decisions#D-0189)):
+the core never computes or interprets it, it only requires `[A-Za-z0-9._-]{1,128}` because ids
+appear in URLs. `@puck-remote/artifacts-fs` uses a content hash, like a git commit: the same
+files always give the same id, and storing them twice keeps one copy
+([D-0206](/docs/internal/decisions#D-0206)). Another store may use counters or database keys.
 
 ## Lifecycle
 
@@ -34,25 +50,29 @@ sequenceDiagram
   participant Dev as Theme developer
   participant Store as Artifact store
   participant Host as Host (core)
+  Dev->>Dev: puck-remote pull (editor changes into pages/)
   Dev->>Dev: puck-remote build
-  Dev->>Store: puck-remote publish (write vN, move pointer)
+  Dev->>Store: puck-remote publish (store artifact, move pointer)
   Host->>Store: watch / poll pointer
   Host->>Store: read manifest + files
   Host->>Host: validate manifest, verify hashes
   Host->>Host: start new runtime, swap, dispose old after 30 s
 ```
 
-1. `puck-remote build` produces `dist/` on the developer's machine ([build pipeline](/docs/internal/architecture/build-pipeline)).
-2. `puck-remote publish` writes the next version number through an `ArtifactStore` (never reusing
-   a number, even after a rollback) and moves the pointer.
+1. `puck-remote build` produces `dist/` (code and pages) on the developer's machine
+   ([build pipeline](/docs/internal/architecture/build-pipeline)). A page using a block the theme
+   doesn't have fails the build.
+2. `puck-remote publish` stores it through an `ArtifactStore` and moves the pointer.
 3. The host notices the pointer change (store `watch`, or polling every `artifactPollMs`, default
    2000 ms, [D-0065](/docs/internal/decisions#D-0065)).
 4. The [artifact loader](/docs/internal/architecture/artifact-loader) validates the manifest with zod,
    recomputes derived data, verifies every file hash, creates a new render runtime, swaps it in,
    and disposes the previous one after a 30 s grace period.
-5. **Any failure keeps the last good version serving.**
+5. **Any failure keeps the last good artifact serving.**
 
-Rollback is just `puck-remote activate <N>`.
+Saving a page from the editor also creates an artifact: the same files with the new page
+(see [Pages and publishing](/docs/guides/publishing)). Rollback is just
+`puck-remote activate <id>`.
 
 ## Why the host re-validates everything
 
@@ -61,18 +81,37 @@ The CLI runs on an untrusted machine. The host therefore has its **own** manifes
 recomputes `propRefs` and `usesRequestParams` instead of trusting the values the CLI wrote.
 
 `sdkMajor` versions the wire contract between the SDK and the host. The host only accepts
-`sdkMajor: 1` and rejects older artifacts with an explicit message.
+`sdkMajor: 3` and rejects older artifacts with an explicit message.
 
 ## Storage
 
-Artifacts live behind the `ArtifactStore` contract ([D-0058](/docs/internal/decisions#D-0058)). The default
+Artifacts live behind the `ArtifactStore` contract ([D-0197](/docs/internal/decisions#D-0197)). The default
 `@puck-remote/artifacts-fs` suits a single server; serverless and multi-instance deployments need
 a shared store (S3-style). See [Core › Adapters](/docs/core/adapters).
 
-## Serving assets
+## Serving files
 
-`/theme/v<N>/assets/**` serves a file only if it is listed in that version's manifest **and** its
-hash still matches, with `immutable` caching and `nosniff`. The bundle itself is never served
-([D-0080](/docs/internal/decisions#D-0080)).
+Like Shopify's `/cdn/shop/t/…/assets/…?v=…`, the URL names the file, and `?v=` names its version
+([D-0262](/docs/internal/decisions#D-0262)):
+
+```
+/cdn/assets/theme.css?v=3fa9c2d81b04
+/cdn/bundle.islands.js?v=8e01d77a2c55
+```
+
+`v` is the first 12 hex characters of the file's sha256 in the manifest. A page save creates a new
+artifact, but files it doesn't change keep their URL, so browsers and CDNs keep their copy.
+
+- A `v` of the current artifact, or of any older stored artifact, is served from that artifact
+  with `immutable` caching ([D-0264](/docs/internal/decisions#D-0264)). Pages rendered just before a
+  publish keep working.
+- Without `v`, or with an unknown one, the current file is served with `no-cache` and an `etag`
+  (`304` when unchanged). Relative `url()`s inside your CSS land here.
+
+Files are served only if they are listed in the manifest **and** their hash still matches, with
+`nosniff`.
+`bundle.js`, the manifest and pages are never served. When the editor is configured, these
+responses allow the editor origin (CORS), which loads the browser bundle
+([D-0200](/docs/internal/decisions#D-0200)).
 
 Deep dive: [artifact loader](/docs/internal/architecture/artifact-loader).

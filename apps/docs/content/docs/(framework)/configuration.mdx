@@ -8,14 +8,14 @@ icon: Settings
 import { defineConfig } from '@puck-remote/core/config';
 
 export default defineConfig({
-  artifacts, source, pages, // required adapters
+  artifacts, source, // required adapters
   // everything else is optional
 });
 ```
 
 `defineConfig` is a typed identity function from `@puck-remote/core/config`, which never loads the
 sandbox. The proxy and your app can therefore import the config file safely. Defaults are applied
-when the engine starts, together with the [production guards](#production-guards).
+when the engine starts, together with the [checks](#checks).
 
 ## Adapters
 
@@ -23,11 +23,8 @@ See [Core › Adapters](/docs/core/adapters) for each contract and the built-in 
 
 <TypeTable
   type={{
-    artifacts: { description: "Where published theme versions and the active-version pointer live.", type: 'ArtifactStore', required: true },
+    artifacts: { description: "Where theme artifacts (code and pages) and the current-artifact pointer live.", type: 'ArtifactStore', required: true },
     source: { description: "Answers the find / findByID / global queries of blocks.", type: 'DataSource', required: true },
-    pages: { description: "Persists Puck page JSON.", type: 'PageStore', required: true },
-    cache: { description: "Cache for query results. Use a shared store when running several instances.", type: 'CacheStore', default: 'memoryCache()' },
-    auth: { description: "Who may open the editor, read drafts, save pages and switch theme versions. Required in production.", type: 'AuthAdapter' },
     renderer: { description: "Where theme code runs.", type: 'RendererFactory', default: 'workerPoolRenderer()' },
   }}
 />
@@ -36,18 +33,20 @@ See [Core › Adapters](/docs/core/adapters) for each contract and the built-in 
 
 <TypeTable
   type={{
-    origins: {
-      description: "Which hostnames serve the public site and which serve the editor (and its API). Required in production, and the two lists must not overlap.",
-      type: '{ site: string[]; editor: string[] }',
+    'origins.host': {
+      description: "Origins of your admin pages that embed the editor (<PuckEditorFrame>) and hold the admin session. The theme bundle URLs given to the editor use the first one.",
+      type: 'string[]',
     },
-    allowSharedOrigin: { description: "Allow one origin for site and editor in production. Not recommended.", type: 'boolean', default: 'false' },
-    allowedOrigins: { description: "Extra origins allowed to send mutating API requests (CSRF). Editor origins are always allowed.", type: 'string[]', default: '[]' },
-    'routes.api': { description: "Prefix of the catch-all API route.", type: 'string', default: "'/api'" },
-    'routes.theme': { description: "Prefix of the theme asset route; asset URLs given to blocks follow it.", type: 'string', default: "'/theme'" },
-    'routes.editor': { description: "Prefix of the editor pages.", type: 'string', default: "'/editor'" },
+    'origins.editor': { description: "Origin of your editor page (<PuckRemoteEditor>). Must not be a host origin; use another site in production.", type: 'string' },
+    'routes.theme': { description: "Prefix of the theme route (assets and bundles, versioned by ?v=); asset URLs given to blocks follow it.", type: 'string', default: "'/cdn'" },
+    'routes.editor': { description: "The app's editor page; the Next proxy serves it at the root of origins.editor (every other path there is 404) and hides it elsewhere.", type: 'string', default: "'/editor'" },
+    'routes.admin': { description: "Prefix of the app's admin pages; the Next proxy serves them at the root of origins.host (/x → /admin/x; old /admin/x links redirect to /x) and answers 404 for them elsewhere.", type: 'string', default: "'/admin'" },
     id: { description: "Distinguishes runtimes when one process hosts several sites.", type: 'string', default: "'default'" },
   }}
 />
+
+Without `origins`, the editor is off: `editorPayload` throws and the theme route sends no CORS
+headers. See [Origins](/docs/concepts/origins).
 
 ## Site
 
@@ -58,11 +57,11 @@ See [Core › Adapters](/docs/core/adapters) for each contract and the built-in 
   }}
 />
 
-## Theme versions
+## Artifacts
 
 <TypeTable
   type={{
-    artifactPollMs: { description: "How often to check the active-version pointer when the artifact store has no change feed.", type: 'number', default: '2000' },
+    artifactPollMs: { description: "How often to check the current-artifact pointer when the artifact store has no change feed.", type: 'number', default: '2000' },
   }}
 />
 
@@ -99,7 +98,6 @@ Applies to `http()` queries and theme adapters.
     'http.timeoutMs': { description: "Per request.", type: 'number', default: '2000' },
     'http.maxResponseBytes': { description: "Per response.", type: 'number', default: '524288' },
     'http.maxRedirects': { description: "Redirects followed (same origin only).", type: 'number', default: '3' },
-    'http.cacheTtlMs': { description: "Cache lifetime of HTTP and adapter results.", type: 'number', default: '30000' },
   }}
 />
 
@@ -124,7 +122,8 @@ Names match `^[A-Z][A-Z0-9_]*$`.
 
 <TypeTable
   type={{
-    'security.csp.editor': { description: "Content Security Policy mode on the editor.", type: "'enforce' | 'report-only' | false", default: "'enforce'" },
+    'security.csp.admin': { description: "Content Security Policy mode on host (admin) origins.", type: "'enforce' | 'report-only' | false", default: "'enforce'" },
+    'security.csp.editor': { description: "Content Security Policy mode on the editor origin.", type: "'enforce' | 'report-only' | false", default: "'enforce'" },
     'security.csp.site': { description: "CSP mode on the public site. Switch to 'enforce' once reports are clean.", type: "'enforce' | 'report-only' | false", default: "'report-only'" },
     'security.scriptOrigins': { description: "https origins theme scripts may load from, besides the theme's own assets.", type: 'string[]', default: '[]' },
     'security.styleOrigins': { description: "https origins theme stylesheets may load from.", type: 'string[]', default: '[]' },
@@ -136,13 +135,12 @@ Names match `^[A-Z][A-Z0-9_]*$`.
 
 See [Security headers](/docs/security-headers) for the resulting policies.
 
-## Production guards
+## Checks
 
-With `NODE_ENV=production`, the engine refuses to start when:
+The engine refuses a config where:
 
-- `auth` is missing;
-- `origins` is missing (unless `allowSharedOrigin`);
-- an origin is both a site and an editor origin (unless `allowSharedOrigin`);
-- `origins.editor` is empty.
+- `origins.host` is empty;
+- `origins.editor` is also a host origin.
 
-`devAllowAll()` itself throws in production.
+There is no `auth` option: the core has no authority of its own. Your app authenticates its admin
+pages, RPC handlers and publishing actions with its own session.

@@ -8,7 +8,7 @@ description: The RenderRuntime abstraction and the in-process isolated-vm implem
 ```ts
 interface RenderRuntime { session(): Promise<RenderSession>; stats(): RuntimeStats; dispose(): void }
 interface RenderSession { call(entry, args: string[]): Promise<CallResult<string>>; release(): void }
-type RendererFactory = (artifact: { version; bundle; limits }) => RenderRuntime
+type RendererFactory = (artifact: { id; bundle; limits }) => RenderRuntime
 ```
 
 Everything crossing the boundary is a JSON string, so a runtime can live in-process, in a worker

@@ -45,8 +45,8 @@ fields: {
 />
 
 Any other type fails the build, including Puck's `custom`, `external` and `richtext`, and any
-option holding a function. Custom editor UIs are provided by the host (`host:*` fields), so no
-theme code runs in the editor.
+option holding a function. Field UIs come from the editor (`host:*` fields): fields are JSON in
+the manifest, and the editor builds Puck's fields from them.
 
 ## `visibleIf`
 

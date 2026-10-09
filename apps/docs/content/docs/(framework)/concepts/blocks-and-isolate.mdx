@@ -19,7 +19,10 @@ runtime turns them into an HTML string with `renderToString`.
 - `ctx`: request context (`isEditing`, `locale`, `nonce`, `page.slug`, `site.name`), `assetUrl()`,
   and the recorded effects `head.title/meta`, `assets.script/style`.
 
-**Effects** are the only channel out of the isolate besides the HTML: at most 64 per render and
+Interactive parts go in `"use client"` modules: they are rendered here too, then hydrated in the
+browser as **islands** with JSON props ([interactive components](/docs/guides/interactive-components)).
+
+**Effects** are the only channel out of the isolate besides the HTML and island records: at most 64 per render and
 2 KB per string. The host merges and dedupes them and hoists them into `<head>`.
 
 ## The environment
@@ -43,7 +46,7 @@ cannot escape a call: V8 drains microtasks before the call returns, under the sa
 ## Isolate lifecycle
 
 - One compiled script per artifact version (per worker).
-- **A fresh context per page request** (and per editor RPC). Blocks in one request share it.
+- **A fresh context per page request** (and per editor data request). Blocks in one request share it.
 - A memory blow-up or watchdog disposes the isolate; it is recreated lazily, and the rest of the
   page still renders (later blocks get a fresh context).
 

@@ -34,10 +34,6 @@ export class HostSource {
     return f
   }
 
-  tagsFor(spec: { op: string; collection?: string; slug?: string }): string[] {
-    if (spec.op === 'global') return this.source.globals[spec.slug!]?.tags ?? [`global:${spec.slug}`]
-    return this.source.collections[spec.collection!]?.tags ?? [`collection:${spec.collection}`]
-  }
 
   private normalizeWhere(c: CollectionDef<any>, collection: string, w: unknown): NormalizedWhere | null {
     if (w === undefined || w === null) return null

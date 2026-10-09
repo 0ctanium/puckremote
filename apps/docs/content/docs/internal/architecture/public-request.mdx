@@ -12,35 +12,36 @@ sequenceDiagram
   participant D as Data (source / HTTP / adapters)
   participant W as Render worker
   V->>P: GET /blog
-  P->>P: classify surface, CSP nonce, cacheability
+  P->>P: surface from origin, CSP nonce, cacheability
   P->>R: request + x-nonce
-  R->>C: preparePage(slug, query, request)
-  C->>C: read page, rewrite missing blocks, walk tree
+  R->>C: preparePage(slug, query)
+  C->>C: read page from the current artifact, rewrite missing blocks, walk tree
   C->>W: open session (fresh context)
-  C->>D: resolve all queries (dedupe, budget, cache)
+  C->>D: resolve all queries (dedupe, budget)
   C->>W: __render root + each block (fresh nonce each)
   W-->>C: HTML + effects
   C-->>R: PreparedPage
   R-->>V: Puck RSC render, slots swapped, head assets
 ```
 
-1. **Proxy** (`createProxy`): classify the surface; 404 if the origin doesn't serve the site;
-   generate a CSP nonce; set security headers; compute cacheability from the page and the active
-   manifest (no isolate, no hash verification: it only decides a header).
+1. **Proxy** (`createProxy`): the `admin` surface on admin origins, `site` elsewhere; generate a
+   CSP nonce; set security headers; compute cacheability from the current artifact's manifest and
+   page (no isolate: it only decides a header).
 2. **Page route** calls `remote.loadPage(props)`: the slug is normalized
    (`a-z0-9-` segments, up to 5 levels, empty → `home`), search params reduced to first values,
    and `preparePage` is memoized per request with React `cache()`, so `generateMetadata` and the
    page share **one isolate pass**.
-3. **`core.preparePage`**: rejects a non-site origin (returns `null` → 404), then lazily starts the
-   host (first artifact load, watcher).
+   On an admin origin it answers 404 first: theme scripts never run next to the admin session.
+3. **`core.preparePage`** lazily starts the host (first artifact load, watcher).
 4. **`preparePage` pipeline** ([D-0018](/docs/internal/decisions#D-0018)):
-   1. `readPage` from the `PageStore`, validated with zod; `stripResolved` removes any stray
-      `__data`;
+   1. `readPage`: `pages/<slug>.json` of the **current artifact**, hash-checked against
+      `manifest.files` and validated with zod (no such page → 404); `stripResolved` removes any
+      stray `__data`;
    2. `rewriteMissing`: unknown block types become `__missing` ([missing blocks](/docs/internal/architecture/missing-blocks));
    3. `collectInstances`: the host's own depth-first walk of root → content → slots
       ([D-0016](/docs/internal/decisions#D-0016)), giving every instance with its manifest metadata;
-   4. open **one render session** (a fresh isolate context) for the whole request;
-   5. `resolvePageData` in `public` mode: plan, dedupe, budget, execute, cache
+   4. **one render session** (a fresh isolate context) serves the whole request;
+   5. `resolvePageData` in `public` mode: plan, dedupe, budget, execute
       ([query resolver](/docs/internal/architecture/query-resolver)). `$query` params are only passed if the
       page has a block that uses them;
    6. render the root and every block in tree order with a **fresh nonce per call**; if the
@@ -66,3 +67,4 @@ effects before streaming markup, and keeps "one fresh context per request".
 <Source path="packages/core/src/server/page-tree.ts" />
 <Source path="packages/core/src/server/puck-rsc.tsx" />
 <Source path="packages/core/src/react/PuckRemotePage.tsx" />
+<Source path="packages/core/src/server/pages.ts" />

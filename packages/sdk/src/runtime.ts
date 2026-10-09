@@ -2,15 +2,17 @@
  * Runs INSIDE the isolate (bundled into bundle.js). Exposes the only three entry points
  * the host calls. All inputs and outputs are JSON strings.
  */
-import { createElement, Fragment } from 'react'
+import { createElement, Fragment, type ComponentType, type ReactElement } from 'react'
 import { renderToString } from 'react-dom/server.browser'
-import { EFFECT_LIMITS } from './constants.ts'
+import { EFFECT_LIMITS, HYDRATE_MODES, ISLAND_LIMITS } from './constants.ts'
 import { renderState } from './state.ts'
 import type {
   AdapterDefinition,
   BlockDefinition,
   CtxInput,
   Effect,
+  HydrateMode,
+  IslandRecord,
   RenderCtx,
   RenderOutput,
   RootDefinition,
@@ -45,7 +47,8 @@ function makeCtx(input: CtxInput, effects: Effect[]): RenderCtx {
       if (clean.split('/').some((seg) => seg === '..' || seg === '.') || /[\\?#]|:\/\//.test(clean)) {
         throw new Error(`invalid asset path: ${path}`)
       }
-      return input.assetBase + clean
+      const v = input.assetVersions && Object.hasOwn(input.assetVersions, clean) ? input.assetVersions[clean] : null
+      return input.assetBase + clean + (v ? `?v=${encodeURIComponent(v)}` : '')
     },
     assets: {
       script(url: string, opts: ScriptOptions = {}) {
@@ -66,6 +69,28 @@ function makeCtx(input: CtxInput, effects: Effect[]): RenderCtx {
   }
 }
 
+/** JSON-only island props; anything a JSON round-trip would change or drop is refused. */
+function islandProps(id: string, props: Record<string, unknown>): { props: Record<string, unknown>; hydrate: HydrateMode } {
+  const { hydrate = HYDRATE_MODES[0], ...rest } = props
+  if (!(HYDRATE_MODES as readonly unknown[]).includes(hydrate)) throw new Error(`island ${id}: hydrate must be one of ${HYDRATE_MODES.join(', ')}`)
+  if ('children' in rest) throw new Error(`island ${id}: children cannot be passed to an island`)
+  const json = JSON.stringify(rest)
+  if (json.length > ISLAND_LIMITS.maxPropsBytes) throw new RangeError(`island ${id}: props exceed ${ISLAND_LIMITS.maxPropsBytes} bytes`)
+  if (!sameJson(rest, JSON.parse(json))) throw new TypeError(`island ${id}: props must be JSON (no functions, elements, dates, undefined or class instances)`)
+  return { props: rest, hydrate: hydrate as HydrateMode }
+}
+
+function sameJson(a: unknown, b: unknown): boolean {
+  if (a === b) return typeof a !== 'number' || Number.isFinite(a)
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false
+  if (Array.isArray(a) !== Array.isArray(b)) return false
+  const proto = Object.getPrototypeOf(a)
+  if (!Array.isArray(a) && proto !== Object.prototype && proto !== null) return false
+  const ka = Object.keys(a)
+  const kb = Object.keys(b)
+  return ka.length === kb.length && ka.every((k) => sameJson((a as any)[k], (b as any)[k]))
+}
+
 export function install(registry: Registry): void {
   const g = globalThis as any
 
@@ -77,14 +102,30 @@ export function install(registry: Registry): void {
     const ctxInput = JSON.parse(ctxJson) as CtxInput
     const effects: Effect[] = []
     const ctx = makeCtx(ctxInput, effects)
+    // Islands render a marker during the block render, then their own HTML afterwards (React's
+    // renderToString is not reentrant). Islands nested in an island render as plain components.
+    const pending: { record: Omit<IslandRecord, 'html'>; component: ComponentType<any> }[] = []
+    const marker = (id: string, component: ComponentType<any>, raw: Record<string, unknown>): ReactElement => {
+      const { props, hydrate } = islandProps(id, raw)
+      const key = `i${pending.length}`
+      pending.push({ record: { key, id, props, hydrate }, component })
+      return createElement('div', { 'data-puck-island': key, 'data-nonce': ctxInput.nonce })
+    }
     renderState.nonce = ctxInput.nonce
+    renderState.island = marker
     try {
       const Block = () => def.render(props, data, ctx)
       const html = renderToString(createElement(Fragment, null, createElement(Block)))
-      const out: RenderOutput = { html, effects }
+      renderState.island = null
+      const islands: IslandRecord[] = pending.map(({ record, component }) => ({
+        ...record,
+        html: renderToString(createElement(component, record.props)),
+      }))
+      const out: RenderOutput = { html, effects, islands }
       return JSON.stringify(out)
     } finally {
       renderState.nonce = null
+      renderState.island = null
     }
   }
 

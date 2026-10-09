@@ -1,12 +1,12 @@
 ---
 title: Overview
-description: "@puck-remote/cli: build a theme into a versioned artifact, publish it, roll it back."
+description: "@puck-remote/cli: build a theme (code and pages) into an artifact, publish it, pull editor changes, roll back."
 icon: Terminal
 ---
 
-Theme developers use the CLI; the host never builds theme code. `build` turns a theme folder into
-an artifact; `publish` uploads it as the next version and activates it; `activate` moves the
-active version (rollback).
+Theme developers use the CLI; the host never builds theme code. `build` turns a theme folder
+(blocks and pages) into an artifact; `publish` stores it and makes it current; `pull` brings pages
+edited in the editor back into the theme; `activate` moves the current artifact (rollback).
 
 ```npm
 npm install -D @puck-remote/cli
@@ -14,16 +14,18 @@ npm install -D @puck-remote/cli
 
 ```mermaid
 graph LR
-  T[Theme folder] -->|puck-remote build| D[dist: manifest.json, bundle.js, assets]
-  D -->|puck-remote publish| S[(Artifact store: vN + current.json)]
-  S -->|puck-remote activate N| S
+  T[Theme folder] -->|puck-remote build| D[dist: manifest, bundles, assets, pages]
+  D -->|puck-remote publish| S[(Artifact store: artifacts + current.json)]
+  S -->|puck-remote pull| T
+  S -->|puck-remote activate id| S
 ```
 
 ```json title="package.json"
 {
   "scripts": {
     "build": "puck-remote build",
-    "release": "puck-remote build && puck-remote publish --artifacts ../my-app/artifacts"
+    "release": "puck-remote build && puck-remote publish --artifacts ../my-app/artifacts",
+    "pull": "puck-remote pull --artifacts ../my-app/artifacts"
   }
 }
 ```

@@ -1,44 +1,32 @@
 ---
 title: HTTP API
-description: Every endpoint under routes.api and routes.theme.
+description: The theme route served by the core.
 ---
 
-All API routes answer only on **editor origins** (404 elsewhere), require the listed action, and
-respond with `cache-control: private, no-store`. Mutations (non-GET/HEAD/OPTIONS) also need the
-CSRF checks. POST bodies are capped at 2 MB ([D-0088](/docs/internal/decisions#D-0088)).
+The core answers one route, `routes.theme` (default `/cdn`). Everything else (admin pages, RPCs,
+publishing) is your app's, so it uses your app's own session ([D-0187](/docs/internal/decisions#D-0187)).
 
-| Method & path | Action | Body | Response |
-|---|---|---|---|
-| `GET /api/pages?slug=` | `page:read-draft` | — | Page JSON, `400` invalid slug, `404` |
-| `POST /api/pages` | `page:write` | `{ slug, data }` | `{ ok, slug, blocks }`; `__data` stripped, `__missing` restored; `400` invalid page |
-| `POST /api/blocks/resolve` | `page:read-draft` | `{ blockType, props, slug? }` | `{ data, usesRequestParams }`; draft mode; spec always from the manifest |
-| `POST /api/blocks/render` | `page:read-draft` | `{ slug, items: [{ key, kind, name, props, data }] }` (≤ 100 items) | `{ results: { [key]: { ok, html, nonce, effects } \| { ok: false, error } } }` |
-| `POST /api/artifact/reload` | `artifact:activate` | — | `{ ok, version, changed }` or `500 { ok: false, error }` |
-| `GET\|HEAD /theme/v<N>/assets/**` | — | — | The file if listed in the manifest and hash-valid; `immutable`; otherwise `404` |
+## Theme route
 
-Other paths → `404`; other methods → `405` with `Allow`.
-
-## Errors
-
-| Status | Meaning |
+| Method & path | Response |
 |---|---|
-| `400` | Invalid body or slug |
-| `401` | No principal (`authentication required`) |
-| `403` | Not authorized, missing `x-puck-remote: 1`, foreign `Origin`, or cross-site `Sec-Fetch-Site` |
-| `404` | Unknown route, wrong origin, unknown block (resolve) |
-| `405` | Wrong method |
+| `GET\|HEAD /cdn/assets/**?v=<v>` | The file whose manifest sha256 starts with `v`, from the current or an older artifact, hash-valid; `immutable` |
+| `GET\|HEAD /cdn/assets/**` (no or unknown `v`) | The current artifact's file; `no-cache` with an `etag`, `304` on `If-None-Match` |
+| `GET\|HEAD /cdn/bundle.browser.js?v=<v>` | The theme's browser bundle (ESM, for the editor), same rules |
+| `GET\|HEAD /cdn/bundle.islands.js?v=<v>` | The theme's islands bundle (ESM, loaded by public pages with islands), same rules |
 
-## CSRF
+Files that aren't in the manifest return `404`. So does the old layout with an artifact id in the
+path ([D-0270](/docs/internal/decisions#D-0270)).
 
-A mutation must send `x-puck-remote: 1`. If the browser sends `Origin`, it must equal the request's
-own origin or be in `allowedOrigins` (editor origins included). Without `Origin`, `Sec-Fetch-Site`
-must be `same-origin` or `none` when present ([D-0057](/docs/internal/decisions#D-0057)). Non-browser clients
-send the header and authenticate with a bearer token.
+`bundle.js`, `manifest.json` and `pages/**` are never served (`404`). Other methods get `405`.
+With `origins` configured, served files carry `access-control-allow-origin: <editor origin>` and
+`cross-origin-resource-policy: cross-origin`, so the editor can import the bundle and show assets
+in its canvas.
 
-## Why `/blocks/resolve` ignores client-sent specs
+## Calls from your admin page
 
-The body schema is a non-strict object: anything besides `blockType`, `props` and `slug` (a spec,
-data, query, mode…) is silently dropped. The query spec always comes from the server-side
-manifest, and the mode is always `draft` (test 11).
-
-Deep dive: [auth and CSRF](/docs/internal/architecture/auth-and-csrf).
+There is no RPC route in puck-remote ([D-0239](/docs/internal/decisions#D-0239)). The editor only reaches
+the functions your admin page puts in `<PuckEditorFrame rpc={…}>`; how they reach your server is
+your choice (server actions, your own routes…). On the server, call `core.resolveBlockData` for
+block data and `core.writePage` to save, after checking your session. See
+[Editor protocol](/docs/internal/architecture/editor-protocol).

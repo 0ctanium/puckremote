@@ -5,11 +5,13 @@ import { cspNonce, DEFAULT_SECURITY, securityHeaders } from '../src/server/surfa
 
 describe('securityHeaders', () => {
   const nonce = cspNonce()
-  it('editor: enforced strict CSP, no framing', () => {
-    const h = securityHeaders('editor', { nonce })
+  it('admin: enforced strict CSP, never framed, frames only the editor origin', () => {
+    const h = securityHeaders('admin', { nonce, editorOrigin: 'https://editor.example.net' })
     const csp = h['content-security-policy']
     expect(csp).toContain(`script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`)
     expect(csp).toContain("frame-ancestors 'none'")
+    expect(csp).toContain('frame-src https://editor.example.net;')
+    expect(securityHeaders('admin', { nonce })['content-security-policy']).toContain("frame-src 'none'")
     expect(csp).toContain("connect-src 'self'")
     expect(csp).toContain("object-src 'none'")
     expect(csp).not.toContain('unsafe-eval')
@@ -23,11 +25,23 @@ describe('securityHeaders', () => {
     expect(csp).toContain(`'nonce-${nonce}'`)
     expect(csp).toContain('https://cdn.example.test')
     expect(csp).toContain("frame-ancestors 'none'")
-    const enforced = securityHeaders('site', { nonce, policy: { ...DEFAULT_SECURITY, csp: { editor: 'enforce', site: 'enforce' } } })
+    const enforced = securityHeaders('site', { nonce, policy: { ...DEFAULT_SECURITY, csp: { admin: 'enforce', site: 'enforce', editor: 'enforce' } } })
     expect(enforced['content-security-policy']).toBeDefined()
   })
+  it('editor: enforced, framed by host origins only, nonce scripts plus the host theme route, no referrer', () => {
+    const h = securityHeaders('editor', { nonce, hostOrigins: ['https://admin.example.com'] })
+    const csp = h['content-security-policy']
+    expect(csp).toContain(`script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://admin.example.com`)
+    expect(csp).toContain('frame-ancestors https://admin.example.com')
+    expect(csp).toContain("connect-src 'self'")
+    expect(csp).toContain("form-action 'none'")
+    expect(csp).not.toContain('unsafe-eval')
+    expect(h['referrer-policy']).toBe('no-referrer')
+    expect(h['x-frame-options']).toBeUndefined()
+    expect(securityHeaders('editor', { nonce })['content-security-policy']).toContain("frame-ancestors 'none'")
+  })
   it('dev relaxes only what dev servers need', () => {
-    const csp = securityHeaders('editor', { nonce, dev: true })['content-security-policy']
+    const csp = securityHeaders('admin', { nonce, dev: true })['content-security-policy']
     expect(csp).toContain("'unsafe-eval'")
     expect(csp).toContain('ws:')
   })

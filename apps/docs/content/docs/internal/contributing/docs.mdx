@@ -42,7 +42,7 @@ apps/docs/content/docs
 | Root | URL | Audience |
 |---|---|---|
 | Framework (`(framework)`, a folder group) | `/docs` | Developers installing and using puck-remote; includes `@puck-remote/next` |
-| Core | `/docs/core` | Engine API and the **Adapters** section (artifacts, pages, data, cache, auth, renderer) |
+| Core | `/docs/core` | Engine API and the **Adapters** section (artifacts, data, renderer) |
 | CLI | `/docs/cli` | Theme developers building and publishing |
 | SDK | `/docs/sdk` | Theme developers writing blocks; adapter authors (`/host`) |
 | Internal | `/docs/internal` | People working on puck-remote: architecture, quality, contributing, decisions |
@@ -87,16 +87,20 @@ MDX setup: global remark plugins in `apps/docs/source.config.ts`, components in
 | `packages/core/src/server/config.ts` | Framework › Configuration |
 | `packages/core/src/core.ts` | Core › Overview; Framework › HTTP API |
 | `packages/core/src/edge.ts`, `index.ts` exports | Core › Entry points |
-| `packages/core/src/server/surface.ts`, `auth.ts` | Framework › Surfaces, Security headers; Core › Adapters › Auth; Internal › Auth and CSRF |
+| `packages/core/src/server/surface.ts` | Framework › Origins, Security headers |
 | `packages/core/src/server/runtime/*` | Core › Adapters › Renderer; Internal › Isolate runtime, Worker pool, Worker protocol |
 | `packages/core/src/server/query/*` | Framework › Declarative data; Internal › Query resolver, Host source, HTTP source |
-| `packages/core/src/server/artifact-loader.ts`, `static-files.ts` | Framework › Artifacts; Internal › Artifact loader |
-| `packages/core/src/server/public-render.ts`, `page-tree.ts`, `puck-rsc.tsx` | Internal › Public request, Missing blocks |
-| `packages/core/src/editor/*` | Framework › The editor; Internal › Editor lifecycle |
+| `packages/core/src/server/artifact-loader.ts`, `static-files.ts`, `pages.ts` | Framework › Artifacts, Pages and publishing; Internal › Artifact loader |
+| `packages/core/src/server/editor-rpc.ts` | Core › Overview; Internal › Editor lifecycle |
+| `packages/core/src/server/static-files.ts`, `packages/core/src/shared/urls.ts` | Concepts › Artifacts (Serving files), HTTP API, Internal › Artifact loader (Theme file URLs) |
+| `packages/core/src/server/public-render.ts`, `page-tree.ts`, `puck-rsc.tsx` | Internal › Public request, Missing blocks, Islands |
+| `packages/core/src/react/ThemeIsland.tsx`, `packages/sdk/src/browser.ts`, island parts of `packages/sdk/src/{index,runtime}.ts` and `packages/cli/src/build.ts` | Internal › Islands; Guides › Interactive components |
+| `packages/editor/src/*` | Framework › The editor, Origins; Internal › Editor lifecycle, Editor protocol |
+| `packages/editor/src/react.tsx` | Framework › Customizing the editor, The editor; Internal › Editor lifecycle |
 | `packages/core/src/testing` | Core › Adapters › Contract tests |
 | `packages/next/src` | Framework › Next.js setup, API reference |
-| `packages/artifacts-fs`, `pages-fs`, `source-mock` | Core › Adapters › Artifact store, Page store, Data source |
-| `apps/host` | Framework › Next.js setup, Environment |
+| `packages/artifacts-fs`, `source-mock` | Core › Adapters › Artifact store, Data source |
+| `examples/app` (incl. `src/auth.ts`, the demo login) | Framework › Next.js setup, Environment (example app, login), Quick start; Internal › Threat model |
 | tests | Internal › Testing |
 
 ## Writing rules

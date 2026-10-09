@@ -1,34 +1,16 @@
 /**
- * Surfaces and origins. One app can answer several hostnames; each request belongs to a surface:
+ * Surfaces and origins. A host app answers two kinds of pages:
  *
- *   site    public pages                  → only on `origins.site`
- *   editor  the editor UI                 → only on `origins.editor`
- *   api     editor API (drafts, saves…)   → only on `origins.editor`
- *   theme   theme assets (CSS, scripts…)  → on both (the editor canvas loads theme CSS)
+ *   site    public pages (theme scripts run here)
+ *   admin   the host's own pages that embed the editor iframe and hold the session (origins.host)
+ *   editor  the app's editor page (<PuckRemoteEditor>), on origins.editor, credential-free
  *
- * Keeping the editor on its own origin is what stops theme scripts running on the public site
- * from using an admin's session. Proxy-safe: no isolate imports.
+ * The editor itself is a separate static app on its own origin (see config `origins`). Keeping
+ * the admin and the editor on different origins is what stops theme code running in the editor
+ * from using the admin's session. Proxy-safe: no isolate imports.
  */
-import type { Routes } from './config.ts'
 
-export type Surface = 'site' | 'editor' | 'api' | 'theme'
-
-export interface OriginsConfig {
-  site: string[]
-  editor: string[]
-}
-
-const under = (pathname: string, prefix: string) => {
-  const p = prefix.replace(/\/+$/, '')
-  return pathname === p || pathname.startsWith(p + '/')
-}
-
-export function surfaceOf(pathname: string, routes: Routes): Surface {
-  if (under(pathname, routes.api)) return 'api'
-  if (under(pathname, routes.theme)) return 'theme'
-  if (under(pathname, routes.editor)) return 'editor'
-  return 'site'
-}
+export type Surface = 'site' | 'admin' | 'editor'
 
 /**
  * The origin the client actually addressed. Frameworks don't always put it in request.url (Next
@@ -54,28 +36,6 @@ export function normalizeOrigin(origin: string): string {
   return new URL(origin).origin
 }
 
-export function classifyRequest(
-  request: Request,
-  config: { routes: Routes; origins: OriginsConfig | null },
-): { surface: Surface; origin: string; allowed: boolean } {
-  const surface = surfaceOf(new URL(request.url).pathname, config.routes)
-  const origin = requestOrigin(request)
-  if (!config.origins) return { surface, origin, allowed: true } // single-origin mode (development)
-  const { site, editor } = config.origins
-  const allowed =
-    surface === 'site' ? site.includes(origin) : surface === 'theme' ? site.includes(origin) || editor.includes(origin) : editor.includes(origin)
-  return { surface, origin, allowed }
-}
-
-/** A request reached a surface its origin doesn't serve. Bindings should answer 404. */
-export class WrongSurfaceError extends Error {
-  readonly status = 404
-  constructor(surface: Surface, origin: string) {
-    super(`${surface} is not served on ${origin}`)
-    this.name = 'WrongSurfaceError'
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Security headers
 // ---------------------------------------------------------------------------
@@ -83,7 +43,7 @@ export class WrongSurfaceError extends Error {
 export type CspMode = 'enforce' | 'report-only' | false
 
 export interface SecurityPolicy {
-  csp: { editor: CspMode; site: CspMode }
+  csp: { admin: CspMode; site: CspMode; editor: CspMode }
   /** https origins theme scripts may load from on the public site (besides the theme's own assets). */
   scriptOrigins: string[]
   /** https origins theme stylesheets may load from (besides the theme's own assets). */
@@ -97,7 +57,7 @@ export interface SecurityPolicy {
 }
 
 export const DEFAULT_SECURITY: SecurityPolicy = {
-  csp: { editor: 'enforce', site: 'report-only' },
+  csp: { admin: 'enforce', site: 'report-only', editor: 'enforce' },
   scriptOrigins: [],
   styleOrigins: [],
   connectSrc: ['https:'],
@@ -120,15 +80,39 @@ const directives = (d: Record<string, string[]>) =>
 /**
  * Response headers for a surface. `nonce` must also reach the framework (Next reads it from the
  * request's CSP header) and the theme <script> tags. `dev` relaxes what dev servers need.
+ * `editorOrigin` is the only frame an admin page may embed; `hostOrigins` are the only pages that
+ * may embed the editor.
  */
-export function securityHeaders(surface: Surface, opts: { nonce: string; dev?: boolean; policy?: SecurityPolicy }): Record<string, string> {
+export function securityHeaders(surface: Surface, opts: { nonce: string; dev?: boolean; policy?: SecurityPolicy; editorOrigin?: string; hostOrigins?: string[] }): Record<string, string> {
   const policy = opts.policy ?? DEFAULT_SECURITY
   const n = `'nonce-${opts.nonce}'`
   const devEval = opts.dev ? ["'unsafe-eval'"] : []
   const headers: Record<string, string> = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin' }
   if (surface === 'editor') {
-    Object.assign(headers, { 'x-frame-options': 'DENY', 'cross-origin-opener-policy': 'same-origin' })
+    // Credential-free and framed by host pages only. The theme's browser bundle and assets come
+    // from the host origin's theme route.
+    const hosts = opts.hostOrigins ?? []
+    Object.assign(headers, { 'referrer-policy': 'no-referrer', 'cross-origin-opener-policy': 'same-origin' })
     if (policy.csp.editor) {
+      const csp = directives({
+        'default-src': ["'self'"],
+        'script-src': ["'self'", n, "'strict-dynamic'", ...hosts, ...devEval],
+        'style-src': ["'self'", "'unsafe-inline'", ...hosts],
+        'img-src': ['*', 'data:', 'blob:'],
+        'font-src': ["'self'", 'data:', ...hosts],
+        'connect-src': ["'self'", ...(opts.dev ? ['ws:'] : [])],
+        // Puck renders its canvas in a same-origin iframe.
+        'frame-src': ["'self'", 'blob:', 'data:'],
+        'object-src': ["'none'"],
+        'base-uri': ["'self'"],
+        'form-action': ["'none'"],
+        'frame-ancestors': hosts.length ? hosts : ["'none'"],
+      })
+      headers[policy.csp.editor === 'enforce' ? 'content-security-policy' : 'content-security-policy-report-only'] = csp
+    }
+  } else if (surface === 'admin') {
+    Object.assign(headers, { 'x-frame-options': 'DENY', 'cross-origin-opener-policy': 'same-origin' })
+    if (policy.csp.admin) {
       const csp = directives({
         'default-src': ["'self'"],
         'script-src': ["'self'", n, "'strict-dynamic'", ...devEval],
@@ -137,15 +121,15 @@ export function securityHeaders(surface: Surface, opts: { nonce: string; dev?: b
         'img-src': ["'self'", 'https:', 'data:', 'blob:'],
         'font-src': ["'self'", 'data:'],
         'connect-src': ["'self'", ...(opts.dev ? ['ws:'] : [])],
-        'frame-src': ["'self'", 'blob:', 'data:'],
+        'frame-src': opts.editorOrigin ? [opts.editorOrigin] : ["'none'"],
         'object-src': ["'none'"],
         'base-uri': ["'self'"],
         'form-action': ["'self'"],
         'frame-ancestors': ["'none'"],
       })
-      headers[policy.csp.editor === 'enforce' ? 'content-security-policy' : 'content-security-policy-report-only'] = csp
+      headers[policy.csp.admin === 'enforce' ? 'content-security-policy' : 'content-security-policy-report-only'] = csp
     }
-  } else if (surface === 'site') {
+  } else {
     if (policy.csp.site) {
       const csp = directives({
         'default-src': ["'self'"],

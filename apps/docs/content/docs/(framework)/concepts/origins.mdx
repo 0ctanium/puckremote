@@ -1,0 +1,45 @@
+---
+title: Origins
+description: Public site, admin pages and editor on separate origins, and what each side checks.
+---
+
+The browser's security boundary is the **origin**. Three kinds of pages are involved:
+
+| Who | Example | Runs | Holds |
+|---|---|---|---|
+| Public site | `https://www.example.com` | Theme client scripts | Nothing sensitive |
+| Admin pages (your app) | `https://admin.example.com` | `<PuckEditorFrame>` (page data, history, fields), your publish UI | The admin session |
+| Editor page (your `<PuckRemoteEditor>`) | `https://editor.example.net` | Puck's canvas, drawer and outline, with theme components | Nothing: no cookies, no secrets |
+
+Configure the last two in the core ([D-0238](/docs/internal/decisions#D-0238)):
+
+```ts title="puck-remote.config.ts"
+origins: { host: ['https://admin.example.com'], editor: 'https://editor.example.net' }
+```
+
+## Checks
+
+- The config is refused if the editor origin is also a host (admin) origin.
+- `<PuckEditorFrame>` only loads on an admin origin; `<PuckRemoteEditor>` only accepts `init` on the editor
+  origin, from an admin origin; both check `event.origin` **and** `event.source`, and always post
+  with an explicit target origin.
+- The editor answers with `frame-ancestors <admin origins>`; admin pages answer with
+  `frame-src <editor origin>` and `frame-ancestors 'none'`.
+- The Next bindings answer 404 for public pages on an admin origin (theme scripts never run next
+  to the admin session) and for admin pages elsewhere.
+- The theme route allows CORS for the editor origin only.
+- The Next proxy serves only the editor page on the editor origin, at `/`; every other path there is
+  404. On admin origins it serves your `/admin` pages at the root (`admin.example.com/x` →
+  `/admin/x`) and redirects old `/admin/x` links to `/x`. It hides both routes on every other
+  origin. One deployment can answer all three
+  origins.
+
+## Rules
+
+- Put the editor on a **different site** in production, not a subdomain of your app, so it can
+  never receive your cookies.
+- Keep admin cookies host-only on the admin hostname, never `Domain=.example.com`: the public site
+  runs theme scripts.
+- The request's origin comes from `X-Forwarded-Host`/`X-Forwarded-Proto`, then `Host`, because
+  Next builds `request.url` from its bound host ([D-0083](/docs/internal/decisions#D-0083)). Behind your own
+  reverse proxy, forward these headers.

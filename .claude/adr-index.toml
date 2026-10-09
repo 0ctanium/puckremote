@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 116
+next_decision = 369
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -87,6 +87,106 @@ description = "Fumadocs docs, decision log with provenance, agent skills, hooks/
 tags = [ "docs", "adr", "process", "agents", "enforcement" ]
 decisions = [ "D-0092", "D-0093", "D-0094", "D-0095", "D-0096", "D-0097", "D-0098", "D-0099", "D-0100", "D-0101", "D-0102", "D-0103", "D-0104", "D-0105", "D-0106", "D-0107", "D-0108", "D-0109", "D-0110", "D-0111", "D-0112", "D-0113", "D-0114", "D-0115" ]
 
+[adrs."feat/m3a-content-lifecycle"]
+file = "branches/feat/m3a-content-lifecycle.md"
+type = "feat"
+status = "active"
+created = "2026-10-08"
+title = "M3a: content lifecycle (drafts, publish, history, preview, migrations)"
+description = "M3a: content lifecycle (drafts, publish, history, preview, migrations)"
+tags = [ "pages", "editor", "migrations", "preview", "roadmap" ]
+decisions = [ "D-0116", "D-0117", "D-0118", "D-0119", "D-0120", "D-0121", "D-0122", "D-0123", "D-0124", "D-0125", "D-0126", "D-0127", "D-0128", "D-0129", "D-0130", "D-0131", "D-0132", "D-0133", "D-0134", "D-0135", "D-0136", "D-0137", "D-0138", "D-0139", "D-0140", "D-0141", "D-0142", "D-0143", "D-0144", "D-0145", "D-0146", "D-0147", "D-0148", "D-0149", "D-0150", "D-0151", "D-0152", "D-0153", "D-0154", "D-0155", "D-0156", "D-0157", "D-0158", "D-0159", "D-0160", "D-0161", "D-0162", "D-0163", "D-0164", "D-0165", "D-0166", "D-0167", "D-0168", "D-0169", "D-0170", "D-0171", "D-0172", "D-0173", "D-0174", "D-0175", "D-0176", "D-0177", "D-0178", "D-0179", "D-0180", "D-0181", "D-0182", "D-0183", "D-0184", "D-0185", "D-0186", "D-0187", "D-0188", "D-0189", "D-0190", "D-0191", "D-0192", "D-0193", "D-0194", "D-0195", "D-0196", "D-0197", "D-0198", "D-0199", "D-0200", "D-0201", "D-0202", "D-0203", "D-0204", "D-0205", "D-0206", "D-0207", "D-0208", "D-0209", "D-0210", "D-0211", "D-0212", "D-0213", "D-0214", "D-0215", "D-0216", "D-0217", "D-0218", "D-0219", "D-0220", "D-0221", "D-0222", "D-0223", "D-0224", "D-0225", "D-0226", "D-0227", "D-0228", "D-0229", "D-0230", "D-0231", "D-0232", "D-0233", "D-0234", "D-0235", "D-0236", "D-0237", "D-0238", "D-0239", "D-0240", "D-0241", "D-0242" ]
+
+[adrs."feat/islands"]
+file = "branches/feat/islands.md"
+type = "feat"
+status = "active"
+created = "2026-10-08"
+title = "Interactive theme components on public pages (islands)"
+description = "Interactive theme components on public pages (islands)"
+tags = [ "render", "islands", "sdk", "cli" ]
+decisions = [ "D-0243", "D-0244", "D-0245", "D-0246", "D-0247", "D-0248", "D-0249", "D-0250", "D-0251", "D-0252", "D-0253", "D-0254", "D-0255", "D-0256", "D-0257", "D-0258", "D-0259", "D-0260", "D-0261" ]
+
+[adrs."feat/cdn-urls"]
+file = "branches/feat/cdn-urls.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Shopify-like theme file URLs (/cdn/<path>?v=<hash>)"
+description = "Shopify-like theme file URLs (/cdn/<path>?v=<hash>)"
+tags = [ "assets", "routes", "caching" ]
+decisions = [ "D-0262", "D-0263", "D-0264", "D-0265", "D-0266", "D-0267", "D-0268", "D-0269", "D-0270", "D-0271", "D-0272" ]
+
+[adrs."chore/examples-layout"]
+file = "branches/chore/examples-layout.md"
+type = "chore"
+status = "active"
+created = "2026-10-09"
+title = "Example app, data and mock API under examples/app"
+description = "Example app, data and mock API under examples/app"
+tags = [ "examples", "layout" ]
+decisions = [ "D-0273", "D-0274", "D-0275", "D-0276", "D-0277", "D-0278", "D-0279", "D-0280", "D-0281" ]
+
+[adrs."feat/origin-routing"]
+file = "branches/feat/origin-routing.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Origin-based routing: editor at /, admin pages at the admin origin root"
+description = "Origin-based routing: editor at /, admin pages at the admin origin root"
+tags = [ "next", "origins", "routing" ]
+decisions = [ "D-0282", "D-0283", "D-0284", "D-0285", "D-0286", "D-0287", "D-0288", "D-0289", "D-0290" ]
+
+[adrs."feat/example-login"]
+file = "branches/feat/example-login.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Demo login for the example app's admin"
+description = "Demo login for the example app's admin"
+tags = [ "examples", "security", "auth" ]
+decisions = [ "D-0291", "D-0292", "D-0293", "D-0294", "D-0295", "D-0296", "D-0297", "D-0298", "D-0299", "D-0300", "D-0301" ]
+
+[adrs."feat/admin-index"]
+file = "branches/feat/admin-index.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Admin index page (dashboard) in the example app"
+description = "Admin index page (dashboard) in the example app"
+tags = [ "examples" ]
+decisions = [ "D-0302", "D-0303", "D-0304", "D-0305", "D-0306" ]
+
+[adrs."feat/admin-prefix-redirect"]
+file = "branches/feat/admin-prefix-redirect.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Redirect /admin/x to /x on admin origins"
+description = "Redirect /admin/x to /x on admin origins"
+tags = [ "next", "origins", "routing" ]
+decisions = [ "D-0307", "D-0308", "D-0309", "D-0310", "D-0311", "D-0312", "D-0313", "D-0314", "D-0315" ]
+
+[adrs."feat/typed-rpc"]
+file = "branches/feat/typed-rpc.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Strongly typed useEditor().rpc"
+description = "Strongly typed useEditor().rpc"
+tags = [ "editor", "rpc", "types" ]
+decisions = [ "D-0316", "D-0317", "D-0318", "D-0319", "D-0320", "D-0321", "D-0322", "D-0323", "D-0324" ]
+
+[adrs."feat/split-editor"]
+file = "branches/feat/split-editor.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Split editor: admin Puck holds the data, frame Puck syncs by actions"
+description = "Split editor: admin Puck holds the data, frame Puck syncs by actions"
+tags = [ "editor", "security", "protocol" ]
+decisions = [ "D-0325", "D-0326", "D-0327", "D-0328", "D-0329", "D-0330", "D-0331", "D-0332", "D-0333", "D-0334", "D-0335", "D-0336", "D-0337", "D-0338", "D-0339", "D-0340", "D-0341", "D-0342", "D-0343", "D-0344", "D-0345", "D-0346", "D-0347", "D-0348", "D-0349", "D-0350", "D-0351", "D-0352", "D-0353", "D-0354", "D-0355", "D-0356", "D-0357", "D-0358", "D-0359", "D-0360", "D-0361", "D-0362", "D-0363", "D-0364", "D-0365", "D-0366", "D-0367", "D-0368" ]
+
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
 adr = "feat/poc-sandboxed-blocks"
@@ -108,8 +208,9 @@ title = "render(props, data, ctx) is synchronous and pure, runs in isolated-vm, 
 adr = "feat/poc-sandboxed-blocks"
 date = "2026-10-07"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "isolate", "render" ]
+superseded_by = "D-0243"
 
 [decisions.D-0004]
 title = "Data is declarative: blocks declare queries, the host resolves them (parallel, deduped, budgeted); the isolate never does I/O"
@@ -398,16 +499,18 @@ title = "Page storage is a pluggable PageStore; concrete plugins are wired only 
 adr = "feat/pluggable-data-source"
 date = "2026-10-07"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "page-store", "adapters" ]
+superseded_by = "D-0188"
 
 [decisions.D-0040]
 title = "Example plugins as separate packages: source-mock (in-memory CMS) and pages-fs (JSON files)"
 adr = "feat/pluggable-data-source"
 date = "2026-10-07"
 provenance = "agent-unreviewed"
-status = "needs-review"
+status = "superseded"
 tags = [ "packaging", "adapters" ]
+superseded_by = "D-0188"
 
 [decisions.D-0041]
 title = "QuerySpec source renamed payload → host; sdkMajor bumped 0 → 1 (older artifacts rejected)"
@@ -422,8 +525,9 @@ title = "Draft results are never cached; the source change feed invalidates cach
 adr = "feat/pluggable-data-source"
 date = "2026-10-07"
 provenance = "agent-unreviewed"
-status = "needs-review"
+status = "superseded"
 tags = [ "cache", "data-source" ]
+superseded_by = "D-0187"
 
 [decisions.D-0043]
 title = "Keep @sdk separate and thin (bundled into themes); the engine is a separate package"
@@ -454,8 +558,9 @@ title = "Theme files served at /theme/v<N>/assets/** (and bundle at /theme/v<N>/
 adr = "chore/package-split"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "routes", "assets" ]
+superseded_by = "D-0262"
 
 [decisions.D-0047]
 title = "createCore memoized on globalThis by config.id so all route bundles share one runtime"
@@ -534,32 +639,36 @@ title = "AuthAdapter contract based on the standard Request (authenticate + auth
 adr = "feat/m1-foundations"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "auth" ]
+superseded_by = "D-0187"
 
 [decisions.D-0057]
 title = "CSRF: mutations need the x-puck-remote header and an own/allowlisted Origin (Sec-Fetch-Site honored)"
 adr = "feat/m1-foundations"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "csrf", "security" ]
+superseded_by = "D-0187"
 
 [decisions.D-0058]
 title = "Pluggable ArtifactStore; default fs adapter; change detection via store watch or polling"
 adr = "feat/m1-foundations"
 date = "2026-10-08"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "artifacts", "adapters" ]
+superseded_by = "D-0197"
 
 [decisions.D-0059]
 title = "Pluggable CacheStore; default in-memory (globalThis) implementation"
 adr = "feat/m1-foundations"
 date = "2026-10-08"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "cache", "adapters" ]
+superseded_by = "D-0187"
 
 [decisions.D-0060]
 title = "Packages built with tsdown (ESM + d.ts), peer dependencies, CI matrix (Linux x64/arm64, macOS arm64 × Node 24/26)"
@@ -598,8 +707,9 @@ title = "Built-in auth helpers: devAllowAll (throws in production) and sharedSec
 adr = "feat/m1-foundations"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "auth" ]
+superseded_by = "D-0187"
 
 [decisions.D-0065]
 title = "Artifact pointer polling default 2000 ms when the store has no change feed"
@@ -614,8 +724,9 @@ title = "memoryCache keeps at most 10 000 entries (oldest evicted); shared-cache
 adr = "feat/m1-foundations"
 date = "2026-10-08"
 provenance = "agent-unreviewed"
-status = "needs-review"
+status = "superseded"
 tags = [ "cache" ]
+superseded_by = "D-0187"
 
 [decisions.D-0067]
 title = "Adapter contract test suites exported from @puck-remote/core/testing"
@@ -630,24 +741,27 @@ title = "Content migrations: block version + migrations run in the isolate, item
 adr = "feat/m1-foundations"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "migrations", "roadmap" ]
+superseded_by = "D-0188"
 
 [decisions.D-0069]
 title = "Publishing workflow (drafts, publish, history, conflicts, preview links) lives in the PageStore contract (planned M3)"
 adr = "feat/m1-foundations"
 date = "2026-10-08"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "page-store", "roadmap" ]
+superseded_by = "D-0188"
 
 [decisions.D-0070]
 title = "Caching semantics (tags, invalidation events) in the core; bindings apply them (Next revalidateTag, CDN headers) (planned M3)"
 adr = "feat/m1-foundations"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "cache", "roadmap" ]
+superseded_by = "D-0149"
 
 [decisions.D-0071]
 title = "Richtext, inline editing and extensible, typed host fields are mandatory for V1 (planned M4)"
@@ -718,33 +832,37 @@ title = "Separate origin, not separate app: one app answers site and editor host
 adr = "feat/m2-isolation"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "origins", "security" ]
+superseded_by = "D-0204"
 
 [decisions.D-0080]
 title = "Editor renders blocks on the server (batched /blocks/render RPC); the theme bundle is never served to browsers"
 adr = "feat/m2-isolation"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "security" ]
 supersedes = [ "D-0015", "D-0023" ]
+superseded_by = "D-0192"
 
 [decisions.D-0081]
 title = "Production requires distinct site and editor origins (allowSharedOrigin opts out); wrong surface → 404"
 adr = "feat/m2-isolation"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "origins", "security" ]
+superseded_by = "D-0204"
 
 [decisions.D-0082]
 title = "CSP: editor enforced (nonce + strict-dynamic, no framing); site report-only by default; theme script/style origins allowlisted"
 adr = "feat/m2-isolation"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "csp", "security" ]
+superseded_by = "D-0204"
 
 [decisions.D-0083]
 title = "Request origin derived from X-Forwarded-Host/Proto then Host (Next builds request.url from its bound host)"
@@ -759,8 +877,9 @@ title = "Editor receives siteOrigin so \"View page\" opens the public origin"
 adr = "feat/m2-isolation"
 date = "2026-10-08"
 provenance = "agent-unreviewed"
-status = "needs-review"
+status = "superseded"
 tags = [ "editor" ]
+superseded_by = "D-0192"
 
 [decisions.D-0085]
 title = "Editor imports Puck no-external.css (default CSS loads a font from rsms.me, blocked by CSP)"
@@ -799,16 +918,18 @@ title = "Editor render RPC accepts data from the authorized editor (isolate trea
 adr = "feat/m2-isolation"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "api" ]
+superseded_by = "D-0192"
 
 [decisions.D-0090]
 title = "Dev hostnames: site on localhost/site.localhost, editor on editor.localhost (allowedDevOrigins *.localhost)"
 adr = "feat/m2-isolation"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "dx", "origins" ]
+superseded_by = "D-0201"
 
 [decisions.D-0091]
 title = "@puck-remote/core stays external in Next (serverExternalPackages) because it forks workers from its own files"
@@ -1011,6 +1132,2156 @@ date = "2026-10-08"
 provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "docs", "process" ]
+
+[decisions.D-0116]
+title = "Split M3 into M3a (lifecycle + migrations) and M3b (Payload adapters + artifact upload API), each with its own plan"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "roadmap", "process" ]
+
+[decisions.D-0117]
+title = "M3 branches start from main after the docs/ADR branch is merged"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0118]
+title = "Preview links are signed, expiring tokens; the draft revision renders with draft data"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "preview", "security" ]
+superseded_by = "D-0190"
+
+[decisions.D-0119]
+title = "Editor M3a scope: workflow basics (save draft, publish, status, conflict, history/restore, preview link), no autosave"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0120]
+title = "No legacy page-format reader; the repo's demo pages are converted directly"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "pages" ]
+superseded_by = "D-0188"
+
+[decisions.D-0121]
+title = "Commit slicing A–F (contract+fs, core API+auth, editor UI, preview, migrations, top-level docs); each commit updates its docs"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "process" ]
+superseded_by = "D-0186"
+
+[decisions.D-0122]
+title = "PageStore v2 contract: list, meta, getDraft, getPublished, getRevision, saveDraft, publish, unpublish, delete, history; opaque store-generated revisions; restore done by the core"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "pages", "contracts" ]
+superseded_by = "D-0188"
+
+[decisions.D-0123]
+title = "Optimistic concurrency: saveDraft needs the current draft as baseRevision (null = create), publish only accepts the current draft; conflicts are return values"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "pages" ]
+superseded_by = "D-0188"
+
+[decisions.D-0124]
+title = "Each page revision carries schemaVersion (core page format, starts at 1); higher versions are rejected; internal upgrade registry"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "pages" ]
+superseded_by = "D-0188"
+
+[decisions.D-0125]
+title = "Revision author is the authenticated Principal.id (optional)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "pages", "auth" ]
+superseded_by = "D-0187"
+
+[decisions.D-0126]
+title = "pages-fs v2 layout: <slug>/revisions/<n>.json (zero-padded counter = revision id) + <slug>/meta.json, temp+rename, revision before meta"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "pages" ]
+superseded_by = "D-0188"
+
+[decisions.D-0127]
+title = "pages-fs concurrency: in-process per-slug mutex; documented as single-instance only"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "pages" ]
+superseded_by = "D-0188"
+
+[decisions.D-0128]
+title = "pages-fs keeps maxRevisions (default 100); never prunes the current draft or published revision"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "pages" ]
+superseded_by = "D-0188"
+
+[decisions.D-0129]
+title = "Demo pages converted to the new layout, each published as revision 1"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "pages" ]
+superseded_by = "D-0188"
+
+[decisions.D-0130]
+title = "Page API routes: GET pages, POST pages/save|publish|unpublish|delete|restore|preview-link, GET pages/history|revision; 409 on conflicts"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "api", "pages" ]
+superseded_by = "D-0190"
+
+[decisions.D-0131]
+title = "New actions page:delete and page:preview"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "auth" ]
+superseded_by = "D-0187"
+
+[decisions.D-0132]
+title = "Every page route passes { slug } as the authorize resource"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "auth" ]
+superseded_by = "D-0187"
+
+[decisions.D-0133]
+title = "History limit default 20, max 100; invalid values are a 400"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "api" ]
+superseded_by = "D-0190"
+
+[decisions.D-0134]
+title = "Public render and pageCacheability read the published revision (none = 404); editor reads the draft; EditorProps gains page meta and previewEnabled"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "pages", "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0135]
+title = "Save pipeline: validate, restoreMissing, stripResolved, stamp __v, saveDraft"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "pages" ]
+superseded_by = "D-0190"
+
+[decisions.D-0136]
+title = "Editor header replaces Puck's Publish: Save draft, Publish (saves first), status badge, History panel with Restore, Copy preview link"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0137]
+title = "Conflict banner with Reload and Overwrite"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0138]
+title = "beforeunload prompt when there are unsaved changes"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0139]
+title = "Preview token: base64url(JSON{s,r,e}).base64url(HMAC-SHA256) via Web Crypto; config preview { secret, ttlSeconds } (default 24 h, max 30 days); off without config; production secret >= 32 bytes"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "preview", "security" ]
+superseded_by = "D-0190"
+
+[decisions.D-0140]
+title = "Preview delivery: ?puck_preview=<token> on the site origin; no-store + noindex; invalid = 404; param hidden from $query"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "preview" ]
+superseded_by = "D-0190"
+
+[decisions.D-0141]
+title = "PageContext.preview; Next loadPage reads puck_preview; proxy adds no-store/noindex when present; revocation = rotate secret"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "preview", "next" ]
+superseded_by = "D-0190"
+
+[decisions.D-0142]
+title = "defineBlock/defineRoot accept version (default 1) and migrations keyed N (N-1 -> N); every step required; items carry props.__v (missing = 1)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "migrations", "sdk" ]
+superseded_by = "D-0188"
+
+[decisions.D-0143]
+title = "New __migrate isolate entry point (slots detached and reattached by the host, output validated); sdkMajor bumped 1 -> 2"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "migrations", "runtime" ]
+superseded_by = "D-0188"
+
+[decisions.D-0144]
+title = "Migrations run on public render (not persisted) and in loadEditor; save stamps missing __v with the current version"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "migrations" ]
+superseded_by = "D-0188"
+
+[decisions.D-0145]
+title = "Migration failure fails only that block (public) or keeps unmigrated props with a warning (editor); newer __v renders unmigrated with a warning"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "migrations" ]
+superseded_by = "D-0188"
+
+[decisions.D-0146]
+title = "build --baseline <manifest> compares field shape (names, types, nested fields, option values) and fails on unbumped changes or version decrease; also build({ baseline })"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "migrations", "cli" ]
+superseded_by = "D-0188"
+
+[decisions.D-0147]
+title = "publish checks against the active artifact and refuses unless --force"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "migrations", "cli" ]
+superseded_by = "D-0188"
+
+[decisions.D-0148]
+title = "Example theme: quote v2 renames author to cite with a migration; demo data stays v1"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "migrations", "example" ]
+superseded_by = "D-0188"
+
+[decisions.D-0149]
+title = "Rendered-page/HTML caching postponed to post-V1; M3 keeps only the tagged query-result cache; what to cache is decided later from M5 load tests"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "cache", "roadmap" ]
+supersedes = [ "D-0070" ]
+superseded_by = "D-0187"
+
+[decisions.D-0150]
+title = "A conflicting write on a missing page returns meta: null (WriteResult conflict meta is PageMeta | null)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "pages", "contracts" ]
+superseded_by = "D-0188"
+
+[decisions.D-0151]
+title = "pages-fs revision ids are 8-digit zero-padded counters"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "pages" ]
+superseded_by = "D-0188"
+
+[decisions.D-0152]
+title = "pages-fs exports its options type as FsPageStoreOptions ({ dir, maxRevisions })"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "pages", "api" ]
+superseded_by = "D-0188"
+
+[decisions.D-0153]
+title = "API order: CSRF, authenticate (401), parse (400), authorize with { slug } (403), handler; blocks/resolve and blocks/render pass their slug too"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "auth", "api" ]
+superseded_by = "D-0187"
+
+[decisions.D-0154]
+title = "Newer page format: PageFormatError ('page <slug> uses page format <n>; this version of puck-remote reads up to <max>'), HTTP 500 in the editor API, propagated on public render"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "pages", "errors" ]
+superseded_by = "D-0188"
+
+[decisions.D-0155]
+title = "Invalid GET query strings on the API return 400 'invalid query'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "api", "errors" ]
+superseded_by = "D-0190"
+
+[decisions.D-0156]
+title = "unpublish of a missing page is 404; delete is idempotent (200 { ok: true })"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "api", "pages" ]
+superseded_by = "D-0190"
+
+[decisions.D-0157]
+title = "handleApi fails closed if a handler returns (other than 400) without authorizing"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "auth", "security" ]
+superseded_by = "D-0187"
+
+[decisions.D-0158]
+title = "A never-saved page shows the status 'Unsaved changes'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0159]
+title = "Restore with unsaved changes asks 'Discard your unsaved changes and restore this revision?'; the restored draft is loaded into the editor"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0160]
+title = "History is a dropdown panel with the 20 newest revisions (date, author, published/draft markers) and 'Load more'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0161]
+title = "Publish is disabled when nothing is unsaved and the draft is already published, and while a request runs"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0162]
+title = "History disables Restore on the row that is already the current draft"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0163]
+title = "Editor status messages: Saved/Published HH:MM:SS, Restored revision <id>, <Action> failed (<status>); empty history 'No revisions yet.'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0164]
+title = "History rows without an author show an em dash"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0165]
+title = "'Unsaved changes' compares editor data ignoring __data and readOnly keys"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0190"
+
+[decisions.D-0166]
+title = "Editor header overrides are a stable component fed by React context (Puck remounts overrides whose identity changes)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0167"
+
+[decisions.D-0167]
+title = "Editor header overrides are a stable component fed by React context (Puck remounts overrides whose identity changes); D-0166 was mislabeled as user-approved"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "superseded"
+tags = [ "editor" ]
+supersedes = [ "D-0166" ]
+superseded_by = "D-0190"
+
+[decisions.D-0168]
+title = "Copy preview link saves unsaved changes first, then links that revision"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor", "preview" ]
+superseded_by = "D-0190"
+
+[decisions.D-0169]
+title = "Preview link is copied to the clipboard with status 'Preview link copied (expires <date time>)'; without clipboard access it is shown in a prompt"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor", "preview" ]
+superseded_by = "D-0190"
+
+[decisions.D-0170]
+title = "preview config errors: 'preview.secret must be at least 32 bytes in production'; 'preview.ttlSeconds must be an integer between 60 and 2592000 (30 days)' (60 s minimum)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "preview", "config" ]
+superseded_by = "D-0190"
+
+[decisions.D-0171]
+title = "Demo app: random preview secret per process in development; production requires PUCK_REMOTE_PREVIEW_SECRET"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "preview", "example" ]
+superseded_by = "D-0184"
+
+[decisions.D-0172]
+title = "@puck-remote/core/edge exports PREVIEW_PARAM ('puck_preview'); PreparedPage.preview flag; preview config accepts null (off)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "preview", "api" ]
+superseded_by = "D-0190"
+
+[decisions.D-0173]
+title = "preview-link returns 404 when previews are off or the revision is missing (after auth); relative URL without origins; tokens over 2048 chars rejected"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "preview", "api" ]
+superseded_by = "D-0190"
+
+[decisions.D-0174]
+title = "Demo app: 'PUCK_REMOTE_PREVIEW_SECRET is required in production'; clipboard fallback prompt 'Preview link'; status 'Preview link failed (<status>)'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "preview", "example" ]
+superseded_by = "D-0190"
+
+[decisions.D-0175]
+title = "Preview responses end up 'no-store' (Next replaces the proxy's 'private, no-store' on dynamic pages); accepted and documented"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "preview", "next" ]
+superseded_by = "D-0185"
+
+[decisions.D-0176]
+title = "Migration functions take untyped Record<string, unknown> props and return a plain object; the host keeps id, reattaches slots, drops __ keys; one __migrate call per outdated item in the page session, before data resolution"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "migrations", "sdk" ]
+superseded_by = "D-0188"
+
+[decisions.D-0177]
+title = "Editor surfaces failed migrations via EditorProps.migrationErrors and the status 'Migration failed: <blocks>'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "migrations", "editor" ]
+superseded_by = "D-0188"
+
+[decisions.D-0178]
+title = "build({ baseline: path }); messages 'block \"x\": fields changed without a version bump (still vN); bump \"version\" and add a migration', 'block \"x\": version went down (a → b)'; publish adds '(compared with the active artifact vN; use --force to publish anyway)'; publish({ force })"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "migrations", "cli" ]
+superseded_by = "D-0188"
+
+[decisions.D-0179]
+title = "A failed public migration renders like a failed block render (empty, counted, logged as 'failed (migration)'); its data isn't fetched"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "migrations" ]
+superseded_by = "D-0188"
+
+[decisions.D-0180]
+title = "Build errors for versions/migrations: 'must be an integer >= 1', 'missing migration from version N-1 to N', 'unexpected key: migrations go from 2 to version (V)', 'must be an object of functions keyed by version'"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "migrations", "cli", "errors" ]
+superseded_by = "D-0188"
+
+[decisions.D-0181]
+title = "Migration runtime texts: '[migrate] <block>#<id> was saved with version N, newer than the theme's M; rendering it as is'; isolate and host error strings as implemented"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "migrations", "errors" ]
+superseded_by = "D-0188"
+
+[decisions.D-0182]
+title = "Content migrated on editor load is the unsaved-changes baseline (status unchanged until an edit); the next save persists it"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "migrations", "editor" ]
+superseded_by = "D-0188"
+
+[decisions.D-0183]
+title = "Migration tests: fixture theme test/fixtures/migrations and suite test/migrations.test.ts; theme-switching artifact tests publish with force"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "migrations", "testing" ]
+superseded_by = "D-0188"
+
+[decisions.D-0184]
+title = "Demo app: production without PUCK_REMOTE_PREVIEW_SECRET leaves previews off (next build evaluates the config, so throwing broke builds); development keeps a random per-process secret"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "preview", "example" ]
+supersedes = [ "D-0171" ]
+superseded_by = "D-0190"
+
+[decisions.D-0185]
+title = "Correction: preview responses keep 'private, no-store' in production; only next dev rewrites it to 'no-store' (D-0175 described dev behavior)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "superseded"
+tags = [ "preview", "next" ]
+supersedes = [ "D-0175" ]
+superseded_by = "D-0190"
+
+[decisions.D-0186]
+title = "Simplification is done on top of M3a (same branch and ADR); commit slicing A (contracts+store), B (CLI), C (protocol+frame+bridge), D (apps), E (docs+ADR)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "process", "roadmap" ]
+supersedes = [ "D-0121" ]
+superseded_by = "D-0220"
+
+[decisions.D-0187]
+title = "Core scope: artifact loading, isolate SSR, Puck editor integration and declarative data queries; query cache, auth/CSRF and surface routing leave core"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "roadmap", "security", "data" ]
+supersedes = [ "D-0056", "D-0057", "D-0059", "D-0064", "D-0066", "D-0042", "D-0149", "D-0153", "D-0157", "D-0125", "D-0131", "D-0132" ]
+
+[decisions.D-0188]
+title = "Shopify-like themes: page JSON lives in the artifact; the page store and artifact store are merged; no content migrations"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "data", "roadmap" ]
+supersedes = [ "D-0039", "D-0040", "D-0069", "D-0068", "D-0120", "D-0122", "D-0123", "D-0124", "D-0126", "D-0127", "D-0128", "D-0129", "D-0150", "D-0151", "D-0152", "D-0154", "D-0142", "D-0143", "D-0144", "D-0145", "D-0146", "D-0147", "D-0148", "D-0176", "D-0177", "D-0178", "D-0179", "D-0180", "D-0181", "D-0182", "D-0183" ]
+
+[decisions.D-0189]
+title = "Core treats an artifact id as an opaque string; the ArtifactStore decides what it means (artifacts-fs: content hash of code + pages)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "data" ]
+
+[decisions.D-0190]
+title = "Save, publish, drafts and revisions are plugins, not core; core only reads and writes pages"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "data", "editor" ]
+supersedes = [ "D-0118", "D-0119", "D-0130", "D-0133", "D-0134", "D-0135", "D-0136", "D-0137", "D-0138", "D-0139", "D-0140", "D-0141", "D-0155", "D-0156", "D-0158", "D-0159", "D-0160", "D-0161", "D-0162", "D-0163", "D-0164", "D-0165", "D-0167", "D-0168", "D-0169", "D-0170", "D-0172", "D-0173", "D-0174", "D-0184", "D-0185" ]
+
+[decisions.D-0191]
+title = "Public site keeps isolate SSR (worker pool unchanged)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "security" ]
+
+[decisions.D-0192]
+title = "Editor is a static, credential-free app on its own site running full Puck; the host passes theme content (pages, manifest, bundle and asset URLs) by postMessage and the iframe rebuilds the Puck config; theme components run as client components in the editor"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor", "security" ]
+supersedes = [ "D-0080", "D-0089", "D-0084" ]
+superseded_by = "D-0325"
+
+[decisions.D-0193]
+title = "Host embed <PuckEditorFrame>: editorUrl/editorOrigin, initial data, JSON-only options, allow-listed RPC handlers, onChange/onDraft; publish lives in host UI; checks e.origin and e.source; explicit targetOrigin"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor", "security" ]
+superseded_by = "D-0209"
+
+[decisions.D-0194]
+title = "Typed, versioned postMessage protocol (ready, init, change, rpc, rpc:result, error); RPC for resolveData, fetchList, media pickers, uploads; page id from host state; no generic fetch; size and rate limits"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor", "security" ]
+superseded_by = "D-0329"
+
+[decisions.D-0195]
+title = "Editor responds frame-ancestors <host origin>; host page frame-src <editor origin>; server validates and sanitizes page data on write"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "security", "editor" ]
+
+[decisions.D-0196]
+title = "artifacts-fs id = sha256 over sorted '<path>\\0<sha256(file)>\\n' lines of every file (full hex); core keeps verifying code files against manifest.files; pages are not in manifest.files"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "data" ]
+superseded_by = "D-0206"
+
+[decisions.D-0197]
+title = "ArtifactStore: readPointer(): string|null, writePointer(id), list(), readFile(id, path), writeArtifact(files) -> id (store-generated), optional watch; core checks ids match [A-Za-z0-9._-]{1,128}; fs layout <dir>/<id>/ + current.json {id}; identical content returns the existing id; theme URLs /theme/<id>/"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "data" ]
+supersedes = [ "D-0058" ]
+
+[decisions.D-0198]
+title = "Core page API: readPage(slug, { artifact? }) and writePage(slug, data, { base }) -> { id }; writePage copies the base artifact, replaces pages/<slug>.json (validated, cleaned) and never moves the pointer; the demo app ships a 'save = write + go live' plugin"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "data", "editor" ]
+
+[decisions.D-0199]
+title = "Theme source pages in <theme>/pages/<slug>.json copied into the artifact by build (unknown block = build error); new 'puck-remote pull' downloads the current artifact's pages; publish uploads code + pages as in the repo; demo pages move to examples/theme/pages"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "data", "cli" ]
+
+[decisions.D-0200]
+title = "build also emits bundle.browser.js (ESM, react and @puck-remote/sdk external, provided by the editor via an import map); bundle.js unchanged; served from /theme/<id>/ with CORS for the editor origin"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "cli" ]
+superseded_by = "D-0229"
+
+[decisions.D-0201]
+title = "New @puck-remote/editor package (/protocol, /frame, /bridge) and apps/editor static SPA built with esbuild; dev editor http://127.0.0.1:3300, host http://localhost:3100"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "packaging" ]
+supersedes = [ "D-0090" ]
+superseded_by = "D-0221"
+
+[decisions.D-0202]
+title = "Core exports resolveBlockData(slug, block, props) (draft mode) for the resolveData RPC handler; apps write other handlers and wrap all with their own auth; Next createEditorRpcRoute(handlers) only dispatches and limits size"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "data" ]
+
+[decisions.D-0203]
+title = "Limits: RPC payload 1 MB (uploads 10 MB), 20 RPC/s per frame, change debounce 500 ms, page JSON 2 MB"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "security" ]
+
+[decisions.D-0204]
+title = "Keep a reduced origins { site, admin } check (admin pages with the editor frame and publish refuse site origins) and the public-page CSP; the old editor surface is dropped"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "security" ]
+supersedes = [ "D-0079", "D-0081", "D-0082" ]
+superseded_by = "D-0207"
+
+[decisions.D-0205]
+title = "Keep pageCacheability (pages using $query params -> no-store, D-0012); it is a correctness flag, not the query cache"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "data" ]
+
+[decisions.D-0206]
+title = "Pages are listed in manifest.files (pages/<slug>.json → sha256) and verified like every other file; writePage rewrites manifest.json; artifacts-fs id = sha256 over sorted '<path>\\0<sha256(file)>\\n' lines of every file"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "data" ]
+supersedes = [ "D-0196" ]
+
+[decisions.D-0207]
+title = "Core config origins { admin: string[], editor: string } (no site origin); core rejects an editor origin equal to an admin origin; PuckEditorFrame checks it runs on an admin origin and the bridge checks it runs on the editor origin; theme route answers CORS for the editor origin"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "security", "editor" ]
+supersedes = [ "D-0204" ]
+superseded_by = "D-0238"
+
+[decisions.D-0208]
+title = "core.editorPayload(slug, { artifact? }) returns { artifact, slug, manifest, data, bundleUrl, assetBase }; the host page passes it to <PuckEditorFrame> which sends it in init with the options"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0209]
+title = "No 'draft' message: <PuckEditorFrame> exposes onChange(data) only (every validated change); props editorUrl/editorOrigin, initial payload, JSON-only options, allow-listed RPC handlers; publish lives in host UI; checks e.origin and e.source; explicit targetOrigin"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+supersedes = [ "D-0193" ]
+superseded_by = "D-0327"
+
+[decisions.D-0210]
+title = "Editor protocol API names: PROTOCOL_VERSION, LIMITS, measure(), rateLimiter(), EditorOptions { permissions, locales, categories (replaces the theme's), flags, extra }; frame helpers frameProblem/hostMessageHandler; bridge startEditorBridge/initProblem; EditorPayload gains site"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "editor" ]
+
+[decisions.D-0211]
+title = "PuckEditorFrame renders the iframe only after its origin checks, with sandbox='allow-scripts allow-same-origin allow-forms allow-popups' and referrerPolicy no-referrer"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "editor", "security" ]
+
+[decisions.D-0212]
+title = "SDK exports SlotContext; <Slot> renders the editor-provided Puck slot when the context is set, the nonce marker otherwise"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "editor", "packaging" ]
+
+[decisions.D-0213]
+title = "Next bindings: loadPage 404s on admin origins, loadEditor 404s outside them; createEditorRpcRoute is a PuckRemote method checking Origin and request origin against origins.admin (404), 1 MB body (413), unknown method 404; loginUrl option removed"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "superseded"
+tags = [ "editor", "security" ]
+superseded_by = "D-0239"
+
+[decisions.D-0214]
+title = "Editor app: esbuild build.mjs, import map to generated vendor shims re-exporting modules the app puts on globalThis.__puckRemoteModules; serve.mjs with CSP (import map by hash) and frame-ancestors from PUCK_REMOTE_ADMIN_ORIGINS; HOST/PORT env"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "superseded"
+tags = [ "editor", "packaging" ]
+superseded_by = "D-0223"
+
+[decisions.D-0215]
+title = "Example app: admin page at /admin (admin.localhost:3100 in dev), RPC route /api/editor-rpc with resolveData and publish (save = write + go live, refuses a stale base); app-level isAdmin with PUCK_REMOTE_ADMIN_TOKEN; env PUCK_REMOTE_ADMIN_ORIGINS, PUCK_REMOTE_EDITOR_ORIGIN, PUCK_REMOTE_EDITOR_URL"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0240"
+
+[decisions.D-0216]
+title = "Core API details: readPage returns { artifact, data }; PageError, UnknownBlockError, MAX_PAGE_BYTES exported; artifacts-fs exports artifactHash; theme route sends CORP cross-origin with CORS when origins are set; security.csp.editor renamed security.csp.admin"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "data" ]
+
+[decisions.D-0217]
+title = "pull overwrites pulled page files and leaves other local files; page validation allows zones; the demo home page drops its old-banner item (unknown blocks now fail the build)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "cli" ]
+
+[decisions.D-0218]
+title = "Docs structure: concepts/surfaces-and-origins becomes concepts/origins; guides/publishing becomes 'Pages and publishing'; new guides/editor-app and internal/architecture/editor-protocol; page-store, cache, auth, migrations and auth-and-csrf pages removed"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "process" ]
+
+[decisions.D-0219]
+title = "Error and status wording as implemented (PageError, frame/bridge problems, RPC errors, build page errors, demo status messages)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "process" ]
+
+[decisions.D-0220]
+title = "Simplification is done on top of M3a (same branch and ADR) in two commits: the redirection, then the editor as a package; each carries its docs and ADR (the docs/ADR hook requires both per commit)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+supersedes = [ "D-0186" ]
+
+[decisions.D-0221]
+title = "@puck-remote/editor ships the built static editor (dist/static: index.html, app.js, app.css, vendor shims; React, react-dom and Puck bundled at package build); /frame and /bridge keep them as peers; apps/editor is removed"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "packaging" ]
+supersedes = [ "D-0201" ]
+superseded_by = "D-0228"
+
+[decisions.D-0222]
+title = "Admin origins are injected at runtime into index.html as a JSON data block (script type application/json, id puck-remote-editor-config) read by the bridge; CSP stays hash-only for the import map"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "security" ]
+superseded_by = "D-0228"
+
+[decisions.D-0223]
+title = "@puck-remote/editor/server: createEditorHandler({ adminOrigins, basePath? }) reads dist/static with fs (once, in memory); Request->Response; GET/HEAD; /, /index.html, /app.js, /app.css, /vendor/*.js, else 404; editor CSP with frame-ancestors, no-referrer, nosniff, COOP; no cookies; hashed asset URLs immutable, index no-store; throws on empty adminOrigins"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "packaging" ]
+supersedes = [ "D-0214" ]
+superseded_by = "D-0228"
+
+[decisions.D-0224]
+title = "Bin puck-remote-editor in @puck-remote/editor: --port (3300), --host (127.0.0.1), --admin-origins (comma list, env PUCK_REMOTE_ADMIN_ORIGINS fallback, required)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "cli" ]
+superseded_by = "D-0228"
+
+[decisions.D-0225]
+title = "Next.js: core routes.editor (default /editor) and remote.editor ({ GET, HEAD }) for app/editor/[[...path]]/route.ts; the proxy rewrites every path on origins.editor to <routes.editor><path> and answers 404 for <routes.editor>/** elsewhere; withPuckRemote externalizes @puck-remote/editor"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "security" ]
+superseded_by = "D-0228"
+
+[decisions.D-0226]
+title = "Example host serves the editor itself; dev editor origin http://127.0.0.1:3100 (same app, another site than admin.localhost:3100); launch.json loses its editor entry"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0227]
+title = "Editor server tests: page and config injection, CSP hash and frame-ancestors, no set-cookie, 404/405, traversal, empty admin origins; the Next proxy is verified in the browser"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0228]
+title = "The editor is a React component rendered by the app's own page; the prebuilt static editor, createEditorHandler, the puck-remote-editor bin and remote.editor are removed"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "packaging" ]
+supersedes = [ "D-0221", "D-0222", "D-0223", "D-0224", "D-0225" ]
+
+[decisions.D-0229]
+title = "bundle.browser.js reads its BROWSER_EXTERNALS (react, react/jsx-runtime, react-dom, react-dom/client, @puck-remote/sdk) from globalThis.__puckRemoteModules (esbuild plugin, named exports enumerated at build time); no import map, vendor shims or CSP hash; SDK_MAJOR stays 3"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "cli" ]
+supersedes = [ "D-0200" ]
+
+[decisions.D-0230]
+title = "<PuckRemoteEditor> in @puck-remote/editor/react registers the host app's React/SDK globals, runs the handshake and renders Puck; props allowedParents, overrides (merged over ours), plugins, ui, viewports, iframe, fields (host:* UIs), transformConfig, fallback, onError; config, data, onChange, onPublish and permissions stay protocol-controlled"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0333"
+
+[decisions.D-0231]
+title = "useEditor() hook: { rpc(method, params), payload, options } inside the editor tree; rpc is the protocol client, allow-listed by the host frame's rpc map"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor" ]
+
+[decisions.D-0232]
+title = "Next.js: remote.loadEditorPage() returns { allowedParents } and 404s off origins.editor; the app owns app/editor/[[...path]]/page.tsx; the proxy keeps the editor-origin rewrite and the elsewhere-404, and sets the editor security headers"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "security" ]
+superseded_by = "D-0239"
+
+[decisions.D-0233]
+title = "Editor CSP in core securityHeaders('editor'): nonce + strict-dynamic, admin origins in script/style/font-src, connect-src self (+ws: dev), frame-src self blob: data:, frame-ancestors admin origins, object-src none, base-uri self, form-action none, referrer no-referrer; security.csp.editor default enforce"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "security" ]
+
+[decisions.D-0234]
+title = "Docs and threat model note that the editor origin serves the app's public JS chunks and that server actions/routes reachable there run without the admin session; withPuckRemote no longer externalizes @puck-remote/editor"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "security" ]
+
+[decisions.D-0235]
+title = "Example app: app/editor/[[...path]]/page.tsx + EditorPage.tsx render <PuckRemoteEditor> with a header badge override using useEditor(); its route.ts is removed"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor" ]
+superseded_by = "D-0240"
+
+[decisions.D-0236]
+title = "@puck-remote/editor exports /protocol, /frame, /react (PuckRemoteEditor, useEditor, buildEditorConfig, host field factories); /bridge replaced; React, react-dom, Puck and the SDK are peers; no static build, bin or esbuild"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "packaging" ]
+
+[decisions.D-0237]
+title = "Tests: CLI checks the browser bundle has no bare imports and reads the globals; editor parity loads the theme through the globals; protocol tests stay; server tests removed; headers test covers the editor CSP"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0238]
+title = "origins.admin is renamed origins.host ({ host: string[], editor: string }); the editor protocol's payload schema follows; same checks as before"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "security" ]
+supersedes = [ "D-0207" ]
+
+[decisions.D-0239]
+title = "Next bindings use factories: createThemeHandler() and loadEditorPage(); createEditorRpcRoute is removed (apps call core.resolveBlockData from their own transport); loadPage 404s on host origins and loadEditor outside them"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "packaging" ]
+supersedes = [ "D-0213", "D-0232" ]
+
+[decisions.D-0240]
+title = "Example app: server actions (resolveData, publish) and a ClientEditor; no auth in the example (docs say real apps add their session check); host origin admin.localhost:3100; the editor page renders <PuckRemoteEditor> with a header badge override"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "superseded"
+tags = [ "editor" ]
+supersedes = [ "D-0215", "D-0235" ]
+superseded_by = "D-0301"
+
+[decisions.D-0241]
+title = "Generated .d.ts files accidentally committed in packages/editor/src are removed (no .gitignore change)"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0242]
+title = "Core builds with tsconfig.build.json (src only), so its tests' cross-package imports never make the declaration build write .d.ts files into other packages' sources"
+adr = "feat/m3a-content-lifecycle"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "packaging" ]
+
+[decisions.D-0243]
+title = "Theme client components are the exports of modules starting with \"use client\" (islands), detected by the CLI; SSR in the isolate, hydrated on public pages"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "render" ]
+supersedes = [ "D-0003" ]
+
+[decisions.D-0244]
+title = "Public pages load a separate islands-only bundle (bundle.islands.js); bundle.browser.js stays editor-only"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "cli" ]
+
+[decisions.D-0245]
+title = "Island hydration timing is configurable per island"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands" ]
+
+[decisions.D-0246]
+title = "Timing is a reserved use-site prop hydrate: load (default) | idle | visible, stripped before the component"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "sdk" ]
+
+[decisions.D-0247]
+title = "Island id is \"<theme-relative path>#<export>\"; only function exports become islands"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "cli" ]
+
+[decisions.D-0248]
+title = "Island props must be JSON (round-trip checked in the isolate), no children; 64 KB per island, 200 islands per page; violations fail the block"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "security" ]
+
+[decisions.D-0249]
+title = "SDK gains internal island() and hydrate typing; RenderOutput carries islands; SDK_MAJOR stays 3"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "sdk" ]
+
+[decisions.D-0250]
+title = "Core: RenderedBlock.islands, htmlToReact swaps nonce-checked island markers for a use-client ThemeIsland, PreparedPage.islandsUrl, bundle.islands.js public"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "render" ]
+
+[decisions.D-0251]
+title = "One shared helper registers __puckRemoteModules for the editor and for islands"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "editor" ]
+
+[decisions.D-0252]
+title = "No new site CSP directive for islands (same-origin bundle under self + strict-dynamic); verify enforced, ask if blocked"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "security" ]
+
+[decisions.D-0253]
+title = "Hydration mismatches between isolate and host React are left to React 19 recovery; documented as a known gap"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands" ]
+
+[decisions.D-0254]
+title = "Islands work happens on feat/islands from feat/m3a-content-lifecycle; owner uncommitted changes untouched except the counter example"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0255]
+title = "Example: Counter island in the Card with a start prop and one hydrate=\"visible\" use"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "examples" ]
+
+[decisions.D-0256]
+title = "Islands tests: CLI detection and bundle, core markers/records/limits/forged markers, parity, browser verification"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "islands", "testing" ]
+
+[decisions.D-0257]
+title = "registerSharedModules() lives in a new @puck-remote/sdk/browser subpath, used by the editor and islands"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "sdk", "packaging" ]
+
+[decisions.D-0258]
+title = "ThemeIsland ships as its own use-client entry, exported as @puck-remote/core/island (internal, used by PuckRemotePage)"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "packaging" ]
+
+[decisions.D-0259]
+title = "Island HTML is normalized on the server (html-react-parser htmlToDOM + dom-serializer 3.1.1 as a direct core dependency) before raw insertion"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "security" ]
+
+[decisions.D-0260]
+title = "no-dev-code guard: explicit BROWSER_ONLY allowlist (ThemeIsland.tsx) exempt from the dynamic-import and SDK rules, plus a runtime check that server rendering never loads islands"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "user"
+status = "accepted"
+tags = [ "islands", "security", "testing" ]
+
+[decisions.D-0261]
+title = "Shared-modules error now says \"is not provided by the page (registerSharedModules from @puck-remote/sdk/browser)\"; nav places the islands guide after Theme development and the internal page after Slot swap"
+adr = "feat/islands"
+date = "2026-10-08"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "islands", "docs" ]
+
+[decisions.D-0262]
+title = "Theme file URLs are <routes.theme>/<path>?v=<version> (no artifact id in the path) for assets/**, bundle.browser.js and bundle.islands.js; replaces the /theme/<id>/ layout of D-0197"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "assets", "routes" ]
+supersedes = [ "D-0046" ]
+
+[decisions.D-0263]
+title = "DEFAULT_ROUTES.theme is /cdn"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "routes", "config" ]
+
+[decisions.D-0264]
+title = "A v from an older artifact is served from that artifact (lookup by content hash)"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "assets", "caching" ]
+
+[decisions.D-0265]
+title = "v is the first 12 hex characters of the file sha256 from manifest.files; bytes still verified against the full hash"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets" ]
+
+[decisions.D-0266]
+title = "Lookup: current artifact first, then a per-process path+v index built lazily from artifacts.list(), refreshed on pointer change and at most once per 10 s on a miss"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets", "performance" ]
+
+[decisions.D-0267]
+title = "Matching v: immutable 1-year cache; no or unknown v: current file with no-cache + etag (304 on If-None-Match); missing file 404"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets", "caching" ]
+
+[decisions.D-0268]
+title = "Host passes assetVersions (assets/** path to v) in CtxInput; ctx.assetUrl appends ?v when known; the editor builds the same map from manifest.files"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets", "sdk" ]
+
+[decisions.D-0269]
+title = "themeFileUrl(route, path, sha256) replaces themeBase/themeAssetBase; effect URLs still checked by the assetBase prefix"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets" ]
+
+[decisions.D-0270]
+title = "No migration: old /<route>/<id>/ URLs answer 404"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "assets", "routes" ]
+
+[decisions.D-0271]
+title = "CDN URL tests: routes (current, older, missing/unknown v, 304, 404s, refresh throttle), rendering, editor payload, browser"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0272]
+title = "Internal names: ThemeFiles class, INDEX_REFRESH_MS, VERSION_LENGTH, a refreshes counter for tests; SDK CtxInput.assetVersions optional so themes built with an older SDK still render (unversioned URLs)"
+adr = "feat/cdn-urls"
+date = "2026-10-09"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "assets" ]
+
+[decisions.D-0273]
+title = "Layout: apps/host → examples/app; data/cms.json → examples/app/data/cms.json; artifacts/ → examples/app/data/artifacts/; mock/api-server → examples/app/mock/api-server"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples", "layout" ]
+
+[decisions.D-0274]
+title = "The owner's staged apps/host restructure (route groups) is committed with the move as-is; the artifacts-fs change stays out"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0275]
+title = "Package names host and mock-api stay"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0276]
+title = "pnpm-workspace: mock/* replaced by examples/app/mock/*; mock-api stays its own package"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0277]
+title = "PUCK_REMOTE_ROOT keeps its name; default is the app dir (cwd); data at <root>/data/artifacts and <root>/data/cms.json"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples", "config" ]
+
+[decisions.D-0278]
+title = "Example theme scripts publish/release/pull use --artifacts ../app/data/artifacts"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0279]
+title = "git mv tracked files; .gitignore examples/app/data/artifacts/* (+ .gitkeep); local artifacts moved with mv; empty old folders removed"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0280]
+title = "Code and test references updated: core tests, no-dev-code app roots, bench, check-docs-adr code roots, local launch.json"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples", "testing" ]
+
+[decisions.D-0281]
+title = "Docs and CLAUDE.md/README updated to the new paths; generic adapter snippets unchanged"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0282]
+title = "Editor origin: only / serves the editor page (rewrite to routes.editor); every other path, /editor included, is 404; /_next/* passes through"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "next", "origins" ]
+
+[decisions.D-0283]
+title = "Host (admin) origins: every path is rewritten under the admin route; that route is 404 on other origins"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user"
+status = "superseded"
+tags = [ "next", "origins" ]
+superseded_by = "D-0307"
+
+[decisions.D-0284]
+title = "New routes.admin (default '/admin'); the rewrite is always on when origins are set"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "config", "routing" ]
+
+[decisions.D-0285]
+title = "On host origins routes.theme and /_next/* are never rewritten"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next", "origins" ]
+
+[decisions.D-0286]
+title = "Proxy 404s are plain-text Not found with cache-control no-store and the surface security headers"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next" ]
+
+[decisions.D-0287]
+title = "Editor-origin 404s carry the editor CSP headers"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next", "security" ]
+
+[decisions.D-0288]
+title = "Example app: no code change (EDITOR_URL already the editor root); CLAUDE.md, README and quick-start URLs updated; owner admin layout bug left untouched"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0289]
+title = "Proxy tests in packages/next/test/proxy.test.ts with vitest 5.0.3 as a dev dependency of @puck-remote/next; browser check"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0290]
+title = "Origin routing on feat/origin-routing from chore/examples-layout"
+adr = "feat/origin-routing"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0291]
+title = "Example login credentials hard-coded admin/admin (timingSafeEqual), demo only"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples", "auth" ]
+
+[decisions.D-0292]
+title = "Example session: stateless HMAC-signed cookie, no dependency"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples", "auth" ]
+
+[decisions.D-0293]
+title = "Fix (app)/admin/layout.tsx to a default export (nothing else changed)"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0294]
+title = "Token base64url(JSON {u, exp}).base64url(HMAC-SHA256), timingSafeEqual, 8 h expiry checked server-side"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth" ]
+
+[decisions.D-0295]
+title = "Cookie admin_session: HttpOnly, SameSite=Strict, Path=/, host-only (no Domain), Secure in production, Max-Age 8 h"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth", "security" ]
+
+[decisions.D-0296]
+title = "ADMIN_SESSION_SECRET env; fixed dev fallback; production without it fails closed"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth", "config" ]
+
+[decisions.D-0297]
+title = "examples/app/src/auth.ts (createSession, getSession, requireSession) called by every admin page (redirect /login) and server action (throw unauthorized); proxy unchanged"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "auth" ]
+
+[decisions.D-0298]
+title = "Login page/actions under (app)/admin/login, /admin redirects to /editor, logout button in the admin header, logged-in /login redirects to /editor"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "examples" ]
+superseded_by = "D-0302"
+
+[decisions.D-0299]
+title = "Example login verified in the browser and with curl (no new test runner)"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0300]
+title = "Docs: environment, quick-start, threat-model, deploying, docs map; credentials stated as demo-only"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0301]
+title = "Example app: server actions (resolveData, publish) and a ClientEditor; demo login (admin/admin, signed session cookie) protects admin pages and actions; host origin admin.localhost:3100; the editor page renders <PuckRemoteEditor> with a header badge override"
+adr = "feat/example-login"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples", "auth" ]
+supersedes = [ "D-0240" ]
+
+[decisions.D-0302]
+title = "Login page/actions under (app)/admin/login; /admin is a simple dashboard (signed-in user, current theme id, editor link, Log out; no page list or creation); logout button in the admin header; logged-in /login redirects to /editor"
+adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples" ]
+supersedes = [ "D-0298" ]
+
+[decisions.D-0303]
+title = "Dashboard is a server component calling requireSession(), reading the pointer via artifacts.readPointer() (none published shown), inline styles, force-dynamic, reusing the logout action"
+adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0304]
+title = "After login users still land on /editor"
+adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0305]
+title = "Docs: quick-start dashboard row, environment login paragraph"
+adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0306]
+title = "Admin index on feat/admin-index from feat/example-login"
+adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0307]
+title = "Host (admin) origins: every path is rewritten under the admin route, except that paths already under it (/admin, /admin/x) redirect to the path without the prefix; that route is 404 on other origins"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "next", "origins" ]
+supersedes = [ "D-0283" ]
+
+[decisions.D-0308]
+title = "The /admin prefix redirect is a 307 (temporary), not a cached 308"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next" ]
+
+[decisions.D-0309]
+title = "The prefix redirect keeps the query string, is same-origin, and carries the admin security headers and cache-control no-store"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next", "security" ]
+
+[decisions.D-0310]
+title = "The theme-route exemption is unchanged; the redirect is checked before the rewrite"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next" ]
+
+[decisions.D-0311]
+title = "Prefix redirect tests in packages/next/test/proxy.test.ts plus a curl check"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0312]
+title = "Docs for the prefix redirect: next-js/api, concepts/origins, configuration"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0313]
+title = "Prefix redirect on feat/admin-prefix-redirect from feat/admin-index"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0314]
+title = "Admin layout (owner's design): sidebar with Dashboard/Editor links, the signed-in user and a Log out button (Puck Button), globals.css; the dashboard drops its own user line and logout"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0315]
+title = "The sidebar user block only reads the session (getSession, renders nothing when logged out) because the layout also wraps /login; every admin page keeps its own requireSession(), the dashboard included"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples", "auth" ]
+
+[decisions.D-0316]
+title = "Strong typing on the existing useEditor().rpc (no new hook), typed by the admin page rpc object type"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "rpc" ]
+
+[decisions.D-0317]
+title = "useEditor<T extends RpcHandlers = RpcHandlers>() with TypedRpc<T> = <K>(method: K, ...params: Parameters<T[K]>) => Promise<Awaited<ReturnType<T[K]>>>; runtime unchanged, loose by default"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "types" ]
+
+[decisions.D-0318]
+title = "RpcHandlers and TypedRpc exported from @puck-remote/editor/protocol, re-exported by /frame and /react; PuckEditorFrame rpc prop typed RpcHandlers; no runtime helper"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "types" ]
+
+[decisions.D-0319]
+title = "RPC handlers keep one params value; parameterless handlers are called without a second argument"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "rpc" ]
+
+[decisions.D-0320]
+title = "Typed RPC results are the handler return types; no Jsonify transform (JSON is enforced at runtime, documented)"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "types" ]
+
+[decisions.D-0321]
+title = "Example: rpc map in admin/editor/rpc.ts with AdminRpc type; currentUser action; editor badge uses useEditor<AdminRpc>().rpc(currentUser)"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0322]
+title = "Typed RPC tests with expectTypeOf in packages/editor/test/rpc-types.test.ts, typecheck and a browser check"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0323]
+title = "Docs: editor-app guide Typed calls section, testing map"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0324]
+title = "Typed RPC on feat/typed-rpc from feat/admin-prefix-redirect"
+adr = "feat/typed-rpc"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0325]
+title = "Split editor replaces the full-Puck-in-the-frame model: the admin Puck (manifest config, no theme code) holds data, history and fields; the frame (theme code) runs canvas, drawer and outline and reports Puck actions; the admin replays them and sends back its state"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "security" ]
+supersedes = [ "D-0192" ]
+
+[decisions.D-0326]
+title = "Frame UI: Puck's own layout with the header removed and the right (fields) panel hidden; stop and ask if Puck keeps an empty column"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0327]
+title = "<PuckEditorFrame> in /frame becomes the admin-side component: renders the admin <Puck>, accepts children (your layout); <PuckEditorFrame.Canvas /> renders the iframe"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "api" ]
+supersedes = [ "D-0209" ]
+
+[decisions.D-0328]
+title = "PROTOCOL_VERSION 2 (the change message is removed)"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+
+[decisions.D-0329]
+title = "Protocol v2: editor→admin ready, action {seq, action}, intent {undo|redo}, rpc, error; admin→editor init, state {data, itemSelector, ack}, ui {leftSideBarVisible}, rpc:result, error"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+supersedes = [ "D-0194" ]
+
+[decisions.D-0330]
+title = "Admin validates frame actions with zod: insert (manifest blocks or __missing), move/reorder/remove/duplicate (int indexes, string zones), replace/replaceRoot (page item schema), setUi itemSelector only; others refused; actions size-checked (rpcBytes), not rate-limited; page bounded by pageBytes"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol", "security" ]
+
+[decisions.D-0331]
+title = "Echo/order: frame numbers actions; admin state carries ack; frame applies state only if ack >= its last seq, with recordHistory false, and ignores the actions Puck emits for those"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+
+[decisions.D-0332]
+title = "Duplicates and divergence: the admin state broadcast (its ids) replaces the frame state; no id rewriting"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+
+[decisions.D-0333]
+title = "<PuckRemoteEditor> forwards onAction, strips resolveData, hides header and right panel, forwards cmd-Z as intent; fields prop and change sending removed; keeps handshake, theme loading, useEditor, overrides/plugins/ui/iframe/viewports"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "api" ]
+supersedes = [ "D-0230" ]
+
+[decisions.D-0334]
+title = "useEditor() unchanged; the example frame RPC map becomes { currentUser } (resolveData moves to the admin)"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "examples" ]
+
+[decisions.D-0335]
+title = "<PuckEditorFrame> props: payload, editorUrl, editorOrigin?, options?, rpc?, resolveData(block, props), fields?, onChange?, onError?, overrides/plugins for the admin Puck, children; config from buildEditorConfig with placeholder renders; default layout Canvas + Puck.Fields"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "api" ]
+superseded_by = "D-0347"
+
+[decisions.D-0336]
+title = "PuckEditorFrame.Canvas: the sandboxed iframe with the existing frameProblem checks, sandbox and referrerPolicy, plus className/style/title"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "security" ]
+
+[decisions.D-0337]
+title = "/frame exports stripResolved(data) and usePuckEditorFrame() → { payload, setLeftSideBarVisible, frameReady }; apps use Puck createUsePuck for history and data"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "api" ]
+
+[decisions.D-0338]
+title = "Example: ClientEditor with header (path, theme, user, undo/redo, left panel toggle, status/dirty, Publish); rpc.ts { currentUser }; EditorPage reduced to <PuckRemoteEditor>"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0339]
+title = "Split editor branch starts from feat/typed-rpc; spike code not carried over"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0340]
+title = "Split editor tests: protocol v2 and action validation, admin handler and frame sync rule as pure functions, stripResolved, type tests, parity; browser checklist"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0341]
+title = "Split editor docs: concepts/editor, guides/editor-app rewrite, next-js snippets, editor-protocol, editor-lifecycle, threat-model, packaging, testing, research page link"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0342]
+title = "Split editor on feat/split-editor with its ADR"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0343]
+title = "Plan item B1 listed D-0231 and D-0251 as superseded by mistake: useEditor() and the shared module registration remain valid; only D-0192 (and D-0209, D-0194, D-0230 by their own items) is superseded"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "process" ]
+
+[decisions.D-0344]
+title = "Admin page uses Puck's native header; actions added through the headerActions override; Puck's Publish button calls a new onPublish prop"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0345]
+title = "The plugin rail is on the admin page; framePlugin(name, { label, icon }) marks a plugin whose panel renders in the frame; defaults: admin [framePlugin(blocks), outlinePlugin()], frame [blocksPlugin()]"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui", "api" ]
+
+[decisions.D-0346]
+title = "The viewport/zoom toolbar stays in the frame; the admin's canvas controls are hidden"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0347]
+title = "<PuckEditorFrame> renders Puck's native layout by default (frame in the preview area); children still replace it with a custom composition"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "api" ]
+supersedes = [ "D-0335" ]
+
+[decisions.D-0348]
+title = "Feasibility gate: admin preview override hosting the frame (iframe disabled) and a frame plugin panel without the rail; stop and ask if it needs CSS on Puck internals or fails"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "research" ]
+
+[decisions.D-0349]
+title = "ui message becomes { leftSideBarVisible, plugin: string | null } (plugin up to 64 chars); PROTOCOL_VERSION stays 2"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+
+[decisions.D-0350]
+title = "Admin: framePlugin returns a Puck plugin with an empty render; an effect maps ui.plugin.current and leftSideBarVisible to the admin left panel and the frame ui message; new props onPublish, headerTitle, headerPath (default /slug)"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "api" ]
+
+[decisions.D-0351]
+title = "Frame: <PuckRemoteEditor plugins> defaults to [blocksPlugin()]; its left panel shows the plugin named by the ui message (hidden on null); rail hidden; header and fields stay removed"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0352]
+title = "Example: native layout, headerActions override with status, user and Log out next to Puck Publish; publish via onPublish"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0353]
+title = "Tests: ui message with plugin, pure frameUi(current, framePluginNames, leftVisible) mapping; browser checklist for rail, drawer in frame, outline on admin, native header"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0354]
+title = "Docs: editor-app guide (native layout, framePlugin, header overrides, onPublish, custom layout), concepts/editor, editor-protocol, editor-lifecycle, testing"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0355]
+title = "Native-layout work continues on feat/split-editor in the same ADR"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0356]
+title = "Frame hides Puck's plugin rail by registering its panel plugin under Puck's 'legacy-side-bar' name (no CSS); one place to update if Puck changes that detection"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0357]
+title = "Correction: the native-layout plan named D-0327 and D-0331 as superseded; the default layout was D-0335 (superseded by D-0347); the ui message (D-0329) is extended by D-0349, not replaced"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "process" ]
+
+[decisions.D-0358]
+title = "While a frame plugin is active the admin collapses its left panel to ui.leftSideBarWidth = 1 (Puck ignores 0) and restores the previous width afterwards; the rail keeps its native active state"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0359]
+title = "Admin Puck uses _experimentalFullScreenCanvas so the frame fills the center area with no outer padding"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0360]
+title = "<PuckRemoteEditor> injects one CSS rule in the frame hiding Puck's plugin nav ([class*=PuckLayout-nav]) on all sizes; relies on Puck's class-name prefix"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0361]
+title = "Left panel width is synced both ways between the admin and the frame"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0362]
+title = "Protocol: host→editor ui gains leftSideBarWidth (int 0..2000 | null); new editor→host ui { leftSideBarWidth } on frame resize, display-only; PROTOCOL_VERSION stays 2"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+
+[decisions.D-0363]
+title = "Admin: shared width = its panel width (savedWidth while a frame plugin is active), sent with every ui message; frame-reported widths update it; null = Puck default"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0364]
+title = "Frame: applies the host width with recordHistory false; reports user resizes, skipping echoes of the last received width"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0365]
+title = "Layout polish tests: ui width messages both ways, frameUi width, host callback; browser checks at desktop and narrow widths"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0366]
+title = "Layout polish docs: editor-protocol, editor-lifecycle, editor-app guide note, testing; same ADR"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0367]
+title = "framePlugin sets Puck's mobilePanelHeight 'min-content' so on small admin screens its empty panel takes no height and the frame keeps the space (the frame shows the real panel)"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0368]
+title = "The admin page injects one scoped CSS rule, [class*=\"PuckCanvas--fullScreen\"]{padding:0!important}, to remove Puck 0.23's 24px top padding on wide screens"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "layout" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

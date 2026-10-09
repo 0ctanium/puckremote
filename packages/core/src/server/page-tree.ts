@@ -78,3 +78,22 @@ export function mapItems(data: PageData, manifest: Manifest | null, fn: (item: P
   void manifest
   return { ...data, content: mapList(data.content) as PuckItem[] }
 }
+
+/** D2: Puck silently drops unknown types; make them explicit so they render a fallback. */
+export function rewriteMissing(data: PageData, manifest: Manifest): PageData {
+  let n = 0
+  return mapItems(data, manifest, (item) => {
+    const id = typeof item.props.id === 'string' && item.props.id ? item.props.id : `auto-${item.type}-${n++}`
+    if (item.type === MISSING_TYPE || Object.hasOwn(manifest.blocks, item.type)) return { ...item, props: { ...item.props, id } }
+    return { type: MISSING_TYPE, props: { id, originalType: item.type, originalProps: item.props } }
+  })
+}
+
+/** Reverse of rewriteMissing, used by the editor's save path so unknown blocks are not lost. */
+export function restoreMissing(data: PageData): PageData {
+  return mapItems(data, null, (item) =>
+    item.type === MISSING_TYPE && typeof item.props.originalType === 'string'
+      ? { type: item.props.originalType, props: (item.props.originalProps as Record<string, unknown>) ?? { id: item.props.id } }
+      : item,
+  )
+}

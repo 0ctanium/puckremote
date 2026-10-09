@@ -8,17 +8,31 @@
  *  - NAME is a declared slot field of this block
  *  - NAME has not already been swapped in this block (each slot renders at most once)
  * Anything else stays an inert empty div.
+ *
+ * Island markers (<div data-puck-island="KEY" data-nonce="NONCE">) follow the same nonce rule and
+ * are swapped for `islands.render(KEY)` once each.
  */
 import parse, { Element, type DOMNode, type HTMLReactParserOptions } from 'html-react-parser'
 import { createElement, Fragment, type ComponentType, type ReactNode } from 'react'
 
 export type SlotRenderer = ComponentType<Record<string, never>> | ReactNode
 
-export function htmlToReact(html: string, opts: { nonce: string; slots: Record<string, SlotRenderer>; allowed: readonly string[] }): ReactNode {
+export function htmlToReact(
+  html: string,
+  opts: { nonce: string; slots: Record<string, SlotRenderer>; allowed: readonly string[]; islands?: { keys: readonly string[]; render: (key: string) => ReactNode } },
+): ReactNode {
   const seen = new Set<string>()
+  const seenIslands = new Set<string>()
   const options: HTMLReactParserOptions = {
     replace(node: DOMNode) {
       if (!(node instanceof Element) || node.name !== 'div') return undefined
+      const island = node.attribs['data-puck-island']
+      if (island !== undefined) {
+        if (!opts.islands || !opts.nonce || node.attribs['data-nonce'] !== opts.nonce) return undefined
+        if (!opts.islands.keys.includes(island) || seenIslands.has(island)) return undefined
+        seenIslands.add(island)
+        return createElement(Fragment, { key: `island:${island}` }, opts.islands.render(island))
+      }
       const name = node.attribs['data-puck-slot']
       if (name === undefined) return undefined
       if (node.attribs['data-nonce'] !== opts.nonce || !opts.nonce) return undefined
