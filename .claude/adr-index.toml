@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 273
+next_decision = 282
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -116,6 +116,16 @@ title = "Shopify-like theme file URLs (/cdn/<path>?v=<hash>)"
 description = "Shopify-like theme file URLs (/cdn/<path>?v=<hash>)"
 tags = [ "assets", "routes", "caching" ]
 decisions = [ "D-0262", "D-0263", "D-0264", "D-0265", "D-0266", "D-0267", "D-0268", "D-0269", "D-0270", "D-0271", "D-0272" ]
+
+[adrs."chore/examples-layout"]
+file = "branches/chore/examples-layout.md"
+type = "chore"
+status = "active"
+created = "2026-10-09"
+title = "Example app, data and mock API under examples/app"
+description = "Example app, data and mock API under examples/app"
+tags = [ "examples", "layout" ]
+decisions = [ "D-0273", "D-0274", "D-0275", "D-0276", "D-0277", "D-0278", "D-0279", "D-0280", "D-0281" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -2428,6 +2438,78 @@ date = "2026-10-09"
 provenance = "agent-unreviewed"
 status = "needs-review"
 tags = [ "assets" ]
+
+[decisions.D-0273]
+title = "Layout: apps/host → examples/app; data/cms.json → examples/app/data/cms.json; artifacts/ → examples/app/data/artifacts/; mock/api-server → examples/app/mock/api-server"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples", "layout" ]
+
+[decisions.D-0274]
+title = "The owner's staged apps/host restructure (route groups) is committed with the move as-is; the artifacts-fs change stays out"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0275]
+title = "Package names host and mock-api stay"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0276]
+title = "pnpm-workspace: mock/* replaced by examples/app/mock/*; mock-api stays its own package"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0277]
+title = "PUCK_REMOTE_ROOT keeps its name; default is the app dir (cwd); data at <root>/data/artifacts and <root>/data/cms.json"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples", "config" ]
+
+[decisions.D-0278]
+title = "Example theme scripts publish/release/pull use --artifacts ../app/data/artifacts"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0279]
+title = "git mv tracked files; .gitignore examples/app/data/artifacts/* (+ .gitkeep); local artifacts moved with mv; empty old folders removed"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0280]
+title = "Code and test references updated: core tests, no-dev-code app roots, bench, check-docs-adr code roots, local launch.json"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples", "testing" ]
+
+[decisions.D-0281]
+title = "Docs and CLAUDE.md/README updated to the new paths; generic adapter snippets unchanged"
+adr = "chore/examples-layout"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

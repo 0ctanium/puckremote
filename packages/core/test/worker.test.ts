@@ -31,7 +31,7 @@ describe('process sandbox (same flags as real workers)', () => {
       probe,
       `const out = {}
 const t = (k, f) => { try { f(); out[k] = 'ALLOWED' } catch (e) { out[k] = e.code || e.message } }
-t('readSecretFile', () => require('fs').readFileSync(${JSON.stringify(path.join(REPO_ROOT, 'data', 'cms.json'))}))
+t('readSecretFile', () => require('fs').readFileSync(${JSON.stringify(path.join(REPO_ROOT, 'examples', 'app', 'data', 'cms.json'))}))
 t('readEtc', () => require('fs').readFileSync('/etc/hosts'))
 t('write', () => require('fs').writeFileSync(${JSON.stringify(path.join(dir, 'x.txt'))}, 'x'))
 t('childProcess', () => require('child_process').execSync('true'))

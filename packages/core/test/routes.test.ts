@@ -44,7 +44,7 @@ beforeAll(async () => {
   core = createCore({
     id: `routes-${process.pid}`,
     artifacts: fsArtifactStore({ dir: path.join(dir, "artifacts") }),
-    source: mockCms({ dataFile: path.join(REPO_ROOT, "data", "cms.json") }),
+    source: mockCms({ dataFile: path.join(REPO_ROOT, "examples", "app", "data", "cms.json") }),
     routes: { theme: "/_remote/theme" },
     origins: ORIGINS,
   });

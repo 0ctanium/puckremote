@@ -56,7 +56,8 @@ processes have served stale builds before.
 
 - `packages/sdk` (theme API + `/host` contracts), `packages/cli`, `packages/core` (engine),
   `packages/next` (bindings), `packages/{source-mock,pages-fs,artifacts-fs}` (adapters).
-- `apps/host` (example app), `apps/docs` (Fumadocs), `examples/theme`, `mock/api-server`.
+- `apps/docs` (Fumadocs), `examples/app` (example app, with its data in `examples/app/data` and the
+  mock API in `examples/app/mock/api-server`), `examples/theme`.
 - `.claude/`: decision records (`ADR-SYSTEM-GUIDE.md`, `adr-index.toml`, `branches/`, `merged/`),
   skills, hooks.
 - Docs roots: `(framework)` (usage, Next.js), `core` (engine + adapters), `cli`, `sdk`,

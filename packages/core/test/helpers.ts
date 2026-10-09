@@ -31,8 +31,8 @@ export const buildExample = () => buildTheme(path.join(REPO_ROOT, 'examples', 't
 
 export function testConfig(overrides: Partial<HostConfig> = {}): HostConfig {
   const base = resolveConfig({
-    artifacts: fsArtifactStore({ dir: path.join(REPO_ROOT, 'artifacts') }),
-    source: mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') }),
+    artifacts: fsArtifactStore({ dir: path.join(REPO_ROOT, 'examples', 'app', 'data', 'artifacts') }),
+    source: mockCms({ dataFile: path.join(REPO_ROOT, 'examples', 'app', 'data', 'cms.json') }),
     site: { name: 'POC Site', locale: 'en' },
   })
   return { ...base, isolate: { ...base.isolate, callTimeoutMs: 150, watchdogMs: 1500 }, ...overrides }
@@ -123,7 +123,7 @@ export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; 
   let session: Promise<RenderSession> | null = null
   const http = new HttpSource({ config: config.http, secrets: config.secrets, resolver: opts.resolver })
   // A fresh source per harness so content edits in one test don't leak into another.
-  const cms = mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') })
+  const cms = mockCms({ dataFile: path.join(REPO_ROOT, 'examples', 'app', 'data', 'cms.json') })
   const deps = {
     manifest: m,
     config,
@@ -189,7 +189,7 @@ export async function testHost(opts: { theme: 'example' | 'evil'; pages: Record<
   const config: HostConfig = {
     ...base,
     artifacts,
-    source: mockCms({ dataFile: path.join(REPO_ROOT, 'data', 'cms.json') }),
+    source: mockCms({ dataFile: path.join(REPO_ROOT, 'examples', 'app', 'data', 'cms.json') }),
     ...opts.config,
   }
   const host = createHost(config)

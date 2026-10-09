@@ -7,7 +7,7 @@
  *   node scripts/check-docs-adr.mjs --base <ref> changes between <ref> and HEAD (CI)
  *
  * Rules:
- *   - code (packages/<pkg>/src, apps/host, examples, mock) → needs apps/docs/content AND .claude ADR/index changes
+ *   - code (packages/<pkg>/src, examples) → needs apps/docs/content AND .claude ADR/index changes
  *   - anything else → needs a .claude ADR/index change
  *   - `pnpm adr check` must pass
  * SKIP_DOCS_CHECK=1 skips the change rules (humans only; never set it from an agent or CI config).
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const git = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' })
 
-const isCode = (f) => /^packages\/[^/]+\/src\//.test(f) || /^(apps\/host|examples|mock)\//.test(f)
+const isCode = (f) => /^packages\/[^/]+\/src\//.test(f) || /^examples\//.test(f)
 const isDocs = (f) => f.startsWith('apps/docs/content/')
 const isAdr = (f) => /^\.claude\/(branches|merged)\//.test(f) || f === '.claude/adr-index.toml'
 

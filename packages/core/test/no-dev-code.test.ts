@@ -15,7 +15,7 @@ const ORIGINAL = { TextEncoder: globalThis.TextEncoder, MessageChannel: globalTh
 const ROOTS = {
   core: ['packages/core/src'],
   next: ['packages/next/src'],
-  app: ['apps/host/src', 'apps/host/puck-remote.config.ts', 'apps/host/next.config.ts'],
+  app: ['examples/app/src', 'examples/app/puck-remote.config.ts', 'examples/app/next.config.ts'],
 } as const
 
 async function sources(p: string): Promise<string[]> {
@@ -109,7 +109,7 @@ describe('acceptance 7: no developer code outside the isolate', () => {
             if (sdk.some((s) => s !== '@puck-remote/sdk/browser')) violations.push(`${rel}: browser-only modules may only import @puck-remote/sdk/browser`)
             if ((src.match(/\bimport\s*\(/g) ?? []).length !== 1) violations.push(`${rel}: exactly one dynamic import() (the islands bundle)`)
           }
-          if (root === 'app' && rel !== 'apps/host/puck-remote.config.ts' && /from\s+['"]@puck-remote\/(source-|artifacts-)/.test(src)) {
+          if (root === 'app' && rel !== 'examples/app/puck-remote.config.ts' && /from\s+['"]@puck-remote\/(source-|artifacts-)/.test(src)) {
             violations.push(`${rel}: concrete plugins may only be wired in puck-remote.config.ts`)
           }
         }
@@ -124,7 +124,7 @@ describe('acceptance 7: no developer code outside the isolate', () => {
       const rel = path.relative(REPO, f)
       const src = strip(await readFile(f, 'utf8'))
       if (!/bundle\.js|\.bundle\b|\bbundle\)|themeBundleUrl|compileScript/.test(src) || BUNDLE_READERS.has(rel)) continue
-      if (rel.startsWith('apps/host/') || rel === 'packages/next/src/index.ts') {
+      if (rel.startsWith('examples/app/') || rel === 'packages/next/src/index.ts') {
         // The app and the barrels only reference the bundle loader by name, never the file.
         expect(src, rel).not.toMatch(/bundle\.js|compileScript/)
         continue

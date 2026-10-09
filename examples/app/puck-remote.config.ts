@@ -7,9 +7,9 @@ import { fsArtifactStore } from '@puck-remote/artifacts-fs'
 import { defineConfig } from '@puck-remote/core/config'
 import { mockCms } from '@puck-remote/source-mock'
 
-// Runtime data, never bundled (excluded from build tracing). Next runs with the app dir as cwd;
-// import.meta.dirname is not available inside Next's server bundles.
-const root = process.env.PUCK_REMOTE_ROOT ?? path.resolve(/*turbopackIgnore: true*/ process.cwd(), '../..')
+// Runtime data in <app>/data, never bundled (excluded from build tracing). Next runs with the app
+// dir as cwd; import.meta.dirname is not available inside Next's server bundles.
+const root = process.env.PUCK_REMOTE_ROOT ?? path.resolve(/*turbopackIgnore: true*/ process.cwd())
 const MOCK_API = process.env.PUCK_REMOTE_MOCK_API_ORIGIN ?? 'http://localhost:4010'
 const dev = process.env.NODE_ENV !== 'production' || !!process.env.PUCK_REMOTE_ALLOW_DEV_ORIGINS
 const PORT = process.env.PORT ?? '3100'
@@ -21,7 +21,7 @@ const HOST_ORIGINS = (process.env.PUCK_REMOTE_ADMIN_ORIGINS ?? `http://admin.loc
 const EDITOR_ORIGIN = process.env.PUCK_REMOTE_EDITOR_ORIGIN ?? `http://127.0.0.1:${PORT}`
 
 export default defineConfig({
-  artifacts: fsArtifactStore({ dir: path.join(root, 'artifacts') }),
+  artifacts: fsArtifactStore({ dir: path.join(root, 'data', 'artifacts') }),
   source: mockCms({ dataFile: path.join(root, 'data', 'cms.json') }),
   origins: { host: HOST_ORIGINS, editor: EDITOR_ORIGIN },
   site: { name: 'POC Site', locale: 'en' },

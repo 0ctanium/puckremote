@@ -38,8 +38,8 @@ Packages ship compiled ESM; `pnpm dev` keeps them rebuilding in watch mode.
 pnpm --filter theme release
 ```
 
-This runs `puck-remote build && puck-remote publish` and creates `artifacts/v1` and
-`artifacts/current.json`.
+This runs `puck-remote build && puck-remote publish` and creates `examples/app/data/artifacts/<id>` and
+`examples/app/data/artifacts/current.json`.
 
 </Step>
 <Step>
@@ -86,10 +86,10 @@ pnpm --filter theme pull
 
 Edit a block in `examples/theme/blocks` (and the pages in `examples/theme/pages` that use it), then
 run `pnpm --filter theme release` again. The host picks up the new artifact within 2 seconds, with
-no restart. Roll back by activating an older artifact id (see `ls artifacts`):
+no restart. Roll back by activating an older artifact id (see `ls examples/app/data/artifacts`):
 
 ```bash
-cd examples/theme && ./node_modules/.bin/puck-remote activate <id> --artifacts ../../artifacts
+cd examples/theme && ./node_modules/.bin/puck-remote activate <id> --artifacts ../app/data/artifacts
 ```
 
 </Step>
@@ -126,11 +126,11 @@ puck-repository-poc
 | `packages/next` | `@puck-remote/next`: Next.js bindings |
 | `packages/editor` | `@puck-remote/editor`: `<PuckRemoteEditor>` (editor page), `<PuckEditorFrame>` (admin page), protocol |
 | `packages/artifacts-fs`, `source-mock` | File-based and example adapters |
-| `apps/host` | Example Next.js app (public site, admin page, editor) |
+| `examples/app` | Example Next.js app (public site, admin page, editor), with its data |
 | `apps/docs` | This documentation |
 | `examples/theme` | Example theme (the "developer repo"), with its pages |
-| `mock/api-server` | External API stand-in |
-| `artifacts`, `data` | Published theme artifacts (git-ignored); CMS seed data |
+| `examples/app/mock/api-server` | External API stand-in |
+| `examples/app/data` | Published theme artifacts (`artifacts/`, git-ignored) and CMS seed data (`cms.json`) |
 
 ## Useful commands
 

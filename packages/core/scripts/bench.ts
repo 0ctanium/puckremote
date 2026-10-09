@@ -21,7 +21,8 @@ const ms = (n: number) => `${n.toFixed(2)} ms`
 const quiet = { error() {}, warn() {}, info() {} }
 console.info = () => {}
 
-const root = path.resolve(import.meta.dirname, '../../..')
+// The example app's data (examples/app/data).
+const root = path.resolve(import.meta.dirname, '../../../examples/app/data')
 const MOCK = 'http://localhost:4010'
 
 async function measure(name: string, renderer: RendererFactory) {
@@ -29,7 +30,7 @@ async function measure(name: string, renderer: RendererFactory) {
     resolveConfig({
       artifacts: fsArtifactStore({ dir: path.join(root, 'artifacts') }),
       renderer,
-      source: mockCms({ dataFile: path.join(root, 'data', 'cms.json') }),
+      source: mockCms({ dataFile: path.join(root, 'cms.json') }),
       http: { allowedOrigins: [MOCK], insecureDevOrigins: [MOCK] },
       secrets: { EVENTS_API_KEY: { value: 'dev-events-key-7f3a9c', origins: [MOCK] } },
     }),
