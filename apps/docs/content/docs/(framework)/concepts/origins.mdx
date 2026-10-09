@@ -8,8 +8,8 @@ The browser's security boundary is the **origin**. Three kinds of pages are invo
 | Who | Example | Runs | Holds |
 |---|---|---|---|
 | Public site | `https://www.example.com` | Theme client scripts | Nothing sensitive |
-| Admin pages (your app) | `https://admin.example.com` | `<PuckEditorFrame>`, your publish UI | The admin session |
-| Editor page (your `<PuckRemoteEditor>`) | `https://editor.example.net` | Puck and theme components | Nothing: no cookies, no secrets |
+| Admin pages (your app) | `https://admin.example.com` | `<PuckEditorFrame>` (page data, history, fields), your publish UI | The admin session |
+| Editor page (your `<PuckRemoteEditor>`) | `https://editor.example.net` | Puck's canvas, drawer and outline, with theme components | Nothing: no cookies, no secrets |
 
 Configure the last two in the core ([D-0238](/docs/internal/decisions#D-0238)):
 

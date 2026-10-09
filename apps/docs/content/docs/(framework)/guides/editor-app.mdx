@@ -1,23 +1,96 @@
 ---
 title: Customizing the editor
-description: The editor is a React component you render in your own page on the editor origin; customize Puck and talk to your admin page.
+description: Compose your admin page around Puck (fields, header, publishing) and customize the editor frame (canvas, drawer, outline).
 ---
 
-`<PuckRemoteEditor>` from `@puck-remote/editor/react` is the whole editor: it receives the page
-from your admin page, loads the theme, and renders Puck ([D-0228](/docs/internal/decisions#D-0228),
-[D-0230](/docs/internal/decisions#D-0230)). You render it in a normal React page served on
-`origins.editor`, so you can customize it like any Puck editor.
+The editor has two halves ([D-0325](/docs/internal/decisions#D-0325)):
+
+- **`<PuckEditorFrame>`** (`@puck-remote/editor/frame`) on your **admin page**. It's a real
+  `<Puck>`: it holds the page data, the history and the fields, so your header, Publish button and
+  plugins live there, next to your session.
+- **`<PuckRemoteEditor>`** (`@puck-remote/editor/react`) on your **editor page** (another site).
+  It shows the canvas, the drawer and the outline with the theme's components, and proposes
+  actions to the admin page.
 
 ```npm
 npm install @puck-remote/editor @puckeditor/core
 ```
 
+## The admin page
+
+Compose the layout yourself: `<PuckEditorFrame>` renders Puck's context, so its children can use
+Puck's components and hooks. Place `<PuckEditorFrame.Canvas />` where the editor frame goes.
+
+```tsx title="app/admin/editor/ClientEditor.tsx"
+'use client';
+import { createUsePuck, Puck } from '@puckeditor/core';
+import { PuckEditorFrame, stripResolved, usePuckEditorFrame } from '@puck-remote/editor/frame';
+import { publish, resolveData } from './actions'; // your server actions (check the session)
+
+const usePuck = createUsePuck();
+
+function Header({ slug }: { slug: string }) {
+  const history = usePuck((s) => s.history);
+  const data = usePuck((s) => s.appState.data);
+  const { setLeftSideBarVisible } = usePuckEditorFrame();
+  // "Unpublished changes": compare stripResolved(data) with the last published state.
+  return (
+    <header>
+      <button disabled={!history.hasPast} onClick={() => history.back()}>Undo</button>
+      <button disabled={!history.hasFuture} onClick={() => history.forward()}>Redo</button>
+      <button onClick={() => publish({ slug, data })}>Publish</button>
+    </header>
+  );
+}
+
+export function ClientEditor({ payload, editorUrl }) {
+  return (
+    <PuckEditorFrame
+      payload={payload}
+      editorUrl={editorUrl}
+      resolveData={async (block, props) => (await resolveData({ slug: payload.slug, block, props })).data}
+    >
+      <Header slug={payload.slug} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', height: 'calc(100vh - 48px)' }}>
+        <PuckEditorFrame.Canvas />
+        <Puck.Fields />
+      </div>
+    </PuckEditorFrame>
+  );
+}
+```
+
+Without children, `<PuckEditorFrame>` renders the canvas and the fields side by side.
+
+<TypeTable
+  type={{
+    payload: { description: "From remote.loadEditor() / core.editorPayload(): the page, the manifest, the theme URLs, the origins.", type: 'EditorPayload', required: true },
+    editorUrl: { description: "URL of your editor page (on origins.editor).", type: 'string', required: true },
+    editorOrigin: { description: "Defaults to editorUrl's origin; must match payload.origins.editor.", type: 'string' },
+    resolveData: { description: "Data for one block, e.g. a server action calling core.resolveBlockData. Needed when blocks declare data.", type: '(block, props) => Promise<data>' },
+    options: { description: "JSON options applied on both sides: permissions (also enforced on the actions the frame proposes), categories, locales, flags, extra.", type: 'EditorOptions' },
+    rpc: { description: "Methods the editor frame may call through useEditor().rpc. Theme code runs there: list only harmless methods, never publishing or history.", type: 'RpcHandlers' },
+    fields: { description: "Replace the built-in UIs of host:color, host:media and host:link (fields are edited on this side).", type: "Partial<Record<'host:color' | 'host:media' | 'host:link', (spec, name) => Field>>" },
+    onChange: { description: "Every change of the page data.", type: '(data) => void' },
+    onError: { description: "Protocol problems, refused actions, a page past 2 MB.", type: '(message: string) => void' },
+    overrides: { description: "Puck overrides for this side (e.g. fields, fieldLabel).", type: 'Partial<Overrides>' },
+    plugins: { description: "Puck plugins for this side.", type: 'Plugin[]' },
+    children: { description: "Your layout.", type: 'ReactNode' },
+  }}
+/>
+
+Inside it, `usePuckEditorFrame()` gives `{ payload, frameReady, setLeftSideBarVisible(visible) }`.
+Puck's own `createUsePuck()` gives the data, the selection and the history, because this side's
+Puck is the one that holds them. `stripResolved(data)` returns the page as it will be saved: the
+data blocks fetched (`__data`) is removed. Compare it with the last published version to show
+unsaved changes.
+
 ## The editor page (Next.js)
 
-The proxy rewrites every request on `origins.editor` to `routes.editor` (default `/editor`) and
-answers 404 for that route on every other origin ([D-0239](/docs/internal/decisions#D-0239)).
+The proxy serves `routes.editor` (default `/editor`) at the root of `origins.editor` and answers
+404 for it on every other origin.
 
-```tsx title="app/editor/[[...path]]/page.tsx"
+```tsx title="app/editor/page.tsx"
 import { remote } from '@/puck-remote';
 import { EditorPage } from './EditorPage';
 
@@ -30,7 +103,7 @@ export default async function Editor() {
 }
 ```
 
-```tsx title="app/editor/[[...path]]/EditorPage.tsx"
+```tsx title="app/editor/EditorPage.tsx"
 'use client';
 import '@puckeditor/core/no-external.css';
 import { PuckRemoteEditor } from '@puck-remote/editor/react';
@@ -40,38 +113,36 @@ export function EditorPage({ allowedParents }: { allowedParents: string[] }) {
 }
 ```
 
-Import Puck's stylesheet yourself (`no-external.css` loads no third-party font). Any other React
-setup works the same: render the component in a page served on the editor origin, with the
-[editor's headers](/docs/security-headers#editor).
-
-## Props
+Import Puck's stylesheet yourself (`no-external.css` loads no third-party font). It shows Puck's
+own UI ([D-0326](/docs/internal/decisions#D-0326)): the Blocks/Outline sidebar and the canvas with
+its toolbar. Puck's header and fields panel are removed, since they belong to the admin page.
 
 <TypeTable
   type={{
     allowedParents: { description: "Host origins allowed to embed the editor (origins.host). Also enforce them with CSP frame-ancestors.", type: 'string[]', required: true },
-    overrides: { description: "Puck overrides, merged over the editor's own (theme styles in the canvas, empty headerActions: publishing is host UI).", type: 'Partial<Overrides>' },
-    plugins: { description: "Puck plugins.", type: 'Plugin[]' },
-    ui: { description: "Puck's initial UI state.", type: 'Partial<UiState>' },
+    overrides: { description: "Puck overrides, merged over the editor's own (theme styles in the canvas, no header). Fields are the admin page's.", type: 'Partial<Overrides>' },
+    plugins: { description: "Puck plugins (in the frame).", type: 'Plugin[]' },
+    ui: { description: "Puck's initial UI state; the right (fields) panel always stays hidden.", type: 'Partial<UiState>' },
     viewports: { description: "Puck viewports.", type: 'Viewports' },
     iframe: { description: "Puck canvas iframe options.", type: 'IframeConfig' },
-    fields: { description: "Replace the built-in UIs of host:color, host:media and host:link, e.g. a media picker that calls your RPC.", type: "Partial<Record<'host:color' | 'host:media' | 'host:link', (spec, name) => Field>>" },
     transformConfig: { description: "Last chance to change the Puck config built from the manifest and the theme.", type: '(config: Config) => Config' },
     fallback: { description: "Shown until the admin page sends the page and the theme is loaded.", type: 'ReactNode' },
     onError: { description: "Called with handshake and theme loading problems.", type: '(message: string) => void' },
   }}
 />
 
-Puck's `config`, `data`, `onChange` and `permissions` come from the admin page through the
-protocol; they are not props. Keep `overrides` and `plugins` stable (module constants or
-`useMemo`): Puck remounts overrides whose identity changes.
+Puck's `config`, `data` and `permissions` come from the admin page through the protocol; they
+aren't props. Keep `overrides` and `plugins` stable (module constants or `useMemo`): Puck remounts
+overrides whose identity changes. Undo/redo shortcuts pressed in the frame go to the admin page's
+history.
 
-## Talking to your admin page: `useEditor()`
+## Calling your admin page from the frame: `useEditor()`
 
-Inside the editor (overrides, plugins, custom fields), `useEditor()` gives
-`{ rpc, payload, options }` ([D-0231](/docs/internal/decisions#D-0231)):
+Inside the editor frame (overrides, plugins), `useEditor()` gives `{ rpc, payload, options }`
+([D-0231](/docs/internal/decisions#D-0231)):
 
 ```tsx
-function MediaPicker() {
+function MediaBrowser() {
   const { rpc } = useEditor();
   const [items, setItems] = useState([]);
   useEffect(() => { rpc('media.list', { q: '' }).then(setItems); }, [rpc]);
@@ -80,29 +151,23 @@ function MediaPicker() {
 ```
 
 `rpc(method, params)` reaches only the methods your admin page lists in
-`<PuckEditorFrame rpc={{ … }}>`; anything else is refused, and requests are size- and
-rate-limited ([editor protocol](/docs/internal/architecture/editor-protocol)). The admin page runs them
-with its own session, for example as server actions:
-
-```tsx title="app/admin/[[...path]]/ClientEditor.tsx"
-<PuckEditorFrame rpc={{ resolveData, 'media.list': listMedia }} … />
-```
-
-`payload` is the page being edited (`slug`, `artifact`, `manifest`, `data`…), `options` the JSON
-options the admin page passed.
+`<PuckEditorFrame rpc={{ … }}>`. Anything else is refused, and requests are size- and
+rate-limited ([editor protocol](/docs/internal/architecture/editor-protocol)). The admin page runs
+them with its own session. Theme code in the frame can call them too, so list only harmless
+methods.
 
 ### Typed calls
 
 Give `useEditor` the type of your admin page's `rpc` map, and `rpc` checks method names, params
 and results ([D-0317](/docs/internal/decisions#D-0317)). Export the map from its own module on the
 admin side, and import only its **type** on the editor side: no admin code reaches the editor
-bundle, which runs on another origin.
+bundle.
 
 ```ts title="app/admin/editor/rpc.ts"
 import type { RpcHandlers } from '@puck-remote/editor/frame';
-import { currentUser, resolveData } from './actions';
+import { currentUser } from './actions';
 
-export const rpc = { resolveData, currentUser } satisfies RpcHandlers;
+export const rpc = { currentUser } satisfies RpcHandlers;
 export type AdminRpc = typeof rpc;
 ```
 
@@ -113,7 +178,7 @@ function Badge() {
   const { rpc } = useEditor<AdminRpc>();
   useEffect(() => {
     rpc('currentUser').then(setUser); // Promise<string>
-    // rpc('nope') and rpc('resolveData') without params are type errors
+    // rpc('nope') is a type error
   }, [rpc]);
   /* … */
 }
@@ -130,12 +195,12 @@ function Badge() {
 
 `bundle.browser.js` doesn't bundle React or the SDK: it reads them from
 `globalThis.__puckRemoteModules`, which `<PuckRemoteEditor>` fills with your app's copies before
-loading the theme ([D-0229](/docs/internal/decisions#D-0229)). The theme and Puck therefore share one React,
-and nothing has to be configured.
+loading the theme ([D-0229](/docs/internal/decisions#D-0229)). The theme and Puck therefore share
+one React, and nothing has to be configured. The admin page never loads the theme.
 
 ## Production
 
 Use **another site** for `origins.editor` (a second domain, even when it points at the same
 deployment), so the editor never receives your app's cookies. The editor origin serves your app's
-JavaScript chunks; any server action or route reachable there runs without the admin session, so
+JavaScript chunks. Any server action or route reachable there runs without the admin session, so
 check auth in each of them, as you already must ([D-0234](/docs/internal/decisions#D-0234)).

@@ -2,21 +2,21 @@
 /**
  * Editor side, as a React component the app renders in its own page on the editor origin (which
  * holds no credentials). It waits for `init` from an allowed parent, loads the theme's browser
- * bundle, rebuilds the Puck config and renders Puck. Everything that needs authority (data,
- * media, uploads) goes to the host as an RPC; there is no generic fetch or proxy method.
+ * bundle, rebuilds the Puck config and renders the canvas, the drawer and the outline. The host's
+ * Puck (<PuckEditorFrame>) holds the data, the history and the fields: this side proposes Puck
+ * actions and applies the host's state. There is no generic fetch or proxy method.
  *
  *   <PuckRemoteEditor allowedParents={['https://admin.example.com']} overrides={…} plugins={…} />
  *   // anywhere inside: const { rpc, payload } = useEditor()
  */
-import { Puck, type Config, type Data, type Overrides, type Plugin, type Viewports } from '@puckeditor/core'
+import { Puck, useGetPuck, type Config, type Data, type Overrides, type Plugin, type PuckAction, type Viewports } from '@puckeditor/core'
 import type { Manifest } from '@puck-remote/core'
 import type { RenderCtx } from '@puck-remote/sdk'
 import { registerSharedModules } from '@puck-remote/sdk/browser'
 import * as React from 'react'
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from 'react'
-import { buildEditorConfig, type ThemeModule } from './config.tsx'
-import type { HostFieldFactories } from './fields.ts'
-import { hostToEditorSchema, LIMITS, measure, PROTOCOL_VERSION, type EditorOptions, type EditorPayload, type EditorToHost, type RpcHandlers, type TypedRpc } from './protocol.ts'
+import { buildEditorConfig, withoutResolveData, type ThemeModule } from './config.tsx'
+import { hostToEditorSchema, LIMITS, measure, PROTOCOL_VERSION, type EditorOptions, type EditorPayload, type EditorToHost, type FrameAction, type HostToEditor, type ItemSelector, type RpcHandlers, type TypedRpc } from './protocol.ts'
 
 /** Why the editor refuses an init, or null. */
 export function initProblem(payload: EditorPayload, parentOrigin: string, selfOrigin: string): string | null {
@@ -31,17 +31,23 @@ export function initProblem(payload: EditorPayload, parentOrigin: string, selfOr
 
 export type Rpc = (method: string, params?: unknown) => Promise<unknown>
 
+type StateMessage = Extract<HostToEditor, { type: 'state' }>
+
 export interface HostConnection {
   rpc: Rpc
-  /** Debounced: the full page data. */
-  change(data: Data): void
+  /** Propose a Puck action to the host (it validates and replays it). */
+  action(seq: number, action: FrameAction): void
+  intent(intent: 'undo' | 'redo'): void
+  /** The host's state. The latest one is kept until a listener subscribes. */
+  onState(listener: (m: StateMessage) => void): () => void
+  onUi(listener: (ui: { leftSideBarVisible: boolean }) => void): () => void
   error(message: string): void
   close(): void
 }
 
 /**
  * The editor's side of the protocol, without React: announce `ready` to the allowed parents,
- * accept one `init` from `window.parent` on an allowed origin, then exchange RPCs and changes.
+ * accept one `init` from `window.parent` on an allowed origin, then exchange actions, states and RPCs.
  */
 export function connectToHost(opts: {
   allowedParents: string[]
@@ -53,6 +59,9 @@ export function connectToHost(opts: {
   let parentOrigin: string | null = null
   let nextId = 1
   const pending = new Map<number, { resolve(v: unknown): void; reject(e: Error): void }>()
+  const stateListeners = new Set<(m: StateMessage) => void>()
+  const uiListeners = new Set<(ui: { leftSideBarVisible: boolean }) => void>()
+  let lastState: StateMessage | null = null
   const send = (m: EditorToHost) => {
     if (parentOrigin) win.parent.postMessage(m, parentOrigin)
   }
@@ -63,24 +72,37 @@ export function connectToHost(opts: {
     const parsed = hostToEditorSchema.safeParse(e.data)
     if (!parsed.success) return
     const m = parsed.data
-    if (m.type === 'rpc:result') {
-      const p = pending.get(m.id)
-      pending.delete(m.id)
-      if (m.ok) p?.resolve(m.value)
-      else p?.reject(new Error(m.error))
-      return
+    if (m.type === 'init') {
+      // Once only, from the parent that will own this session.
+      if (parentOrigin) return
+      const payload = m.payload as unknown as EditorPayload
+      const problem = initProblem(payload, e.origin, win.location.origin)
+      if (problem) {
+        win.parent.postMessage({ v: PROTOCOL_VERSION, type: 'error', message: problem } satisfies EditorToHost, e.origin)
+        return opts.onProblem(problem)
+      }
+      parentOrigin = e.origin
+      return opts.onInit(payload, m.options as EditorOptions)
     }
-    if (m.type === 'error') return opts.onProblem(`host: ${m.message}`)
-    // init: once only, from the parent that will own this session.
-    if (parentOrigin) return
-    const payload = m.payload as unknown as EditorPayload
-    const problem = initProblem(payload, e.origin, win.location.origin)
-    if (problem) {
-      win.parent.postMessage({ v: PROTOCOL_VERSION, type: 'error', message: problem } satisfies EditorToHost, e.origin)
-      return opts.onProblem(problem)
+    if (!parentOrigin) return
+    switch (m.type) {
+      case 'rpc:result': {
+        const p = pending.get(m.id)
+        pending.delete(m.id)
+        if (m.ok) p?.resolve(m.value)
+        else p?.reject(new Error(m.error))
+        return
+      }
+      case 'state':
+        lastState = m as StateMessage
+        for (const l of stateListeners) l(lastState)
+        return
+      case 'ui':
+        for (const l of uiListeners) l({ leftSideBarVisible: m.leftSideBarVisible })
+        return
+      case 'error':
+        return opts.onProblem(`host: ${m.message}`)
     }
-    parentOrigin = e.origin
-    opts.onInit(payload, m.options as EditorOptions)
   }
 
   win.addEventListener('message', onMessage)
@@ -88,7 +110,6 @@ export function connectToHost(opts: {
   // Only an allowed parent receives this (postMessage drops mismatched target origins).
   else for (const origin of opts.allowedParents) win.parent.postMessage({ v: PROTOCOL_VERSION, type: 'ready' } satisfies EditorToHost, origin)
 
-  let timer: ReturnType<typeof setTimeout> | null = null
   return {
     rpc: (method, params) =>
       new Promise((resolve, reject) => {
@@ -99,21 +120,72 @@ export function connectToHost(opts: {
         pending.set(id, { resolve, reject })
         send({ v: PROTOCOL_VERSION, type: 'rpc', id, method, params: params ?? null })
       }),
-    change(data) {
-      if (timer) clearTimeout(timer)
-      timer = setTimeout(() => {
-        const size = measure(data)
-        if (!size || size.jsonBytes > LIMITS.pageBytes) return send({ v: PROTOCOL_VERSION, type: 'error', message: 'page data too large' })
-        send({ v: PROTOCOL_VERSION, type: 'change', data: data as never })
-      }, LIMITS.changeDebounceMs)
+    action: (seq, action) => send({ v: PROTOCOL_VERSION, type: 'action', seq, action }),
+    intent: (intent) => send({ v: PROTOCOL_VERSION, type: 'intent', intent }),
+    onState(listener) {
+      stateListeners.add(listener)
+      if (lastState) listener(lastState)
+      return () => stateListeners.delete(listener)
+    },
+    onUi(listener) {
+      uiListeners.add(listener)
+      return () => uiListeners.delete(listener)
     },
     error: (message) => send({ v: PROTOCOL_VERSION, type: 'error', message: message.slice(0, 2000) }),
     close() {
       win.removeEventListener('message', onMessage)
-      if (timer) clearTimeout(timer)
+      stateListeners.clear()
+      uiListeners.clear()
       for (const p of pending.values()) p.reject(new Error('closed'))
       pending.clear()
     },
+  }
+}
+
+const pick = <T extends object, K extends keyof T>(o: T, keys: K[]) => Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]])) as Pick<T, K>
+
+/**
+ * The part of a Puck action the host may replay, or null if it stays local (hover, drag state,
+ * panels) or came from the host itself (dispatched with `recordHistory: false`).
+ */
+export function toFrameAction(action: PuckAction): FrameAction | null {
+  if (action.recordHistory === false) return null
+  switch (action.type) {
+    case 'insert':
+      return { type: 'insert', ...pick(action, ['componentType', 'destinationIndex', 'destinationZone', 'id']) }
+    case 'duplicate':
+      return { type: 'duplicate', ...pick(action, ['sourceIndex', 'sourceZone']) }
+    case 'reorder':
+      return { type: 'reorder', ...pick(action, ['sourceIndex', 'destinationIndex', 'destinationZone']) }
+    case 'move':
+      return { type: 'move', ...pick(action, ['sourceIndex', 'sourceZone', 'destinationIndex', 'destinationZone']) }
+    case 'remove':
+      return { type: 'remove', ...pick(action, ['index', 'zone']) }
+    case 'replace':
+      return { type: 'replace', ...pick(action, ['destinationIndex', 'destinationZone']), data: action.data as unknown as { type: string; props: Record<string, unknown> } }
+    case 'replaceRoot':
+      return { type: 'replaceRoot', root: action.root as { props?: Record<string, unknown> } }
+    case 'setUi':
+      return typeof action.ui === 'object' && 'itemSelector' in action.ui ? { type: 'setUi', ui: { itemSelector: (action.ui.itemSelector ?? null) as ItemSelector } } : null
+    default:
+      return null
+  }
+}
+
+/**
+ * Ordering rule (B7): local actions are numbered; a host state is applied only once the host has
+ * acknowledged every one of them, so in-flight edits are never overwritten by an older state.
+ */
+export function createFrameSync() {
+  let seq = 0
+  return {
+    local(action: PuckAction): { seq: number; action: FrameAction } | null {
+      const a = toFrameAction(action)
+      if (!a) return null
+      seq += 1
+      return { seq, action: a }
+    },
+    accepts: (ack: number) => ack >= seq,
   }
 }
 
@@ -148,14 +220,16 @@ type PuckProps = ComponentProps<typeof Puck>
 export interface PuckRemoteEditorProps {
   /** Admin origins allowed to embed this editor (also enforce them with CSP frame-ancestors). */
   allowedParents: string[]
-  /** Merged over the editor's own overrides (theme styles in the canvas, empty header actions). */
+  /**
+   * Merged over the editor's own overrides (theme styles in the canvas, no header). The fields
+   * panel is the host's: it lives in <PuckEditorFrame>, so field overrides belong there.
+   */
   overrides?: Partial<Overrides>
   plugins?: Plugin[]
+  /** Puck UI state; the right (fields) panel always stays hidden. */
   ui?: PuckProps['ui']
   viewports?: Viewports
   iframe?: PuckProps['iframe']
-  /** Replacements for the built-in host:* field UIs. */
-  fields?: HostFieldFactories
   /** Last chance to change the Puck config built from the manifest and the theme. */
   transformConfig?: (config: Config) => Config
   /** Shown until the host sends `init` and the theme is loaded. */
@@ -207,8 +281,54 @@ function CanvasStyles({ document: doc, children }: { document?: Document; childr
   return <>{children}</>
 }
 
-// Publishing lives in the host UI: Puck's own Publish button is removed.
-const NoActions = () => <></>
+// The header (title, undo/redo, Publish) is the host's: Puck's own is removed.
+const NoHeader = () => <></>
+
+/** Inside Puck: applies the host's state and UI, and forwards undo/redo shortcuts to the host. */
+function HostBridge({ connection, sync }: { connection: HostConnection; sync: ReturnType<typeof createFrameSync> }) {
+  const getPuck = useGetPuck()
+  useEffect(() => {
+    const offState = connection.onState((m) => {
+      // The host hasn't seen all our actions yet: its state is older than ours.
+      if (!sync.accepts(m.ack)) return
+      const { appState, dispatch } = getPuck()
+      if (JSON.stringify(appState.data) !== JSON.stringify(m.data)) dispatch({ type: 'setData', data: m.data as unknown as Data, recordHistory: false })
+      if (JSON.stringify(appState.ui.itemSelector ?? null) !== JSON.stringify(m.itemSelector)) dispatch({ type: 'setUi', ui: { itemSelector: m.itemSelector }, recordHistory: false })
+    })
+    const offUi = connection.onUi((ui) => getPuck().dispatch({ type: 'setUi', ui, recordHistory: false }))
+    return () => {
+      offState()
+      offUi()
+    }
+  }, [connection, sync, getPuck])
+
+  // Undo/redo belong to the host's history: forward the shortcut instead of running Puck's own.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      connection.intent(e.shiftKey ? 'redo' : 'undo')
+    }
+    const docs = new Set<Document>([document])
+    document.addEventListener('keydown', onKey, true)
+    // Puck's canvas is an iframe of its own; attach once it exists.
+    const timer = setInterval(() => {
+      for (const frame of document.querySelectorAll('iframe')) {
+        const doc = frame.contentDocument
+        if (doc && !docs.has(doc)) {
+          docs.add(doc)
+          doc.addEventListener('keydown', onKey, true)
+        }
+      }
+    }, 500)
+    return () => {
+      clearInterval(timer)
+      for (const d of docs) d.removeEventListener('keydown', onKey, true)
+    }
+  }, [connection])
+  return null
+}
 
 type State = { status: 'waiting' } | { status: 'error'; message: string } | { status: 'ready'; payload: EditorPayload; options: EditorOptions; theme: ThemeModule }
 
@@ -256,7 +376,7 @@ export function PuckRemoteEditor(props: PuckRemoteEditorProps) {
 }
 
 function ReadyEditor(p: PuckRemoteEditorProps & { payload: EditorPayload; options: EditorOptions; theme: ThemeModule; connection: HostConnection }) {
-  const { payload, options, theme, connection, transformConfig, fields } = p
+  const { payload, options, theme, connection, transformConfig } = p
   const config = useMemo(() => {
     const ctx: RenderCtx = {
       isEditing: true,
@@ -268,33 +388,45 @@ function ReadyEditor(p: PuckRemoteEditorProps & { payload: EditorPayload; option
       assets: { script() {}, style: (url) => addStyle(url, payload.assetBase) },
       head: { title() {}, meta() {} },
     }
-    const built = buildEditorConfig(
-      payload.manifest as Manifest,
-      theme,
-      {
-        ctx,
-        hostFields: fields,
-        // The page is the host's state: only the block and its props are sent.
-        resolve: async (block, props) => ((await connection.rpc('resolveData', { block, props })) as { data: Record<string, unknown> }).data,
-      },
-      options.categories,
-    )
+    // The host resolves data and sends `__data` with its state.
+    const built = withoutResolveData(buildEditorConfig(payload.manifest as Manifest, theme, { ctx, resolve: async () => ({}) }, options.categories))
     return transformConfig ? transformConfig(built) : built
-  }, [payload, options, theme, connection, transformConfig, fields])
+  }, [payload, options, theme, transformConfig])
+  const sync = useMemo(() => createFrameSync(), [connection])
+  const onAction = useMemo(
+    () => (action: PuckAction) => {
+      const m = sync.local(action)
+      if (m) connection.action(m.seq, m.action)
+    },
+    [sync, connection],
+  )
   // Puck remounts an override whose identity changes: keep the merged object stable.
-  const overrides = useMemo(() => ({ iframe: CanvasStyles, headerActions: NoActions, ...p.overrides }), [p.overrides])
+  const overrides = useMemo(() => {
+    const AppPuck = p.overrides?.puck
+    return {
+      iframe: CanvasStyles,
+      header: NoHeader,
+      ...p.overrides,
+      puck: ({ children }: { children: ReactNode }) => (
+        <>
+          <HostBridge connection={connection} sync={sync} />
+          {AppPuck ? <AppPuck>{children}</AppPuck> : children}
+        </>
+      ),
+    }
+  }, [p.overrides, connection, sync])
+  const ui = useMemo(() => ({ ...p.ui, rightSideBarVisible: false }), [p.ui])
   const value = useMemo(() => ({ rpc: connection.rpc, payload, options }), [connection, payload, options])
   return (
     <EditorContext.Provider value={value}>
       <Puck
         config={config}
         data={payload.data as unknown as Data}
-        onChange={connection.change}
-        headerTitle={`/${payload.slug === 'home' ? '' : payload.slug}`}
+        onAction={onAction}
         permissions={options.permissions}
         overrides={overrides}
         plugins={p.plugins}
-        ui={p.ui}
+        ui={ui}
         viewports={p.viewports}
         iframe={p.iframe}
       />
@@ -303,6 +435,4 @@ function ReadyEditor(p: PuckRemoteEditorProps & { payload: EditorPayload; option
 }
 
 export { buildEditorConfig, type ThemeModule } from './config.tsx'
-export { colorField, linkField, mediaField } from './host-fields.tsx'
-export type { HostFieldFactories } from './fields.ts'
-export type { RpcHandler, RpcHandlers, TypedRpc } from './protocol.ts'
+export type { FrameAction, ItemSelector, RpcHandler, RpcHandlers, TypedRpc } from './protocol.ts'

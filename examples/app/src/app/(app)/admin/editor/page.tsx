@@ -11,7 +11,7 @@ const EDITOR_URL =
 export default async function AdminPage(props: {
   params: Promise<{ path?: string[] }>;
 }) {
-  await requireSession();
+  const { user } = await requireSession();
   const payload = await remote.loadEditor(props);
-  return <ClientEditor payload={payload} editorUrl={EDITOR_URL} />;
+  return <ClientEditor payload={payload} editorUrl={EDITOR_URL} user={user} />;
 }

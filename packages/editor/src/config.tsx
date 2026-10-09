@@ -178,3 +178,49 @@ export function buildEditorConfig(manifest: Manifest, theme: ThemeModule, deps: 
         : undefined,
   }
 }
+
+/**
+ * Renders for the host's Puck: it shows fields and holds the data, never a canvas, so no theme
+ * code runs on the admin origin. Fields, defaults and visibleIf all come from the manifest.
+ */
+export function placeholderTheme(manifest: Manifest): ThemeModule {
+  const placeholder = { fields: {}, render: () => null }
+  return {
+    blocks: Object.fromEntries(Object.keys(manifest.blocks).map((name) => [name, placeholder])) as ThemeModule['blocks'],
+    root: manifest.root ? (placeholder as unknown as ThemeModule['root']) : null,
+  }
+}
+
+/** The editor's Puck: the host resolves data (and sends `__data` with its state). */
+export function withoutResolveData(config: Config): Config {
+  const components = Object.fromEntries(Object.entries(config.components).map(([name, c]) => [name, { ...c, resolveData: undefined }]))
+  return { ...config, components, root: config.root ? { ...config.root, resolveData: undefined } : config.root }
+}
+
+type AnyItem = { type: string; props: Record<string, unknown>; readOnly?: Record<string, unknown> }
+const isItem = (v: unknown): v is AnyItem => !!v && typeof v === 'object' && typeof (v as AnyItem).type === 'string' && !!(v as AnyItem).props && typeof (v as AnyItem).props === 'object'
+
+function stripOne<T extends { props?: Record<string, unknown>; readOnly?: Record<string, unknown> }>(node: T): T {
+  const props: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(node.props ?? {})) {
+    if (k === RESERVED_DATA_PROP) continue
+    props[k] = Array.isArray(v) && v.length > 0 && v.every(isItem) ? v.map(stripOne) : v
+  }
+  const out = { ...node, props } as T
+  if (node.readOnly) {
+    const { [RESERVED_DATA_PROP]: _, ...ro } = node.readOnly
+    if (Object.keys(ro).length) out.readOnly = ro
+    else delete out.readOnly
+  }
+  return out
+}
+
+/**
+ * Page data as it is saved: resolved data (`__data`, `readOnly.__data`) removed everywhere,
+ * slots included. Same result as the core's stripResolved; browser-safe (for "unsaved changes").
+ */
+export function stripResolved<D extends { root: { props?: Record<string, unknown> }; content: unknown[]; zones?: Record<string, unknown[]> }>(data: D): D {
+  const list = (items: unknown[]) => items.map((i) => (isItem(i) ? stripOne(i) : i))
+  const zones = data.zones ? Object.fromEntries(Object.entries(data.zones).map(([z, items]) => [z, list(items)])) : undefined
+  return { ...data, root: stripOne(data.root), content: list(data.content), ...(zones ? { zones } : {}) }
+}

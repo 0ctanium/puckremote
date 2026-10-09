@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 325
+next_decision = 344
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -176,6 +176,16 @@ title = "Strongly typed useEditor().rpc"
 description = "Strongly typed useEditor().rpc"
 tags = [ "editor", "rpc", "types" ]
 decisions = [ "D-0316", "D-0317", "D-0318", "D-0319", "D-0320", "D-0321", "D-0322", "D-0323", "D-0324" ]
+
+[adrs."feat/split-editor"]
+file = "branches/feat/split-editor.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Split editor: admin Puck holds the data, frame Puck syncs by actions"
+description = "Split editor: admin Puck holds the data, frame Puck syncs by actions"
+tags = [ "editor", "security", "protocol" ]
+decisions = [ "D-0325", "D-0326", "D-0327", "D-0328", "D-0329", "D-0330", "D-0331", "D-0332", "D-0333", "D-0334", "D-0335", "D-0336", "D-0337", "D-0338", "D-0339", "D-0340", "D-0341", "D-0342", "D-0343" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -1813,9 +1823,10 @@ title = "Editor is a static, credential-free app on its own site running full Pu
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "security" ]
 supersedes = [ "D-0080", "D-0089", "D-0084" ]
+superseded_by = "D-0325"
 
 [decisions.D-0193]
 title = "Host embed <PuckEditorFrame>: editorUrl/editorOrigin, initial data, JSON-only options, allow-listed RPC handlers, onChange/onDraft; publish lives in host UI; checks e.origin and e.source; explicit targetOrigin"
@@ -1831,8 +1842,9 @@ title = "Typed, versioned postMessage protocol (ready, init, change, rpc, rpc:re
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "security" ]
+superseded_by = "D-0329"
 
 [decisions.D-0195]
 title = "Editor responds frame-ancestors <host origin>; host page frame-src <editor origin>; server validates and sanitizes page data on write"
@@ -1961,9 +1973,10 @@ title = "No 'draft' message: <PuckEditorFrame> exposes onChange(data) only (ever
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "editor" ]
 supersedes = [ "D-0193" ]
+superseded_by = "D-0327"
 
 [decisions.D-0210]
 title = "Editor protocol API names: PROTOCOL_VERSION, LIMITS, measure(), rateLimiter(), EditorOptions { permissions, locales, categories (replaces the theme's), flags, extra }; frame helpers frameProblem/hostMessageHandler; bridge startEditorBridge/initProblem; EditorPayload gains site"
@@ -2143,8 +2156,9 @@ title = "<PuckRemoteEditor> in @puck-remote/editor/react registers the host app'
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor" ]
+superseded_by = "D-0333"
 
 [decisions.D-0231]
 title = "useEditor() hook: { rpc(method, params), payload, options } inside the editor tree; rpc is the protocol client, allow-listed by the host frame's rpc map"
@@ -2909,6 +2923,162 @@ adr = "feat/typed-rpc"
 date = "2026-10-09"
 provenance = "user-approved-plan"
 status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0325]
+title = "Split editor replaces the full-Puck-in-the-frame model: the admin Puck (manifest config, no theme code) holds data, history and fields; the frame (theme code) runs canvas, drawer and outline and reports Puck actions; the admin replays them and sends back its state"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "security" ]
+supersedes = [ "D-0192" ]
+
+[decisions.D-0326]
+title = "Frame UI: Puck's own layout with the header removed and the right (fields) panel hidden; stop and ask if Puck keeps an empty column"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "ui" ]
+
+[decisions.D-0327]
+title = "<PuckEditorFrame> in /frame becomes the admin-side component: renders the admin <Puck>, accepts children (your layout); <PuckEditorFrame.Canvas /> renders the iframe"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "api" ]
+supersedes = [ "D-0209" ]
+
+[decisions.D-0328]
+title = "PROTOCOL_VERSION 2 (the change message is removed)"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+
+[decisions.D-0329]
+title = "Protocol v2: editor→admin ready, action {seq, action}, intent {undo|redo}, rpc, error; admin→editor init, state {data, itemSelector, ack}, ui {leftSideBarVisible}, rpc:result, error"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+supersedes = [ "D-0194" ]
+
+[decisions.D-0330]
+title = "Admin validates frame actions with zod: insert (manifest blocks or __missing), move/reorder/remove/duplicate (int indexes, string zones), replace/replaceRoot (page item schema), setUi itemSelector only; others refused; actions size-checked (rpcBytes), not rate-limited; page bounded by pageBytes"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol", "security" ]
+
+[decisions.D-0331]
+title = "Echo/order: frame numbers actions; admin state carries ack; frame applies state only if ack >= its last seq, with recordHistory false, and ignores the actions Puck emits for those"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+
+[decisions.D-0332]
+title = "Duplicates and divergence: the admin state broadcast (its ids) replaces the frame state; no id rewriting"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "protocol" ]
+
+[decisions.D-0333]
+title = "<PuckRemoteEditor> forwards onAction, strips resolveData, hides header and right panel, forwards cmd-Z as intent; fields prop and change sending removed; keeps handshake, theme loading, useEditor, overrides/plugins/ui/iframe/viewports"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "api" ]
+supersedes = [ "D-0230" ]
+
+[decisions.D-0334]
+title = "useEditor() unchanged; the example frame RPC map becomes { currentUser } (resolveData moves to the admin)"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "examples" ]
+
+[decisions.D-0335]
+title = "<PuckEditorFrame> props: payload, editorUrl, editorOrigin?, options?, rpc?, resolveData(block, props), fields?, onChange?, onError?, overrides/plugins for the admin Puck, children; config from buildEditorConfig with placeholder renders; default layout Canvas + Puck.Fields"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "api" ]
+
+[decisions.D-0336]
+title = "PuckEditorFrame.Canvas: the sandboxed iframe with the existing frameProblem checks, sandbox and referrerPolicy, plus className/style/title"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "security" ]
+
+[decisions.D-0337]
+title = "/frame exports stripResolved(data) and usePuckEditorFrame() → { payload, setLeftSideBarVisible, frameReady }; apps use Puck createUsePuck for history and data"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "api" ]
+
+[decisions.D-0338]
+title = "Example: ClientEditor with header (path, theme, user, undo/redo, left panel toggle, status/dirty, Publish); rpc.ts { currentUser }; EditorPage reduced to <PuckRemoteEditor>"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0339]
+title = "Split editor branch starts from feat/typed-rpc; spike code not carried over"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0340]
+title = "Split editor tests: protocol v2 and action validation, admin handler and frame sync rule as pure functions, stripResolved, type tests, parity; browser checklist"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0341]
+title = "Split editor docs: concepts/editor, guides/editor-app rewrite, next-js snippets, editor-protocol, editor-lifecycle, threat-model, packaging, testing, research page link"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0342]
+title = "Split editor on feat/split-editor with its ADR"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0343]
+title = "Plan item B1 listed D-0231 and D-0251 as superseded by mistake: useEditor() and the shared module registration remain valid; only D-0192 (and D-0209, D-0194, D-0230 by their own items) is superseded"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "agent-unreviewed"
+status = "needs-review"
 tags = [ "process" ]
 
 [relationships.depends_on]

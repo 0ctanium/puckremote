@@ -8,6 +8,7 @@ description: Accepted limitations and what is planned about them.
 | isolated-vm is in maintenance mode; a V8 escape runs native code, unchecked by Node's permission model | `bubblewrap()` on Linux (experimental); remote renderer planned for M5 ([D-0075](/docs/internal/decisions#D-0075)) |
 | Island HTML is rendered with the theme's React in the isolate and hydrated with the app's React; a version difference or a first render that reads `window`, time or randomness causes a hydration mismatch | React 19 client-renders the island and reports it through `onRecoverableError` ([D-0253](/docs/internal/decisions#D-0253)) |
 | Islands can't receive `children` or contain slots; props are JSON only | By design ([D-0248](/docs/internal/decisions#D-0248)) |
+| On the admin page, Puck records the data resolved at load (`resolveData`) as undo steps: undoing past the first edit removes the blocks' data (they show "Unavailable" until redo) | Puck's own behavior; a fix (reset the history once the first resolution is done) is not decided |
 | Blocks in one request share a context | Accepted ([D-0026](/docs/internal/decisions#D-0026)) |
 | Theme client scripts don't run in the editor canvas; `head.*` is ignored there | By design: blocks are real components in the editor ([D-0192](/docs/internal/decisions#D-0192)) |
 | Next marks dynamic pages `no-store`; `x-page-cacheable` is only a signal; pages render and run their queries on every request | No caching in the core ([D-0187](/docs/internal/decisions#D-0187)); cache in the data source or the CDN |

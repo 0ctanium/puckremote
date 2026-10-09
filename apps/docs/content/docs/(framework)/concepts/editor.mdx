@@ -1,65 +1,73 @@
 ---
 title: The editor
-description: A credential-free Puck editor, a React component on its own site, driven by your admin page through typed postMessage messages.
+description: Two Puck instances, on two sites. Your admin page holds the data, the history, the fields and publishing; a credential-free editor frame shows the canvas, the drawer and the outline with the theme's components.
 ---
 
-The editor is a **React page on its own site** (for example `https://editor.example.net`) that
-runs the full Puck editor: native canvas drag and drop, real theme components
-([D-0192](/docs/internal/decisions#D-0192)). You render it with `<PuckRemoteEditor>` and can customize it
-like any Puck editor ([D-0228](/docs/internal/decisions#D-0228)). It holds **no credentials**: it never authenticates, never
-calls your backend and never sees a secret. All authority stays in your app.
+Puck is split in two ([D-0325](/docs/internal/decisions#D-0325)):
+
+- **Your admin page** (`https://admin.example.com`) runs a Puck built from the manifest alone:
+  fields, defaults, categories, `visibleIf`. It holds the **page data, the history and the fields
+  panel**, and your header, Publish button and plugins live next to it. **No theme code runs
+  there.**
+- **The editor frame** (another site, e.g. `https://editor.example.net`) runs Puck with the theme's
+  real components: the **canvas, the drawer and the outline**, where drag and drop happens. It
+  holds **no credentials**: it never authenticates, never calls your backend and never sees a
+  secret.
+
+The frame doesn't edit the page itself: it **proposes Puck actions** (insert, move, edit, select…).
+Your admin page validates them, replays them on its own Puck, and sends its state back. Theme code
+in the frame can therefore never publish, reach version history or call anything you haven't
+listed, because none of it exists there.
 
 ```mermaid
 sequenceDiagram
-  participant H as Admin page (your app)
-  participant E as Editor iframe (editor site)
+  participant A as Admin page (your app, holds the data)
+  participant E as Editor frame (theme code, no credentials)
   participant S as Your server
-  E->>H: ready
-  H->>E: init (page, manifest, theme URLs, options)
+  E->>A: ready
+  A->>E: init (page, manifest, theme URLs, options)
   E->>S: GET /cdn/bundle.browser.js?v=… (CORS)
-  E->>E: rebuild the Puck config, mount Puck
-  E->>H: rpc resolveData (block, props)
-  H->>S: your transport, e.g. a server action (with the admin session)
-  S-->>H: data (draft mode)
-  H-->>E: rpc:result
-  E->>H: change (page data, debounced)
-  H->>S: publish (host UI, outside the frame)
+  A->>E: state (data, selection)
+  Note over E: you drag a block
+  E->>A: action (insert…), validated and replayed
+  A->>S: resolveData (your server action, admin session)
+  A->>E: state (data with __data, ack)
+  Note over A: you edit a field, undo, publish: all on the admin page
+  A->>E: state
 ```
 
 ## Two sides
 
-- **Your admin page** renders `<PuckEditorFrame>` from `@puck-remote/editor/frame` with the
-  payload from `core.editorPayload(slug)`, a map of allow-listed RPC handlers and an `onChange`
-  callback ([D-0209](/docs/internal/decisions#D-0209)). Publishing is a button in **your** UI, outside the
-  frame, so theme code running in the editor can never publish.
-- **Your editor page** renders `<PuckRemoteEditor>` from `@puck-remote/editor/react`, on the
-  editor origin. It waits for `init`, imports the theme's `bundle.browser.js` (handing it your
-  app's React through globals), rebuilds the Puck config from the manifest (fields,
-  defaults, categories) plus the bundle's render functions, and mounts Puck. Functions never cross
-  `postMessage`; only JSON does.
+- **Admin page:** `<PuckEditorFrame>` from `@puck-remote/editor/frame`, with the payload from
+  `core.editorPayload(slug)` and your `resolveData` ([D-0327](/docs/internal/decisions#D-0327)). It
+  renders a real `<Puck>`, so your layout uses Puck's own components (`<Puck.Fields />`) and hooks
+  (history, data), plus `<PuckEditorFrame.Canvas />` for the frame.
+- **Editor page:** `<PuckRemoteEditor>` from `@puck-remote/editor/react`, on the editor origin. It
+  waits for `init`, imports the theme's `bundle.browser.js` (handing it your app's React through
+  globals), builds the Puck config with the theme's components, and shows Puck's UI without its
+  header or fields panel. Functions never cross `postMessage`; only JSON does.
 
-Both sides check where they run ([D-0207](/docs/internal/decisions#D-0207)): the frame refuses to load
-outside a host (admin) origin, `<PuckRemoteEditor>` refuses an `init` unless it runs on the configured editor
-origin and the message comes from an admin origin. Every message is validated against the typed
-protocol (version, shape, size, rate). See [Editor protocol](/docs/internal/architecture/editor-protocol).
-Your editor code can call your admin page too: `useEditor().rpc(method, params)` reaches the
-methods listed in the frame's `rpc` map.
+Both sides check where they run ([D-0207](/docs/internal/decisions#D-0207)). The frame refuses to
+load outside a host (admin) origin, and `<PuckRemoteEditor>` refuses an `init` unless it runs on
+the configured editor origin and the message comes from an admin origin. Every message is
+validated against the typed protocol (version, shape, size). See
+[Editor protocol](/docs/internal/architecture/editor-protocol).
 
 ## Data in the editor
 
-Blocks with data get a Puck `resolveData` that asks the host through the `resolveData` RPC; your
-handler calls `core.resolveBlockData(slug, block, props)` (draft mode). Only the block name and
-its props go over the wire; the query always comes from the manifest, and the page slug from your
-admin page's state, never from the editor ([D-0202](/docs/internal/decisions#D-0202)). Results land in
-the reserved prop `__data`, marked `readOnly`, and are stripped when a page is written
+Blocks with data get a Puck `resolveData` **on the admin page**, which calls your `resolveData`
+prop, typically a server action calling `core.resolveBlockData(slug, block, props)` in draft mode.
+Only the block name and its props are sent; the query always comes from the manifest
+([D-0202](/docs/internal/decisions#D-0202)). Results land in the reserved prop `__data`, marked
+`readOnly`, travel to the frame with the state, and are stripped when a page is written
 ([D-0028](/docs/internal/decisions#D-0028)).
 
-## Why the editor runs theme code now
+## Why the frame runs theme code
 
-Before, the canvas was rendered on the server so that no theme JavaScript ran next to an
-editor's session ([D-0080](/docs/internal/decisions#D-0080), superseded). Running the editor on a separate,
-credential-free site gives the same protection while letting blocks be real client components in
-the canvas. The browser enforces the boundary: the editor's site has no cookies for your app, and
-`frame-ancestors` only lets your admin origins embed it.
+Blocks are real client components in the canvas. Running them on a separate, credential-free site
+keeps them away from your admin session: the browser enforces it, since the editor's site has no
+cookies for your app and `frame-ancestors` only lets your admin origins embed it. Since the split,
+the frame also holds no authority of its own: everything it does goes through validated actions
+that your admin page applies.
 
 Set-up: [Customizing the editor](/docs/guides/editor-app). Deep dive: [editor lifecycle](/docs/internal/architecture/editor-lifecycle).

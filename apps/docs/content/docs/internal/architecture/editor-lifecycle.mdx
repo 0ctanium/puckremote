@@ -8,43 +8,58 @@ description: From opening the admin page to publishing, step by step.
    artifact (or an empty page with root defaults), `stripResolved` + `rewriteMissing`, and returns
    the payload: artifact id, manifest, data, absolute `bundleUrl` / `assetBase` on the first host
    origin, `origins`, `site` ([D-0208](/docs/internal/decisions#D-0208)).
-2. **`<PuckEditorFrame>`** (admin page, browser) runs `frameProblem`: it must run on a host
-   origin, and `editorUrl`, `editorOrigin` and `payload.origins.editor` must agree. Only then does
-   it render the iframe (`sandbox="allow-scripts allow-same-origin allow-forms allow-popups"`,
-   `referrerPolicy="no-referrer"`) and listen for messages through `hostMessageHandler`.
-3. **Editor page** (your app, on the editor origin; the proxy rewrites every path there and sends
-   the editor CSP): `remote.loadEditorPage()` (404 off `origins.editor`) gives `allowedParents`
-   (`origins.host`) to `<PuckRemoteEditor>`. Its effect calls `connectToHost`, which posts `ready`
-   to each allowed parent origin (only the real parent receives it), then waits for `init` from
-   `window.parent` on an allowed origin. `initProblem` checks it runs on `payload.origins.editor`,
-   that the sender is a host origin and that the theme URLs are on a host origin.
-4. **Theme**: the component calls `registerSharedModules()` from `@puck-remote/sdk/browser`
+2. **`<PuckEditorFrame>`** (admin page, browser) builds **its own Puck config from the manifest**
+   ([D-0335](/docs/internal/decisions#D-0335)): `buildEditorConfig` with `placeholderTheme` (renders
+   that return nothing, since this side never shows a canvas) and your `resolveData`. It renders
+   `<Puck>` with the page data, and your layout as children (`<Puck.Fields />`, your header,
+   `<PuckEditorFrame.Canvas />`). The `Canvas` runs `frameProblem`: it must be on a host origin, and
+   `editorUrl`, the editor origin and `payload.origins.editor` must agree. Only then does it render
+   the iframe (`sandbox="allow-scripts allow-same-origin allow-forms allow-popups"`,
+   `referrerPolicy="no-referrer"`). An internal `EditorBridge` listens through
+   `hostMessageHandler`.
+3. **Editor page** (your app, on the editor origin, which the proxy serves at `/` with the editor
+   CSP): `remote.loadEditorPage()` (404 off `origins.editor`) gives `allowedParents` (`origins.host`)
+   to `<PuckRemoteEditor>`. Its effect calls `connectToHost`, which posts `ready` to each allowed
+   parent origin (only the real parent receives it). The admin answers with `init`, then with its
+   current `state`. `initProblem` checks that the editor runs on `payload.origins.editor`, that the
+   sender is a host origin and that the theme URLs are on a host origin.
+4. **Theme:** `<PuckRemoteEditor>` calls `registerSharedModules()` from `@puck-remote/sdk/browser`
    ([D-0257](/docs/internal/decisions#D-0257)), which puts your app's `react`, `react/jsx-runtime`,
-   `react-dom`, `react-dom/client` and `@puck-remote/sdk` on `globalThis.__puckRemoteModules`, imports
-   `bundle.browser.js` (which reads them from there, [D-0229](/docs/internal/decisions#D-0229)) and calls
-   `buildEditorConfig(manifest, theme, deps)`, then your `transformConfig`:
-   - fields via `mapFields` (`host:*` fields are the editor's own Puck custom fields, or yours
-     through the `fields` prop);
-   - `resolveFields` from `visibleIf`, evaluated by `isVisible` (never evaluates strings);
-   - `resolveData` → the `resolveData` RPC, result stored in `props.__data` with
-     `readOnly.__data` ([D-0028](/docs/internal/decisions#D-0028));
+   `react-dom`, `react-dom/client` and `@puck-remote/sdk` on `globalThis.__puckRemoteModules`. It
+   then imports `bundle.browser.js`, which reads them from there
+   ([D-0229](/docs/internal/decisions#D-0229)), and builds its config with
+   `buildEditorConfig(manifest, theme, deps)`, without `resolveData` (`withoutResolveData`), then your
+   `transformConfig`:
    - `render` → `BrowserBlock`: the theme's `render(props, data, ctx)` inside an error boundary,
-     with `SlotContext` providing Puck's slot components to the SDK's `<Slot>`.
-5. **Styles**: `ctx.assets.style` URLs under the artifact's `assetBase` are injected into Puck's
-   canvas iframe by the `iframe` override. Scripts are not run in the editor; `head.*` is ignored.
-   Puck's own Publish button is replaced by nothing (publishing is host UI); your `overrides` are
-   merged over these. `useEditor()` exposes `{ rpc, payload, options }` to your overrides, plugins
-   and fields.
-6. **Changes**: Puck's `onChange` is debounced (500 ms) and sent as `change` with the full data;
-   the frame validates it and calls `onChange`.
-7. **Publish** (host UI, the example's plugin): the admin page calls its `publish` server action
-   with `{ slug, data, base }`; it refuses when the pointer moved since `base`, then
-   `core.writePage` (`cleanPage`: zod, `restoreMissing`, `stripResolved`) and
-   `artifacts.writePointer(id)`, then reloads the host's artifact.
+     with `SlotContext` providing Puck's slot components to the SDK's `<Slot>`;
+   - fields and `visibleIf` are in the config too, but the fields panel is hidden: fields are edited
+     on the admin side.
+5. **UI** ([D-0326](/docs/internal/decisions#D-0326)): Puck's own layout, with the header removed
+   (`overrides.header`) and the right panel hidden (`ui.rightSideBarVisible: false`). The tabbed
+   Blocks/Outline sidebar and the canvas toolbar stay. `ctx.assets.style` URLs under the
+   artifact's `assetBase` are injected into Puck's canvas iframe. Theme scripts don't run in the
+   editor, and `head.*` is ignored. `useEditor()` exposes `{ rpc, payload, options }` to your
+   overrides and plugins.
+6. **Editing** ([D-0331](/docs/internal/decisions#D-0331)):
+   - Puck's `onAction` in the frame passes through `toFrameAction`, which keeps only replayable
+     actions and the selection, and through `createFrameSync`, which numbers them. They're sent as
+     `action`.
+   - The admin validates each one (block exists, permissions, size), replays it with `dispatch`
+     (recorded in its history), and answers with `state` (`data`, `itemSelector`, `ack`).
+   - The frame applies a state only when `ack` covers its last action, with `recordHistory: false`.
+   - Field edits, undo/redo and `resolveData` happen on the admin's Puck, and reach the frame the
+     same way.
+   - ⌘Z / ⇧⌘Z pressed in the frame is sent as `intent`. The admin's header can hide the frame's
+     left panel through `ui`.
+7. **Publish** (host UI, the example's plugin): the admin page reads the data from its own Puck and
+   calls its `publish` server action with `{ slug, data, base }`. The action refuses when the
+   pointer moved since `base`, then calls `core.writePage` (`cleanPage`: zod, `restoreMissing`,
+   `stripResolved`) and `artifacts.writePointer(id)`, then reloads the host's artifact. "Unpublished
+   changes" compares `stripResolved(data)` with the last published state.
 
 ## resolveData details
 
-- Runs on load/insert, when a prop listed in the manifest's `propRefs` changed, or on `force`.
+- Runs on the admin page's Puck (never in the frame), on load/insert, when a prop listed in the manifest's `propRefs` changed, or on `force`.
 - Keystrokes (`trigger: 'replace'`) are debounced per block (300 ms); superseded calls give up.
 - Failures fall back to `{ ok: false, error: 'loading' }` for each data key.
 - On the server, `core.resolveBlockData` parses `{ slug, block, props }` with a non-strict schema
@@ -60,4 +75,5 @@ description: From opening the admin page to publishing, step by step.
 <Source path="packages/editor/src/visible-if.ts" />
 <Source path="packages/next/src/proxy.ts" />
 <Source path="examples/app/src/app/(app)/admin/editor/actions.ts" />
+<Source path="examples/app/src/app/(app)/admin/editor/ClientEditor.tsx" />
 <Source path="examples/app/src/app/(puck)/editor/EditorPage.tsx" />

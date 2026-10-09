@@ -1,28 +1,27 @@
 /**
- * The postMessage protocol between the host's admin page (<PuckEditorFrame>) and the editor
- * iframe (<PuckRemoteEditor>). Typed, versioned messages; both sides validate everything they receive.
+ * The postMessage protocol between the host's admin page (<PuckEditorFrame>, which holds the page
+ * data, the history and the fields) and the editor iframe (<PuckRemoteEditor>: canvas, drawer,
+ * outline; theme code runs there). Typed, versioned messages; both sides validate everything.
  *
- *   editor → host   ready, change, rpc, error
- *   host → editor   init, rpc:result, error
+ *   editor → host   ready, action { seq, action }, intent { undo | redo }, rpc, error
+ *   host → editor   init, state { data, itemSelector, ack }, ui { leftSideBarVisible }, rpc:result, error
  *
- * Only JSON travels, except RPC params, which may also carry File/Blob values (uploads).
- * Functions never cross: the editor rebuilds the Puck config from the manifest and the theme's
- * browser bundle.
+ * The editor proposes Puck actions; the host validates and replays them on its own Puck, then
+ * sends its state back. Only JSON travels, except RPC params, which may also carry File/Blob
+ * values (uploads). Functions never cross: each side builds its own Puck config.
  */
 import type { EditorPayload, PageData } from "@puck-remote/core";
 import { z } from "zod";
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export const LIMITS = {
   /** Max size of one RPC request or result (JSON bytes). */
   rpcBytes: 1024 * 1024,
   /** Max total size of File/Blob values in one RPC request. */
   uploadBytes: 10 * 1024 * 1024,
-  /** RPC calls per second per frame. */
+  /** RPC calls per second per frame (actions are not rate-limited). */
   rpcPerSecond: 20,
-  /** The editor sends `change` at most this often. */
-  changeDebounceMs: 500,
   /** Max size of page data (JSON bytes). */
   pageBytes: 2 * 1024 * 1024,
 } as const;
@@ -74,17 +73,38 @@ export type TypedRpc<T extends RpcHandlers = RpcHandlers> = <K extends keyof T &
   ...params: RpcParams<T[K]>
 ) => Promise<Awaited<ReturnType<T[K]>>>;
 
+/** The selected block (Puck's `ui.itemSelector`), or null for the root. */
+export type ItemSelector = { index: number; zone?: string } | null;
+
+type Item = { type: string; props: Record<string, unknown> };
+
+/** The Puck actions the editor may propose (B6). Everything else stays local or is refused. */
+export type FrameAction =
+  | { type: "insert"; componentType: string; destinationIndex: number; destinationZone: string; id?: string }
+  | { type: "duplicate"; sourceIndex: number; sourceZone: string }
+  | { type: "reorder"; sourceIndex: number; destinationIndex: number; destinationZone: string }
+  | { type: "move"; sourceIndex: number; sourceZone: string; destinationIndex: number; destinationZone: string }
+  | { type: "remove"; index: number; zone: string }
+  | { type: "replace"; destinationIndex: number; destinationZone: string; data: Item }
+  | { type: "replaceRoot"; root: { props?: Record<string, unknown> } }
+  | { type: "setUi"; ui: { itemSelector: ItemSelector } };
+
+type V = typeof PROTOCOL_VERSION;
+
 export type EditorToHost =
-  | { v: 1; type: "ready" }
-  | { v: 1; type: "change"; data: PageData }
-  | { v: 1; type: "rpc"; id: number; method: string; params: unknown }
-  | { v: 1; type: "error"; message: string };
+  | { v: V; type: "ready" }
+  | { v: V; type: "action"; seq: number; action: FrameAction }
+  | { v: V; type: "intent"; intent: "undo" | "redo" }
+  | { v: V; type: "rpc"; id: number; method: string; params: unknown }
+  | { v: V; type: "error"; message: string };
 
 export type HostToEditor =
-  | { v: 1; type: "init"; payload: EditorPayload; options: EditorOptions }
-  | { v: 1; type: "rpc:result"; id: number; ok: true; value: unknown }
-  | { v: 1; type: "rpc:result"; id: number; ok: false; error: string }
-  | { v: 1; type: "error"; message: string };
+  | { v: V; type: "init"; payload: EditorPayload; options: EditorOptions }
+  | { v: V; type: "state"; data: PageData; itemSelector: ItemSelector; ack: number }
+  | { v: V; type: "ui"; leftSideBarVisible: boolean }
+  | { v: V; type: "rpc:result"; id: number; ok: true; value: unknown }
+  | { v: V; type: "rpc:result"; id: number; ok: false; error: string }
+  | { v: V; type: "error"; message: string };
 
 export type { EditorPayload, PageData };
 
@@ -115,6 +135,24 @@ export const pageDataSchema = z
   })
   .passthrough();
 const rpcId = z.number().int().nonnegative();
+const index = z.number().int().nonnegative().max(100_000);
+const zone = z.string().max(500);
+const itemSelector = z.object({ index, zone: zone.optional() }).nullable();
+
+/**
+ * Frame actions (B6). `z.object` strips unknown keys, so only these fields are ever replayed.
+ * Block types are checked against the manifest by the host (it knows the theme).
+ */
+export const frameActionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("insert"), componentType: z.string().max(100), destinationIndex: index, destinationZone: zone, id: z.string().max(200).optional() }),
+  z.object({ type: z.literal("duplicate"), sourceIndex: index, sourceZone: zone }),
+  z.object({ type: z.literal("reorder"), sourceIndex: index, destinationIndex: index, destinationZone: zone }),
+  z.object({ type: z.literal("move"), sourceIndex: index, sourceZone: zone, destinationIndex: index, destinationZone: zone }),
+  z.object({ type: z.literal("remove"), index, zone }),
+  z.object({ type: z.literal("replace"), destinationIndex: index, destinationZone: zone, data: item }),
+  z.object({ type: z.literal("replaceRoot"), root: z.object({ props: z.record(z.string(), z.unknown()).optional() }).passthrough() }),
+  z.object({ type: z.literal("setUi"), ui: z.object({ itemSelector }) }),
+]);
 const method = z.string().regex(/^[A-Za-z][A-Za-z0-9._:-]{0,63}$/);
 const message = z.string().max(2000);
 
@@ -170,7 +208,8 @@ const payloadSchema = z.strictObject({
 /** What the host accepts from the editor. */
 export const editorToHostSchema = z.discriminatedUnion("type", [
   z.strictObject({ v, type: z.literal("ready") }),
-  z.strictObject({ v, type: z.literal("change"), data: pageDataSchema }),
+  z.strictObject({ v, type: z.literal("action"), seq: z.number().int().positive(), action: frameActionSchema }),
+  z.strictObject({ v, type: z.literal("intent"), intent: z.enum(["undo", "redo"]) }),
   z.strictObject({
     v,
     type: z.literal("rpc"),
@@ -189,6 +228,8 @@ export const hostToEditorSchema = z.union([
     payload: payloadSchema,
     options: optionsSchema,
   }),
+  z.strictObject({ v, type: z.literal("state"), data: pageDataSchema, itemSelector, ack: z.number().int().nonnegative() }),
+  z.strictObject({ v, type: z.literal("ui"), leftSideBarVisible: z.boolean() }),
   z.strictObject({
     v,
     type: z.literal("rpc:result"),

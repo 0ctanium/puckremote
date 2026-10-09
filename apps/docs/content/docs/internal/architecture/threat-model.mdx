@@ -34,11 +34,18 @@ may be actively hostile.
   addresses, with manual same-origin redirects ([HTTP source](/docs/internal/architecture/http-source)).
 - **Hang or crash the host.** CPU timeouts, a memory cap, a wall-clock watchdog, and a host-side
   SIGKILL of the worker process ([worker pool](/docs/internal/architecture/worker-pool)).
-- **Use an admin session from the editor.** Theme components do run in the editor
-  ([D-0192](/docs/internal/decisions#D-0192)), but on a separate, credential-free site that only admin
-  origins may frame. They can only send protocol messages: `change` (data the admin decides to
-  publish or not) and RPCs the admin page allow-listed, size- and rate-limited, run with the
-  host's session ([editor protocol](/docs/internal/architecture/editor-protocol)). They cannot publish.
+- **Use an admin session from the editor.** Theme components do run in the editor frame, but on a
+  separate, credential-free site that only admin origins may frame. The admin page holds the page
+  data, the history and the fields ([D-0325](/docs/internal/decisions#D-0325)). The frame can
+  only send protocol messages:
+  - Puck **actions**, validated by the admin (shape, known blocks, permissions, size) before they
+    are replayed on its page;
+  - **undo/redo intents**;
+  - **RPCs** the admin page allow-listed, size- and rate-limited, which run with the host's session
+    ([editor protocol](/docs/internal/architecture/editor-protocol)).
+
+  Publishing, history and every other admin feature exist only on the admin page, so the frame
+  can't reach them.
 - **Use an admin session from the public site.** Public pages are refused on admin origins, and
   admin cookies are host-only ([origins](/docs/concepts/origins)).
 - **Point the editor at other code.** The bridge only imports a bundle URL on an admin origin;
@@ -70,9 +77,10 @@ Each layer assumes the previous one can fail.
   model does not constrain. Use the bubblewrap wrapper or (later) a remote renderer.
 - Blocks within one request share a context and can influence each other.
 - Theme client scripts don't run in the editor canvas (by design).
-- Theme code in the editor sees the page being edited and the draft data RPCs return for it, and
-  can send `change` messages with arbitrary (validated) page data. What gets published is still
-  the admin's action, through the host UI.
+- Theme code in the editor sees the page being edited, including the draft data in `__data`. It
+  can propose arbitrary (validated) actions, so it could alter the page: the change shows in the
+  admin's fields and history, and what gets published is still the admin's action, through the
+  host UI.
 - Authorization is entirely the app's: a server action or route behind the frame's `rpc` map, or a
   publish action, that forgets its session check is open to anyone. The editor origin serves the
   app's JS chunks, and theme code running there can call the app's server actions and routes,

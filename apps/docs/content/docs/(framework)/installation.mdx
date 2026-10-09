@@ -135,15 +135,17 @@ import { PuckEditorFrame } from '@puck-remote/editor/frame';
 import type { EditorPayload } from '@puck-remote/next';
 import { resolveData } from './actions';
 
+// This page's Puck holds the data, the history and the fields; the frame shows the canvas.
+// Add your header (undo/redo, Publish) as children: see Customizing the editor.
 export function ClientEditor({ payload }: { payload: EditorPayload }) {
   return (
-    <PuckEditorFrame
-      editorUrl="https://editor.example.net/"
-      editorOrigin="https://editor.example.net"
-      payload={payload}
-      rpc={{ resolveData: (p) => resolveData({ ...(p as object), slug: payload.slug }) }}
-      onChange={(data) => {/* keep it for your Publish button */}}
-    />
+    <div style={{ height: '100vh' }}>
+      <PuckEditorFrame
+        editorUrl="https://editor.example.net/"
+        payload={payload}
+        resolveData={async (block, props) => (await resolveData({ slug: payload.slug, block, props })).data}
+      />
+    </div>
   );
 }
 ```

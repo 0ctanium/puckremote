@@ -43,9 +43,9 @@ my-app
 | `src/puck-remote.ts` | The app instance: `createPuckRemote(config)` |
 | `src/proxy.ts` | Serves the editor page at the editor origin's root (everything else there is 404) and your `/admin` pages at the admin origin's root; security headers per origin (editor, admin or site) with a CSP nonce, cache headers |
 | `app/[[...path]]/page.tsx` | The public site (Puck RSC render) |
-| `app/admin/[[...path]]/page.tsx` | Your admin page: checks your session, embeds the editor with `<PuckEditorFrame>` |
+| `app/admin/[[...path]]/page.tsx` | Your admin page: checks your session, renders `<PuckEditorFrame>` (the page data, history and fields) around the editor frame |
 | `app/admin/[[...path]]/actions.ts` | Server actions the frame's `rpc` map and your Publish button call (`core.resolveBlockData`, `core.writePage`), with your auth |
-| `app/editor/[[...path]]/page.tsx` | The editor page (`<PuckRemoteEditor>`), only reachable on `origins.editor`; customize it freely |
+| `app/editor/[[...path]]/page.tsx` | The editor page (`<PuckRemoteEditor>`: canvas, drawer, outline), only reachable on `origins.editor` |
 | `app/cdn/[[...path]]/route.ts` | Theme files (`/cdn/assets/**`, `/cdn/bundle.browser.js`, `/cdn/bundle.islands.js`, versioned by `?v=`) |
 | `next.config.ts` | Keeps isolated-vm and the core external to the server bundle |
 
