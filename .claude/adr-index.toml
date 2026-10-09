@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 314
+next_decision = 316
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -165,7 +165,7 @@ created = "2026-10-09"
 title = "Redirect /admin/x to /x on admin origins"
 description = "Redirect /admin/x to /x on admin origins"
 tags = [ "next", "origins", "routing" ]
-decisions = [ "D-0307", "D-0308", "D-0309", "D-0310", "D-0311", "D-0312", "D-0313" ]
+decisions = [ "D-0307", "D-0308", "D-0309", "D-0310", "D-0311", "D-0312", "D-0313", "D-0314", "D-0315" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -2812,6 +2812,22 @@ date = "2026-10-09"
 provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "process" ]
+
+[decisions.D-0314]
+title = "Admin layout (owner's design): sidebar with Dashboard/Editor links, the signed-in user and a Log out button (Puck Button), globals.css; the dashboard drops its own user line and logout"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0315]
+title = "The sidebar user block only reads the session (getSession, renders nothing when logged out) because the layout also wraps /login; every admin page keeps its own requireSession(), the dashboard included"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples", "auth" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

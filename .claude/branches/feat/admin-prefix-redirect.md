@@ -35,6 +35,8 @@ Redirects on other origins (they keep answering 404).
 | D-0311 | Prefix redirect tests in packages/next/test/proxy.test.ts plus a curl check | user-approved-plan | accepted |
 | D-0312 | Docs for the prefix redirect: next-js/api, concepts/origins, configuration | user-approved-plan | accepted |
 | D-0313 | Prefix redirect on feat/admin-prefix-redirect from feat/admin-index | user-approved-plan | accepted |
+| D-0314 | Admin layout (owner's design): sidebar with Dashboard/Editor links, the signed-in user and a Log out button (Puck Button), globals.css; the dashboard drops its own user line and logout | user | accepted |
+| D-0315 | The sidebar user block only reads the session (getSession, renders nothing when logged out) because the layout also wraps /login; every admin page keeps its own requireSession(), the dashboard included | user | accepted |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -57,6 +59,18 @@ next-js/api, concepts/origins, configuration.
 - `packages/next/src/proxy.ts`: the redirect is built on the addressed origin (`requestOrigin`), not `nextUrl`.
 - `packages/next/test/proxy.test.ts`: 9 tests.
 - curl: `/admin` → 307 `http://admin.localhost:3100/`; `/admin/editor?x=1` → 307 `/editor?x=1`; `/` and `/editor` unchanged.
+
+## Follow-up: admin sidebar (owner's changes)
+The owner added an admin layout with a sidebar, `globals.css` and a Puck-styled logout button. As
+first written, it put `requireSession()` in the sidebar and removed it from the dashboard, which
+caused two problems:
+- `/login` redirected to itself, because the layout wraps it;
+- the dashboard streamed the theme id before the client-side redirect.
+
+With the owner's approval, the sidebar now uses `getSession()` (display only) and the dashboard
+calls `requireSession()` again. Verified with curl: logged-out `/login` 200 with no redirect,
+logged-out `/` 307 to `/login` with no theme id, logged-in `/` shows the user, the theme and Log
+out.
 
 ## Investigation Notes
 [Research, experiments, dead ends]

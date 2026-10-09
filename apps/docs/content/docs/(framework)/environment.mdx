@@ -35,7 +35,9 @@ pattern a real app follows with its own users:
   `admin_session`. It's `HttpOnly`, `SameSite=Strict` and host-only (no `Domain`), so neither the
   public site nor the editor origin ever receives it. It expires after 8 hours.
 - Every admin page calls `requireSession()`, which redirects to `/login`. That includes the dashboard
-  at `/`, which shows the signed-in user and the current theme, and links to the editor.
+  at `/`, which shows the current theme and links to the editor.
+- The admin layout's sidebar (links, signed-in user, Log out) only *reads* the session: the layout
+  also wraps `/login`, and a layout check doesn't protect a page, which renders in parallel with it.
 - Every server action calls `requireSession({ redirect: false })`, which throws `unauthorized`.
   Server actions are public POST endpoints, so a page or layout check alone doesn't protect them.
 
