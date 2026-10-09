@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 368
+next_decision = 369
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -185,7 +185,7 @@ created = "2026-10-09"
 title = "Split editor: admin Puck holds the data, frame Puck syncs by actions"
 description = "Split editor: admin Puck holds the data, frame Puck syncs by actions"
 tags = [ "editor", "security", "protocol" ]
-decisions = [ "D-0325", "D-0326", "D-0327", "D-0328", "D-0329", "D-0330", "D-0331", "D-0332", "D-0333", "D-0334", "D-0335", "D-0336", "D-0337", "D-0338", "D-0339", "D-0340", "D-0341", "D-0342", "D-0343", "D-0344", "D-0345", "D-0346", "D-0347", "D-0348", "D-0349", "D-0350", "D-0351", "D-0352", "D-0353", "D-0354", "D-0355", "D-0356", "D-0357", "D-0358", "D-0359", "D-0360", "D-0361", "D-0362", "D-0363", "D-0364", "D-0365", "D-0366", "D-0367" ]
+decisions = [ "D-0325", "D-0326", "D-0327", "D-0328", "D-0329", "D-0330", "D-0331", "D-0332", "D-0333", "D-0334", "D-0335", "D-0336", "D-0337", "D-0338", "D-0339", "D-0340", "D-0341", "D-0342", "D-0343", "D-0344", "D-0345", "D-0346", "D-0347", "D-0348", "D-0349", "D-0350", "D-0351", "D-0352", "D-0353", "D-0354", "D-0355", "D-0356", "D-0357", "D-0358", "D-0359", "D-0360", "D-0361", "D-0362", "D-0363", "D-0364", "D-0365", "D-0366", "D-0367", "D-0368" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -3274,6 +3274,14 @@ date = "2026-10-09"
 provenance = "agent-unreviewed"
 status = "needs-review"
 tags = [ "editor", "ui" ]
+
+[decisions.D-0368]
+title = "The admin page injects one scoped CSS rule, [class*=\"PuckCanvas--fullScreen\"]{padding:0!important}, to remove Puck 0.23's 24px top padding on wide screens"
+adr = "feat/split-editor"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "layout" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

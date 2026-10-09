@@ -291,9 +291,27 @@ const usePuck = createUsePuck();
 // Puck ignores a width of 0; 1px collapses this side's panel while a frame plugin is active.
 const COLLAPSED = 1;
 
+/**
+ * Puck 0.23 adds a top padding back on wide screens (>= 1198px): its rule for a canvas without
+ * controls is more specific than its own full-screen rule. This keeps the frame edge to edge. It
+ * relies on Puck's class-name prefix (`PuckCanvas--fullScreen`): update it if Puck renames that class.
+ */
+const FULL_SCREEN_CANVAS = '[class*="PuckCanvas--fullScreen"]{padding:0!important}';
+
+function useFullScreenCanvas() {
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.dataset.puckRemote = "full-screen-canvas";
+    style.textContent = FULL_SCREEN_CANVAS;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+}
+
 /** Inside this side's Puck: replays the editor's actions and sends the resulting state back. */
 function EditorBridge() {
   const ctx = useFrameContext("EditorBridge");
+  useFullScreenCanvas();
   const getPuck = useGetPuck();
   const data = usePuck((s) => s.appState.data);
   const itemSelector = usePuck((s) => s.appState.ui.itemSelector) as ItemSelector;

@@ -48,7 +48,11 @@ description: From opening the admin page to publishing, step by step.
      its panel width with each `ui` message, and a resize of the frame's panel comes back as
      `ui { leftSideBarWidth }`. Switching between Blocks and Outline keeps the width.
    - **Edge to edge:** the admin Puck uses `_experimentalFullScreenCanvas`, so the center area has no
-     side padding around the frame. Puck still keeps 24px at the top on screens 1198px and wider.
+     padding around the frame. On screens 1198px and wider, Puck 0.23 adds 24px back at the top: its
+     rule for a canvas without controls outranks its own full-screen rule. `<PuckEditorFrame>`
+     injects one rule, `[class*="PuckCanvas--fullScreen"]`, that removes it on the admin page
+     ([D-0368](/docs/internal/decisions#D-0368)). Like the nav rule below, it relies on Puck's
+     class-name prefix.
    - **No tab bar in the frame:** under 638px Puck shows its plugin nav as a bottom tab bar, and it
      has no option for it. `<PuckRemoteEditor>` injects one rule, `[class*="PuckLayout-nav"]`, that
      hides it in the frame only ([D-0360](/docs/internal/decisions#D-0360)). That rule relies on

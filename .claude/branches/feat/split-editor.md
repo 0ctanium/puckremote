@@ -71,6 +71,7 @@ Keeping the old full-frame mode; a version-history plugin; fixing Puck recording
 | D-0365 | Layout polish tests: ui width messages both ways, frameUi width, host callback; browser checks at desktop and narrow widths | user-approved-plan | accepted |
 | D-0366 | Layout polish docs: editor-protocol, editor-lifecycle, editor-app guide note, testing; same ADR | user-approved-plan | accepted |
 | D-0367 | framePlugin sets Puck's mobilePanelHeight 'min-content' so on small admin screens its empty panel takes no height and the frame keeps the space (the frame shows the real panel) | agent-unreviewed | needs-review |
+| D-0368 | The admin page injects one scoped CSS rule, [class*="PuckCanvas--fullScreen"]{padding:0!important}, to remove Puck 0.23's 24px top padding on wide screens | user | accepted |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -79,6 +80,7 @@ Keeping the old full-frame mode; a version-history plugin; fixing Puck recording
 - Scope: replace (chosen) / keep both modes.
 - Frame UI: Puck's own UI trimmed (chosen) / composed layout.
 - Name: reuse `<PuckEditorFrame>` (owner) / new `<PuckRemoteAdmin>`.
+- Top padding on wide screens (D-0368): scoped CSS rule (owner, chosen) / negative margin in the preview override (depends on Puck's gutter value) / leave it as a known gap.
 
 ### Rationale
 - B reports what the user did; remote states are marked when applied, so no content comparison is needed.
@@ -130,7 +132,7 @@ concepts/editor, concepts/origins, guides/editor-app (rewritten), installation, 
 - A core worker watchdog test failed once while the dev server was running, then passed twice. It's timing-based and unrelated.
 
 ## Follow-up: layout polish (D-0359 to D-0367)
-- The admin Puck uses `_experimentalFullScreenCanvas`, so the frame fills the center area with no side padding. Puck keeps 24px of top padding on screens 1198px and wider: its `:not(:has(controls))` rule outranks full-screen mode. This is open.
+- The admin Puck uses `_experimentalFullScreenCanvas`, so the frame fills the center area with no side padding. Puck keeps 24px of top padding on screens 1198px and wider: its `:not(:has(controls))` rule outranks full-screen mode. Fixed by D-0368 (owner's choice): the admin page injects `[class*="PuckCanvas--fullScreen"]{padding:0!important}`; checked at 1400px (computed `padding-top: 0px`).
 - The frame injects `[class*="PuckLayout-nav"]{display:none}`, so it never shows Puck's rail or mobile tab bar.
 - `framePlugin` uses `mobilePanelHeight: 'min-content'` (agent choice, D-0367): on a small admin page the admin's empty panel takes no height, and the frame shows the drawer as its own bottom sheet.
 - The left panel width is shared through `ui.leftSideBarWidth` in both directions.
