@@ -5,8 +5,8 @@
  *    other path answers 404 (only Next's `/_next/*` files pass): nothing else of the app is
  *    reachable there. On other origins, the editor route answers 404;
  *  - on host (admin) origins (`origins.host`), every path is rewritten under `routes.admin`
- *    (`/x` → `/admin/x`), except the theme route and `/_next/*`. On other origins, the admin
- *    route answers 404;
+ *    (`/x` → `/admin/x`), except the theme route and `/_next/*`; old links already under it
+ *    (`/admin/x`) redirect to `/x`. On other origins, the admin route answers 404;
  *  - security headers: admin origins get the admin policy (no framing, only the editor origin
  *    may be framed); every other origin gets the public-site policy (CSP with a per-request nonce);
  *  - cache headers for public pages (pages using URL query params are never cacheable).
@@ -106,6 +106,18 @@ export function createProxy(
       policy,
       editorOrigin,
     });
+    if (surface === "admin" && under(pathname, adminRoute)) {
+      // Old links (/admin/x) → /x. Temporary, so browsers don't cache it for good.
+      // Built on the addressed origin: behind a proxy, nextUrl may carry the server's own host.
+      const url = new URL(
+        (pathname.slice(adminRoute.length) || "/") + req.nextUrl.search,
+        origin,
+      );
+      const res = NextResponse.redirect(url, 307);
+      for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
+      res.headers.set("cache-control", "no-store");
+      return res;
+    }
     if (surface === "admin" && !under(pathname, themeRoute)) {
       // Admin pages at the host origin's root: /x → <routes.admin>/x.
       const url = req.nextUrl.clone();

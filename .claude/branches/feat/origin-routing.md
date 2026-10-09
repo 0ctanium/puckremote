@@ -29,7 +29,7 @@ Redirects (rewrites only); an `/admin` index page in the example; fixing the own
 | ID | Decision | Provenance | Status |
 |---|---|---|---|
 | D-0282 | Editor origin: only / serves the editor page (rewrite to routes.editor); every other path, /editor included, is 404; /_next/* passes through | user | accepted |
-| D-0283 | Host (admin) origins: every path is rewritten under the admin route; that route is 404 on other origins | user | accepted |
+| D-0283 | Host (admin) origins: every path is rewritten under the admin route; that route is 404 on other origins | user | superseded by D-0307 |
 | D-0284 | New routes.admin (default '/admin'); the rewrite is always on when origins are set | user-approved-plan | accepted |
 | D-0285 | On host origins routes.theme and /_next/* are never rewritten | user-approved-plan | accepted |
 | D-0286 | Proxy 404s are plain-text Not found with cache-control no-store and the surface security headers | user-approved-plan | accepted |

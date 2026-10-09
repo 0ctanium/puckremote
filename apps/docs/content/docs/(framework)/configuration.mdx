@@ -40,7 +40,7 @@ See [Core › Adapters](/docs/core/adapters) for each contract and the built-in 
     'origins.editor': { description: "Origin of your editor page (<PuckRemoteEditor>). Must not be a host origin; use another site in production.", type: 'string' },
     'routes.theme': { description: "Prefix of the theme route (assets and bundles, versioned by ?v=); asset URLs given to blocks follow it.", type: 'string', default: "'/cdn'" },
     'routes.editor': { description: "The app's editor page; the Next proxy serves it at the root of origins.editor (every other path there is 404) and hides it elsewhere.", type: 'string', default: "'/editor'" },
-    'routes.admin': { description: "Prefix of the app's admin pages; the Next proxy serves them at the root of origins.host (/x → /admin/x) and answers 404 for them elsewhere.", type: 'string', default: "'/admin'" },
+    'routes.admin': { description: "Prefix of the app's admin pages; the Next proxy serves them at the root of origins.host (/x → /admin/x; old /admin/x links redirect to /x) and answers 404 for them elsewhere.", type: 'string', default: "'/admin'" },
     id: { description: "Distinguishes runtimes when one process hosts several sites.", type: 'string', default: "'default'" },
   }}
 />

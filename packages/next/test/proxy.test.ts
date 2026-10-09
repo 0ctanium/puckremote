@@ -49,9 +49,21 @@ describe('host (admin) origins', () => {
     expect(rewrite(await at(ORIGINS.host[0], '/'))).toBe('/admin')
     expect(rewrite(await at(ORIGINS.host[0], '/editor'))).toBe('/admin/editor')
     expect(rewrite(await at(ORIGINS.host[0], '/pages/home'))).toBe('/admin/pages/home')
-    // No special case: /admin/x is just another path.
-    expect(rewrite(await at(ORIGINS.host[0], '/admin/x'))).toBe('/admin/admin/x')
+    // Not the admin prefix: rewritten like any other path.
+    expect(rewrite(await at(ORIGINS.host[0], '/administrator'))).toBe('/admin/administrator')
     expect((await at(ORIGINS.host[0], '/')).headers.get('x-frame-options')).toBe('DENY')
+  })
+
+  it('redirects old /admin links to the path without the prefix (D-0307)', async () => {
+    for (const [from, to] of [['/admin', '/'], ['/admin/', '/'], ['/admin/editor', '/editor'], ['/admin/editor?x=1', '/editor?x=1']]) {
+      const r = await at(ORIGINS.host[0], from)
+      expect(r.status, from).toBe(307)
+      const loc = new URL(r.headers.get('location')!)
+      expect(loc.origin, from).toBe(ORIGINS.host[0])
+      expect(loc.pathname + loc.search, from).toBe(to)
+      expect(r.headers.get('cache-control'), from).toBe('no-store')
+      expect(r.headers.get('x-frame-options'), from).toBe('DENY')
+    }
   })
 
   it('leaves the theme route alone (the editor loads theme files from here)', async () => {

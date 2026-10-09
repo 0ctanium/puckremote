@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 307
+next_decision = 314
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -156,6 +156,16 @@ title = "Admin index page (dashboard) in the example app"
 description = "Admin index page (dashboard) in the example app"
 tags = [ "examples" ]
 decisions = [ "D-0302", "D-0303", "D-0304", "D-0305", "D-0306" ]
+
+[adrs."feat/admin-prefix-redirect"]
+file = "branches/feat/admin-prefix-redirect.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Redirect /admin/x to /x on admin origins"
+description = "Redirect /admin/x to /x on admin origins"
+tags = [ "next", "origins", "routing" ]
+decisions = [ "D-0307", "D-0308", "D-0309", "D-0310", "D-0311", "D-0312", "D-0313" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -2555,8 +2565,9 @@ title = "Host (admin) origins: every path is rewritten under the admin route; th
 adr = "feat/origin-routing"
 date = "2026-10-09"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "next", "origins" ]
+superseded_by = "D-0307"
 
 [decisions.D-0284]
 title = "New routes.admin (default '/admin'); the rewrite is always on when origins are set"
@@ -2740,6 +2751,63 @@ tags = [ "docs" ]
 [decisions.D-0306]
 title = "Admin index on feat/admin-index from feat/example-login"
 adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0307]
+title = "Host (admin) origins: every path is rewritten under the admin route, except that paths already under it (/admin, /admin/x) redirect to the path without the prefix; that route is 404 on other origins"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "next", "origins" ]
+supersedes = [ "D-0283" ]
+
+[decisions.D-0308]
+title = "The /admin prefix redirect is a 307 (temporary), not a cached 308"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next" ]
+
+[decisions.D-0309]
+title = "The prefix redirect keeps the query string, is same-origin, and carries the admin security headers and cache-control no-store"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next", "security" ]
+
+[decisions.D-0310]
+title = "The theme-route exemption is unchanged; the redirect is checked before the rewrite"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next" ]
+
+[decisions.D-0311]
+title = "Prefix redirect tests in packages/next/test/proxy.test.ts plus a curl check"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "testing" ]
+
+[decisions.D-0312]
+title = "Docs for the prefix redirect: next-js/api, concepts/origins, configuration"
+adr = "feat/admin-prefix-redirect"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0313]
+title = "Prefix redirect on feat/admin-prefix-redirect from feat/admin-index"
+adr = "feat/admin-prefix-redirect"
 date = "2026-10-09"
 provenance = "user-approved-plan"
 status = "accepted"
