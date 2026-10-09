@@ -35,7 +35,7 @@ A user store, password hashing, CSRF tokens (SameSite=Strict and Next's server-a
 | D-0295 | Cookie admin_session: HttpOnly, SameSite=Strict, Path=/, host-only (no Domain), Secure in production, Max-Age 8 h | user-approved-plan | accepted |
 | D-0296 | ADMIN_SESSION_SECRET env; fixed dev fallback; production without it fails closed | user-approved-plan | accepted |
 | D-0297 | examples/app/src/auth.ts (createSession, getSession, requireSession) called by every admin page (redirect /login) and server action (throw unauthorized); proxy unchanged | user-approved-plan | accepted |
-| D-0298 | Login page/actions under (app)/admin/login, /admin redirects to /editor, logout button in the admin header, logged-in /login redirects to /editor | user-approved-plan | accepted |
+| D-0298 | Login page/actions under (app)/admin/login, /admin redirects to /editor, logout button in the admin header, logged-in /login redirects to /editor | user-approved-plan | superseded by D-0302 |
 | D-0299 | Example login verified in the browser and with curl (no new test runner) | user-approved-plan | accepted |
 | D-0300 | Docs: environment, quick-start, threat-model, deploying, docs map; credentials stated as demo-only | user-approved-plan | accepted |
 | D-0301 | Example app: server actions (resolveData, publish) and a ClientEditor; demo login (admin/admin, signed session cookie) protects admin pages and actions; host origin admin.localhost:3100; the editor page renders <PuckRemoteEditor> with a header badge override | user-approved-plan | accepted |

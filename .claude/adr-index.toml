@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 302
+next_decision = 307
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -146,6 +146,16 @@ title = "Demo login for the example app's admin"
 description = "Demo login for the example app's admin"
 tags = [ "examples", "security", "auth" ]
 decisions = [ "D-0291", "D-0292", "D-0293", "D-0294", "D-0295", "D-0296", "D-0297", "D-0298", "D-0299", "D-0300", "D-0301" ]
+
+[adrs."feat/admin-index"]
+file = "branches/feat/admin-index.md"
+type = "feat"
+status = "active"
+created = "2026-10-09"
+title = "Admin index page (dashboard) in the example app"
+description = "Admin index page (dashboard) in the example app"
+tags = [ "examples" ]
+decisions = [ "D-0302", "D-0303", "D-0304", "D-0305", "D-0306" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -2665,8 +2675,9 @@ title = "Login page/actions under (app)/admin/login, /admin redirects to /editor
 adr = "feat/example-login"
 date = "2026-10-09"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "examples" ]
+superseded_by = "D-0302"
 
 [decisions.D-0299]
 title = "Example login verified in the browser and with curl (no new test runner)"
@@ -2692,6 +2703,47 @@ provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "examples", "auth" ]
 supersedes = [ "D-0240" ]
+
+[decisions.D-0302]
+title = "Login page/actions under (app)/admin/login; /admin is a simple dashboard (signed-in user, current theme id, editor link, Log out; no page list or creation); logout button in the admin header; logged-in /login redirects to /editor"
+adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user"
+status = "accepted"
+tags = [ "examples" ]
+supersedes = [ "D-0298" ]
+
+[decisions.D-0303]
+title = "Dashboard is a server component calling requireSession(), reading the pointer via artifacts.readPointer() (none published shown), inline styles, force-dynamic, reusing the logout action"
+adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0304]
+title = "After login users still land on /editor"
+adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "examples" ]
+
+[decisions.D-0305]
+title = "Docs: quick-start dashboard row, environment login paragraph"
+adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0306]
+title = "Admin index on feat/admin-index from feat/example-login"
+adr = "feat/admin-index"
+date = "2026-10-09"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]
