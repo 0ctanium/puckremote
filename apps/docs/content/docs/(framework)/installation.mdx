@@ -11,8 +11,9 @@ icon: Download
 
 ## Requirements
 
-- **Node.js 24+** on Linux x64/arm64, or **native arm64 Node 26** on Apple Silicon
-  (`node -p process.arch` must print `arm64`; isolated-vm has no darwin-x64 prebuild).
+- **Node.js 26+** on Linux x64/arm64, or **native arm64** on Apple Silicon (`node -p process.arch`
+  must print `arm64`; isolated-vm has no darwin-x64 prebuild). Node 24 is not supported: its
+  permission model does not block the render workers' network ([D-0402](/docs/internal/decisions#D-0402)).
 - Run Node with `NODE_OPTIONS=--no-node-snapshot` (required by isolated-vm).
 - Next.js 16 (App Router), React 19.
 

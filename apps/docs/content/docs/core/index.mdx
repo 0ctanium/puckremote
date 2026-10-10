@@ -23,7 +23,7 @@ the template's root props ([D-0371](/docs/internal/decisions#D-0371),
 npm install @puck-remote/core
 ```
 
-Peer dependencies: `react` and `react-dom` 19, `@puckeditor/core` ~0.23. Node 24+ (isolated-vm).
+Peer dependencies: `react` and `react-dom` 19, `@puckeditor/core` ~0.23. Node 26+ (isolated-vm; Node 24's permission model does not block the render workers' network, [D-0402](/docs/internal/decisions#D-0402)).
 
 <Cards>
   <Card title="Entry points" href="/docs/core/entry-points">`/config`, `/edge`, `/react`, `/testing`</Card>

@@ -69,6 +69,7 @@ the theme root).
 | D-0399 | Docs structure: 'Templates' section in core overview, 'Root fields' in configuration, 'Root props from the app' in SDK blocks; Next setup shows template-name.ts | agent-unreviewed | needs-review |
 | D-0400 | Linux render workers may also read /etc/alpine-release (node-gyp-build's musl check while loading isolated-vm), allowed whether or not it exists; fixes CI on Linux | user | accepted |
 | D-0401 | Worker.kill marks the worker dead as soon as the signal is sent (not on its exit event), so no session opens on a dying worker (EPIPE flake on macOS) | user-approved-plan | accepted |
+| D-0402 | Node 26 required (core, cli, next engines >=26; CI drops Node 24): Node 24's permission model does not block network, so render workers there could open sockets (D-0077) | user | accepted |
 <!-- decisions:end -->
 
 ## Decision Record

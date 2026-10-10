@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 402
+next_decision = 403
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -195,7 +195,7 @@ created = "2026-10-09"
 title = "Templates instead of pages; app-owned root props"
 description = "Templates instead of pages; app-owned root props"
 tags = [ "templates", "root", "core", "next", "sdk" ]
-decisions = [ "D-0369", "D-0370", "D-0371", "D-0372", "D-0373", "D-0374", "D-0375", "D-0376", "D-0377", "D-0378", "D-0379", "D-0380", "D-0381", "D-0382", "D-0383", "D-0384", "D-0385", "D-0386", "D-0387", "D-0388", "D-0389", "D-0390", "D-0391", "D-0392", "D-0393", "D-0394", "D-0395", "D-0396", "D-0397", "D-0398", "D-0399", "D-0400", "D-0401" ]
+decisions = [ "D-0369", "D-0370", "D-0371", "D-0372", "D-0373", "D-0374", "D-0375", "D-0376", "D-0377", "D-0378", "D-0379", "D-0380", "D-0381", "D-0382", "D-0383", "D-0384", "D-0385", "D-0386", "D-0387", "D-0388", "D-0389", "D-0390", "D-0391", "D-0392", "D-0393", "D-0394", "D-0395", "D-0396", "D-0397", "D-0398", "D-0399", "D-0400", "D-0401", "D-0402" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -3572,6 +3572,14 @@ date = "2026-10-10"
 provenance = "user-approved-plan"
 status = "accepted"
 tags = [ "worker" ]
+
+[decisions.D-0402]
+title = "Node 26 required (core, cli, next engines >=26; CI drops Node 24): Node 24's permission model does not block network, so render workers there could open sockets (D-0077)"
+adr = "feat/templates"
+date = "2026-10-10"
+provenance = "user"
+status = "accepted"
+tags = [ "security", "worker", "node" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

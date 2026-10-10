@@ -27,6 +27,8 @@ env: {}   (empty: no secrets, no config)
 ```
 
 - `--permission` denies, by default, file writes, network, child processes and worker threads.
+  Network denial needs Node 26 (Node 24's permission model doesn't cover it), hence the Node 26
+  requirement ([D-0402](/docs/internal/decisions#D-0402)).
 - `--allow-addons` is needed to load isolated-vm (a native addon). **Native code is not checked
   by Node's permission model**; this is the main residual risk.
 - The **fs read allowlist** ([D-0087](/docs/internal/decisions#D-0087)) is computed by walking module resolution
