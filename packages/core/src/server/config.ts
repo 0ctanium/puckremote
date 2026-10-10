@@ -1,4 +1,5 @@
 import type { AnyDataSource, ArtifactStore } from "@puck-remote/sdk/host";
+import { fieldsSchema, type FieldSpec } from "./manifest-schema.ts";
 import type { RendererFactory } from "./runtime/types.ts";
 import {
   DEFAULT_SECURITY,
@@ -58,6 +59,13 @@ export interface HostConfig {
     maxRedirects: number;
   };
   secrets: Record<string, SecretDef>;
+  /** The app's root fields, merged with the theme's (the app's win on a name collision). */
+  root: AppRoot;
+}
+
+export interface AppRoot {
+  fields: Record<string, FieldSpec>;
+  defaultProps: Record<string, unknown>;
 }
 
 export interface EditorOrigins {
@@ -87,7 +95,8 @@ type Plugins =
   | "secrets"
   | "renderer"
   | "security"
-  | "origins";
+  | "origins"
+  | "root";
 
 /** What an app provides. Everything except the storage plugins has a default. */
 export interface PuckRemoteConfig extends DeepPartial<
@@ -106,6 +115,11 @@ export interface PuckRemoteConfig extends DeepPartial<
   secrets?: Record<string, SecretDef>;
   /** Host (admin) and editor origins, e.g. { host: ['https://admin.example.com'], editor: 'https://editor.example.net' }. */
   origins?: EditorOrigins | null;
+  /**
+   * Root fields of every template, owned by the app (e.g. SEO title and description), merged with
+   * the theme's root fields. Type them for the theme with `Register.rootProps` (`RootPropsOf`).
+   */
+  root?: { fields: Record<string, FieldSpec>; defaultProps?: Record<string, unknown> };
 }
 
 export class ConfigError extends Error {}
@@ -146,8 +160,16 @@ export function resolveOrigins(
   return { host: admin, editor };
 }
 
+function resolveRoot(input: PuckRemoteConfig["root"]): AppRoot {
+  const parsed = fieldsSchema.safeParse(input?.fields ?? {});
+  if (!parsed.success)
+    throw new ConfigError(`puck-remote: root.fields is invalid: ${parsed.error.message}`);
+  return { fields: parsed.data, defaultProps: { ...input?.defaultProps } };
+}
+
 export function resolveConfig(input: PuckRemoteConfig): HostConfig {
   return {
+    root: resolveRoot(input.root),
     origins: resolveOrigins(input.origins),
     id: input.id ?? "default",
     artifacts: input.artifacts,

@@ -33,14 +33,15 @@ function str(v: unknown, what: string): string {
 
 function makeCtx(input: CtxInput, effects: Effect[]): RenderCtx {
   const push = (e: Effect) => {
-    if (effects.length >= EFFECT_LIMITS.maxEffects) throw new RangeError('too many head/asset effects')
+    if (effects.length >= EFFECT_LIMITS.maxEffects) throw new RangeError('too many asset effects')
     effects.push(e)
   }
   return {
     isEditing: input.isEditing,
     locale: input.locale,
     nonce: input.nonce,
-    page: { slug: input.page.slug },
+    template: { name: input.template.name },
+    params: Object.freeze({ ...input.params }),
     site: { name: input.site.name },
     assetUrl(path) {
       const clean = str(path, 'asset path').replace(/^\/+/, '')
@@ -56,14 +57,6 @@ function makeCtx(input: CtxInput, effects: Effect[]): RenderCtx {
       },
       style(url: string) {
         push({ kind: 'style', url: str(url, 'style url') })
-      },
-    },
-    head: {
-      title(t: string) {
-        push({ kind: 'title', value: str(t, 'title') })
-      },
-      meta(name: string, content: string) {
-        push({ kind: 'meta', name: str(name, 'meta name'), content: str(content, 'meta content') })
       },
     },
   }

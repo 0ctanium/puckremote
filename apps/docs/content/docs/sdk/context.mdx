@@ -1,12 +1,10 @@
 ---
 title: Render context
-description: "The ctx argument of render: request information, asset URLs and head effects."
+description: "The ctx argument of render: request information, template params and asset URLs."
 ---
 
 ```tsx
 render: (props, data, ctx) => {
-  ctx.head.title(`${props.title} · ${ctx.site.name}`);
-  ctx.head.meta('description', props.summary);
   ctx.assets.style(ctx.assetUrl('theme.css'));
   ctx.assets.script(ctx.assetUrl('enhance.js'), { defer: true });
   return <img src={ctx.assetUrl('logo.svg')} alt="" />;
@@ -16,18 +14,20 @@ render: (props, data, ctx) => {
 <TypeTable
   type={{
     isEditing: { description: "true when rendered for the editor canvas.", type: 'boolean' },
-    locale: { description: "Page locale.", type: 'string' },
+    locale: { description: "Locale of the render (the site's, unless the app passed another one).", type: 'string' },
     nonce: { description: "Per-render nonce (used by Slot on the site; empty in the editor).", type: 'string' },
-    'page.slug': { description: "Current page slug.", type: 'string' },
+    'template.name': { description: "Name of the template being rendered.", type: 'string' },
+    params: { description: "Params the app passed with the template (e.g. { handle }); empty when none.", type: 'Readonly<Record<string, string>>' },
     'site.name': { description: "Site name from the host config.", type: 'string' },
     assetUrl: { description: "URL of a file in your assets folder, e.g. /cdn/assets/logo.svg?v=3fa9c2d81b04 (the version is the file's content hash, so it only changes when the file does). Rejects .., ?, # and schemes.", type: '(path: string) => string' },
     'assets.style': { description: "Add a stylesheet (site and editor canvas).", type: '(url: string) => void' },
     'assets.script': { description: "Add a script (public site only, never in the editor).", type: '(url: string, { defer?, async?, module? }) => void' },
-    'head.title': { description: "Page title; the first call on a page wins (ignored in the editor).", type: '(title: string) => void' },
-    'head.meta': { description: "A <meta name content> tag; first value per name wins.", type: '(name: string, content: string) => void' },
   }}
 />
 
-Effects (`assets.*`, `head.*`) are limited to 64 per render and 2 KB per string. Script and style
+Effects (`assets.*`) are limited to 64 per render and 2 KB per string. Script and style
 URLs must be your own assets, or https URLs whose origin the host allowlisted (others are
 dropped).
+
+There is no `ctx.head`: page metadata (title, description) is built by the app from the
+template's root props ([D-0370](/docs/internal/decisions#D-0370)).

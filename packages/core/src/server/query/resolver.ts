@@ -96,7 +96,7 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
     runnable.map(async (p) => {
       try {
         executed++
-        const data = await Promise.race([execute(p.spec, input.mode, input.env.page.locale, deps, deadline), overDeadline])
+        const data = await Promise.race([execute(p.spec, input.mode, input.env.template.locale, deps, deadline), overDeadline])
         const bytes = Buffer.byteLength(JSON.stringify(data) ?? '')
         outcomes.set(p.hash, { result: { ok: true, data }, bytes })
       } catch (e) {

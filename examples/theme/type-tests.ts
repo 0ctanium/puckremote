@@ -1,10 +1,11 @@
 // Compile-time checks for the typed host data source queries (run by `tsc -p .`).
-import { find, findByID, global, source, type QueryResult, type QuerySpec } from '@puck-remote/sdk'
+import { find, findByID, global, source, defineRoot, type QueryResult, type QuerySpec, type RootPropsOf } from '@puck-remote/sdk'
 import type { Author, MockCms, Post } from '@puck-remote/source-mock'
 
 type ResultOf<Q> = Q extends QuerySpec<infer T> ? T : never
 type Eq<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 const assert = <T extends true>() => {}
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
 
 // Registered source: collection names and result types are inferred.
 const posts = find('posts', { select: ['title', 'slug'] })
@@ -29,5 +30,15 @@ find('posts', { select: ['secretNotes'] })
 find('posts', { sort: '-nope' })
 // @ts-expect-error unknown global
 global('secrets')
+
+// Root render props: the theme's fields plus the app's registered root props.
+defineRoot({
+  fields: { tone: { type: 'text' } },
+  render: (props) => {
+    assert<Same<typeof props, { tone: string; title: string; description: string }>>()
+    return null
+  },
+})
+assert<Eq<RootPropsOf<{ title: { type: 'text' } }>, { title: string }>>()
 
 export type _ = QueryResult<unknown>

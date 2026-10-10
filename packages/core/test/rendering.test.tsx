@@ -1,11 +1,11 @@
 /**
  * Rendering tests 14, 15, 17 (and the page-level part of 2): the real public pipeline —
- * preparePage (isolate) → Puck RSC <Render> → HTML.
+ * prepareTemplate (isolate) → Puck RSC <Render> → HTML.
  */
 import { Render } from '@puckeditor/core/rsc'
 import { renderToString } from 'react-dom/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { preparePage } from '../src/server/public-render.ts'
+import { prepareTemplate } from '../src/server/public-render.ts'
 import { buildRscConfig } from '../src/server/puck-rsc.tsx'
 import { startMockApi, testHost, type MockApi } from './helpers.ts'
 
@@ -19,7 +19,7 @@ beforeAll(async () => {
 afterAll(() => api.close())
 
 async function renderPublic(h: Awaited<ReturnType<typeof testHost>>, slug: string, query: Record<string, string> = {}) {
-  const page = await preparePage(h.host, slug, query)
+  const page = await prepareTemplate(h.host, slug, { query })
   if (!page) throw new Error('page not found')
   const html = renderToString(<Render config={buildRscConfig(h.host.store.get().manifest)} data={page.data} metadata={{ rendered: page.rendered }} />)
   return { page, html }
@@ -86,8 +86,6 @@ describe('15. slots render real child blocks', () => {
     expect(html).toContain('Puck meetup') // adapter data via mock API
     expect(html).toContain('data-theme="dark"')
     expect(html).not.toMatch(/data-puck-slot="(content|children)" data-nonce="[0-9a-f]{32}"/) // all real markers swapped
-    // Head effects collected from root
-    expect(page.head.title).toBe('Hello · POC Site')
     // Asset URLs are versioned by content, not by artifact (D-0262).
     const v = (f: string) => page.manifest.files[f].slice(0, 12)
     expect(page.head.styles).toEqual([`/cdn/assets/theme.css?v=${v('assets/theme.css')}`])
@@ -155,7 +153,7 @@ describe('17. resilience', () => {
 })
 
 describe('cacheability', () => {
-  it('pages with $query blocks are flagged uncacheable and receive URL params', async () => {
+  it('templates with $query blocks are flagged uncacheable and receive URL params', async () => {
     const h = await testHost({
       theme: 'example',
       mockOrigin: api.origin,

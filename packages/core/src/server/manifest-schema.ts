@@ -75,7 +75,8 @@ export const fieldsSchema: z.ZodType<Record<string, FieldSpec>> = z.lazy(() => z
 
 export const paramRefSchema = z.union([
   z.strictObject({ $prop: z.string().min(1) }),
-  z.strictObject({ $page: z.enum(['slug', 'locale']) }),
+  z.strictObject({ $template: z.enum(['name', 'locale']) }),
+  z.strictObject({ $params: z.string().min(1).max(64) }),
   z.strictObject({ $site: z.enum(['locale', 'name']) }),
   z.strictObject({ $query: z.string().min(1).max(64) }),
 ])
@@ -196,7 +197,8 @@ export const manifestSchema = z
   .superRefine((m, ctx) => {
     if (!m.files['bundle.js']) ctx.addIssue({ code: 'custom', message: 'bundle.js missing from files' })
     for (const p of Object.keys(m.files)) {
-      if (p.startsWith('pages/') && !pageSlugOf(p)) ctx.addIssue({ code: 'custom', message: `files: ${p} is not a valid page path` })
+      if (p.startsWith('templates/') && !templateNameOf(p)) ctx.addIssue({ code: 'custom', message: `files: ${p} is not a valid template path` })
+      if (p.startsWith('pages/')) ctx.addIssue({ code: 'custom', message: `files: ${p}: pages/ is no longer supported (templates live in templates/<name>.json)` })
     }
     const check = (name: string, b: BlockMeta) => {
       // Derived data must agree with the specs; the host recomputes rather than trusts.
@@ -213,17 +215,17 @@ export const manifestSchema = z
   })
 export type Manifest = z.infer<typeof manifestSchema>
 
-const PAGE_PATH = /^pages\/((?:[a-z0-9][a-z0-9-]{0,63}\/){0,4}[a-z0-9][a-z0-9-]{0,63})\.json$/
+const TEMPLATE_PATH = /^templates\/((?:[a-z0-9][a-z0-9-]{0,63}\/){0,4}[a-z0-9][a-z0-9-]{0,63})\.json$/
 
-/** pages/<slug>.json → slug, or null for any other path. */
-export function pageSlugOf(file: string): string | null {
-  return PAGE_PATH.exec(file)?.[1] ?? null
+/** templates/<name>.json → name, or null for any other path. */
+export function templateNameOf(file: string): string | null {
+  return TEMPLATE_PATH.exec(file)?.[1] ?? null
 }
 
-export const pagePath = (slug: string) => `pages/${slug}.json`
+export const templatePath = (name: string) => `templates/${name}.json`
 
-/** Slugs of the pages an artifact carries. */
-export const pageSlugs = (m: Pick<Manifest, 'files'>) => Object.keys(m.files).map(pageSlugOf).filter((s): s is string => s !== null).sort()
+/** Names of the templates an artifact carries. */
+export const templateNames = (m: Pick<Manifest, 'files'>) => Object.keys(m.files).map(templateNameOf).filter((s): s is string => s !== null).sort()
 
 /** Recompute what the CLI claims, so the host never relies on CLI-provided analysis. */
 export function analyzeSpecs(data: Record<string, QuerySpec>): { propRefs: Record<string, string[]>; usesRequestParams: boolean } {

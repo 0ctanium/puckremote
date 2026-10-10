@@ -6,7 +6,7 @@
 import { Render } from '@puckeditor/core/rsc'
 import { renderToString } from 'react-dom/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { preparePage } from '../src/server/public-render.ts'
+import { prepareTemplate } from '../src/server/public-render.ts'
 import { buildRscConfig } from '../src/server/puck-rsc.tsx'
 import { testHost } from './helpers.ts'
 
@@ -25,7 +25,7 @@ const page = (...props: Record<string, unknown>[]) => ({
 
 async function render(pages: Record<string, unknown>) {
   const h = await testHost({ theme: 'evil', pages })
-  const p = (await preparePage(h.host, 'home', {}))!
+  const p = (await prepareTemplate(h.host, 'home'))!
   const html = renderToString(<Render config={buildRscConfig(p.manifest)} data={p.data} metadata={{ rendered: p.rendered, islandsUrl: p.islandsUrl }} />)
   return { h, p, html }
 }
@@ -62,7 +62,7 @@ describe('islands', () => {
     await h.close()
   })
 
-  it('pages without islands have no islandsUrl', async () => {
+  it('templates without islands have no islandsUrl', async () => {
     const { h, p } = await render({ home: { root: { props: {} }, content: [{ type: 'probe', props: { id: 'q' } }] } })
     expect(p.islandsUrl).toBeUndefined()
     await h.close()

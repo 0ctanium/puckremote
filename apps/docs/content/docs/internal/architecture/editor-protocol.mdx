@@ -3,8 +3,9 @@ title: Editor protocol
 description: The typed, versioned postMessage protocol between the admin page's Puck and the editor frame's Puck.
 ---
 
-Both sides import the same module, `@puck-remote/editor/protocol`. Every message carries `v: 2`
-(`PROTOCOL_VERSION`, [D-0328](/docs/internal/decisions#D-0328)) and a `type`, and is validated with
+Both sides import the same module, `@puck-remote/editor/protocol`. Every message carries `v: 3`
+(`PROTOCOL_VERSION`, [D-0328](/docs/internal/decisions#D-0328), bumped for templates by
+[D-0382](/docs/internal/decisions#D-0382)) and a `type`, and is validated with
 zod by the receiver.
 
 The admin page holds the page data, the history and the fields. The frame proposes **actions**;
@@ -14,7 +15,7 @@ the admin validates them, replays them on its own Puck and answers with its **st
 | Direction | `type` | Fields |
 |---|---|---|
 | editor → host | `ready` | — |
-| host → editor | `init` | `payload` (`EditorPayload`), `options` (JSON only: `permissions`, `locales`, `categories`, `flags`, `extra`) |
+| host → editor | `init` | `payload` (`EditorPayload`: template name, params, merged root fields, manifest, data, URLs), `options` (JSON only: `permissions`, `locales`, `categories`, `flags`, `extra`) |
 | editor → host | `action` | `seq` (1, 2, 3…), `action` (a `FrameAction`, below) |
 | host → editor | `state` | `data` (the full page, with `__data`), `itemSelector` (the selection or `null`), `ack` (last action applied) |
 | editor → host | `intent` | `undo` or `redo` (⌘Z / ⇧⌘Z pressed in the frame) |

@@ -39,7 +39,7 @@ sequenceDiagram
 ## Two sides
 
 - **Admin page:** `<PuckEditorFrame>` from `@puck-remote/editor/frame`, with the payload from
-  `core.editorPayload(slug)` and your `resolveData` ([D-0327](/docs/internal/decisions#D-0327)). It
+  `core.editorPayload(name, { params })` and your `resolveData` ([D-0327](/docs/internal/decisions#D-0327)). It
   renders a real `<Puck>`, so your layout uses Puck's own components (`<Puck.Fields />`) and hooks
   (history, data), plus `<PuckEditorFrame.Canvas />` for the frame.
 - **Editor page:** `<PuckRemoteEditor>` from `@puck-remote/editor/react`, on the editor origin. It
@@ -56,10 +56,10 @@ validated against the typed protocol (version, shape, size). See
 ## Data in the editor
 
 Blocks with data get a Puck `resolveData` **on the admin page**, which calls your `resolveData`
-prop, typically a server action calling `core.resolveBlockData(slug, block, props)` in draft mode.
-Only the block name and its props are sent; the query always comes from the manifest
+prop, typically a server action calling `core.resolveBlockData(name, block, props, { params })` in draft
+mode. Only the block name, its props and the template's params are sent; the query always comes from the manifest
 ([D-0202](/docs/internal/decisions#D-0202)). Results land in the reserved prop `__data`, marked
-`readOnly`, travel to the frame with the state, and are stripped when a page is written
+`readOnly`, travel to the frame with the state, and are stripped when a template is written
 ([D-0028](/docs/internal/decisions#D-0028)).
 
 ## Why the frame runs theme code

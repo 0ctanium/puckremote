@@ -9,7 +9,8 @@ import { resolvePageData, type QueryResult, type ResolveDeps } from './query/res
 
 // z.object (not strictObject) silently drops anything else the caller sends: spec, data, query, mode…
 export const blockDataSchema = z.object({
-  slug: z.string().max(200),
+  template: z.string().max(200),
+  params: z.record(z.string(), z.string().max(1024)).refine((p) => Object.keys(p).length <= 32, 'more than 32 params').optional(),
   block: z.string().max(100),
   props: z.record(z.string(), z.unknown()),
 })
@@ -30,14 +31,14 @@ export async function resolveBlock(
   input: z.infer<typeof blockDataSchema>,
   deps: Omit<ResolveDeps, 'manifest'> & { manifest: Manifest; site: { name: string; locale: string } },
 ): Promise<BlockDataResult> {
-  const { block, props, slug } = input
+  const { block, props, template, params = {} } = input
   const meta = block === 'root' ? deps.manifest.root : Object.hasOwn(deps.manifest.blocks, block) ? deps.manifest.blocks[block] : null
   if (!meta) throw new UnknownBlockError(block)
   const { byInstance } = await resolvePageData(
     {
       instances: [{ id: 'rpc', props: { ...meta.defaultProps, ...props }, meta }],
       // The editor has no request URL params; $query refs resolve to null in previews.
-      env: { page: { slug, locale: deps.site.locale }, site: deps.site, query: {} },
+      env: { template: { name: template, locale: deps.site.locale }, params, site: deps.site, query: {} },
       mode: 'draft',
     },
     deps,

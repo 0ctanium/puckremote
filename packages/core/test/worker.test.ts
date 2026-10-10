@@ -8,7 +8,7 @@ import { mkdtemp, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { preparePage } from '../src/server/public-render.ts'
+import { prepareTemplate } from '../src/server/public-render.ts'
 import { resolvePageData } from '../src/server/query/resolver.ts'
 import { renderInIsolate } from '../src/server/render.ts'
 import { bubblewrap, workerLaunchOptions, workerPoolRenderer, type WorkerPoolRuntime } from '../src/server/runtime/worker-pool.ts'
@@ -83,12 +83,12 @@ describe('resilience', () => {
       pages: { home: { root: { props: {} }, content: [{ type: 'probe', props: { id: 'p1' } }] } },
       config: { renderer: workerPoolRenderer({ size: 1, log: quietLog }) },
     })
-    expect((await preparePage(h.host, 'home', {}))!.stats.failures).toBe(0)
+    expect((await prepareTemplate(h.host, 'home'))!.stats.failures).toBe(0)
     const rt = h.host.store.get().runtime as WorkerPoolRuntime
     const [pid] = rt.pids()
     process.kill(pid, 'SIGKILL')
     await vi.waitFor(() => expect(rt.pids()).not.toContain(pid))
-    const page = (await preparePage(h.host, 'home', {}))!
+    const page = (await prepareTemplate(h.host, 'home'))!
     expect(page.stats.failures).toBe(0)
     expect(page.rendered.p1.html).toContain('id="probe"')
     expect(rt.stats().workersStarted).toBe(2)

@@ -31,8 +31,8 @@ export async function activate(artifacts: ArtifactTarget, id: ArtifactId): Promi
 }
 
 /**
- * Upload dist/ (code and pages, as they are in the theme repo) as an artifact and make it
- * current. Pages edited in the editor since the last `pull` are replaced, as in Shopify.
+ * Upload dist/ (code and templates, as they are in the theme repo) as an artifact and make it
+ * current. Templates edited in the editor since the last `pull` are replaced, as in Shopify.
  */
 export async function publish(opts: PublishOptions): Promise<{ id: ArtifactId }> {
   if (!existsSync(path.join(opts.distDir, 'manifest.json'))) throw new Error(`no manifest.json in ${opts.distDir}; run "puck-remote build" first`)
@@ -46,7 +46,7 @@ export async function publish(opts: PublishOptions): Promise<{ id: ArtifactId }>
 }
 
 export interface PullOptions {
-  /** The theme repo: pages are written to <cwd>/pages/<slug>.json. */
+  /** The theme repo: templates are written to <cwd>/templates/<name>.json. */
   cwd: string
   artifacts: ArtifactTarget
   /** Default: the current artifact. */
@@ -54,24 +54,24 @@ export interface PullOptions {
   quiet?: boolean
 }
 
-const PAGE_FILE = /^pages\/((?:[a-z0-9][a-z0-9-]{0,63}\/){0,4}[a-z0-9][a-z0-9-]{0,63})\.json$/
+const TEMPLATE_FILE = /^templates\/((?:[a-z0-9][a-z0-9-]{0,63}\/){0,4}[a-z0-9][a-z0-9-]{0,63})\.json$/
 
-/** Download an artifact's pages into the theme repo (like `shopify theme pull`), so editor changes ship with the next publish. */
-export async function pull(opts: PullOptions): Promise<{ id: ArtifactId; pages: string[] }> {
+/** Download an artifact's templates into the theme repo (like `shopify theme pull`), so editor changes ship with the next publish. */
+export async function pull(opts: PullOptions): Promise<{ id: ArtifactId; templates: string[] }> {
   const store = toStore(opts.artifacts)
   const id = opts.artifact ?? (await store.readPointer())
   if (!id) throw new Error('nothing published yet')
   const manifestBytes = await store.readFile(id, 'manifest.json')
   if (!manifestBytes) throw new Error(`artifact ${id} not found`)
   const files = (JSON.parse(new TextDecoder().decode(manifestBytes)).files ?? {}) as Record<string, string>
-  const pages = Object.keys(files).filter((f) => PAGE_FILE.test(f)).sort()
-  for (const file of pages) {
+  const templates = Object.keys(files).filter((f) => TEMPLATE_FILE.test(f)).sort()
+  for (const file of templates) {
     const bytes = await store.readFile(id, file)
     if (!bytes) throw new Error(`artifact ${id}: ${file} is missing`)
     const target = path.join(opts.cwd, file)
     await mkdir(path.dirname(target), { recursive: true })
     await writeFile(target, bytes)
   }
-  if (!opts.quiet) console.log(`[puck-remote pull] ${pages.length} pages from ${id}`)
-  return { id, pages }
+  if (!opts.quiet) console.log(`[puck-remote pull] ${templates.length} templates from ${id}`)
+  return { id, templates }
 }

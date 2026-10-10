@@ -43,14 +43,14 @@ const OVERRIDES = { headerActions: HeaderActions };
 
 /** Admin UI: Puck's native layout on this page (header, rail, outline, fields), the editor frame in the middle. */
 export function ClientEditor({ payload, editorUrl, user }: { payload: EditorPayload; editorUrl: string; user: string }) {
-  const { slug } = payload;
+  const { template } = payload;
   const [artifact, setArtifact] = useState(payload.artifact);
   const [status, setStatus] = useState("");
   const baseline = useRef<string | null>(null);
 
   async function handlePublish(data: unknown) {
     try {
-      const result = await publish({ slug, data, base: artifact });
+      const result = await publish({ template, data, base: artifact });
       if (result.ok) {
         setArtifact(result.id!);
         baseline.current = saved(data);
@@ -72,7 +72,7 @@ export function ClientEditor({ payload, editorUrl, user }: { payload: EditorPayl
         editorUrl={editorUrl}
         rpc={rpc}
         // Trusted side: straight to the server action (it checks the session).
-        resolveData={async (block, props) => (await resolveData({ slug, block, props })).data}
+        resolveData={async (block, props, t) => (await resolveData({ template: t.name, params: t.params, block, props })).data}
         onPublish={handlePublish}
         onError={(m) => setStatus(`Editor: ${m}`)}
         overrides={OVERRIDES}

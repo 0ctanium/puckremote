@@ -58,7 +58,7 @@ both in the isolate and in the browser.
 `renderInIsolate` re-validates the output with zod: island keys, ids, `hydrate` values, prop sizes
 and at most 200 per block. It then re-serializes each island's HTML (`htmlToDOM` + `dom-serializer`,
 [D-0259](/docs/internal/decisions#D-0259)), because island HTML is inserted raw while block HTML is
-always parsed. `preparePage` enforces 200 islands per page and sets `islandsUrl` (`/cdn/bundle.islands.js?v=…`) when the page has
+always parsed. `prepareTemplate` enforces 200 islands per page and sets `islandsUrl` (`/cdn/bundle.islands.js?v=…`) when the page has
 islands.
 
 `htmlToReact` swaps an island marker exactly like a slot marker: only with the per-render nonce,

@@ -3,10 +3,12 @@ title: Editor lifecycle
 description: From opening the admin page to publishing, step by step.
 ---
 
-1. **Admin page** (server, your app): checks your session, then `remote.loadEditor(props)`
-   (404 outside `origins.host`) → `core.editorPayload(slug)`: reads the page from the current
-   artifact (or an empty page with root defaults), `stripResolved` + `rewriteMissing`, and returns
-   the payload: artifact id, manifest, data, absolute `bundleUrl` / `assetBase` on the first host
+1. **Admin page** (server, your app): checks your session, picks the template (the example
+   maps the path to the template of the same name), then `remote.loadEditor(name, { params })`
+   (404 outside `origins.host`) → `core.editorPayload(name, { params })`: merges the app's root
+   fields with the theme's (app first, app wins), reads the template from the current artifact (or
+   an empty one with the merged root defaults), `stripResolved` + `rewriteMissing`, and returns
+   the payload: artifact id, template name, params, merged `root`, manifest, data, absolute `bundleUrl` / `assetBase` on the first host
    origin, `origins`, `site` ([D-0208](/docs/internal/decisions#D-0208)).
 2. **`<PuckEditorFrame>`** (admin page, browser) builds **its own Puck config from the manifest**
    ([D-0335](/docs/internal/decisions#D-0335)): `buildEditorConfig` with `placeholderTheme` (renders
@@ -74,8 +76,8 @@ description: From opening the admin page to publishing, step by step.
    - ⌘Z / ⇧⌘Z pressed in the frame is sent as `intent`. The admin's header can hide the frame's
      left panel through `ui`.
 7. **Publish** (host UI, the example's plugin): the admin page reads the data from its own Puck and
-   calls its `publish` server action with `{ slug, data, base }`. The action refuses when the
-   pointer moved since `base`, then calls `core.writePage` (`cleanPage`: zod, `restoreMissing`,
+   calls its `publish` server action with `{ template, data, base }`. The action refuses when the
+   pointer moved since `base`, then calls `core.writeTemplate` (`cleanTemplate`: zod, `restoreMissing`,
    `stripResolved`) and `artifacts.writePointer(id)`, then reloads the host's artifact. "Unpublished
    changes" compares `stripResolved(data)` with the last published state.
 

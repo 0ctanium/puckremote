@@ -40,7 +40,7 @@ hardened process-level sandboxing. These were the spec's own non-goals.
 | D-0004 | Data is declarative: blocks declare queries, the host resolves them (parallel, deduped, budgeted); the isolate never does I/O | user | accepted |
 | D-0005 | Theme adapters are sans-IO: toRequest/fromResponse synchronous in the isolate, host performs HTTP | user | accepted |
 | D-0006 | No custom/external Puck fields, no permissions/resolvePermissions/function options; visibleIf replaces resolveFields; rich pickers only as host:* fields | user | accepted |
-| D-0007 | root.tsx uses defineRoot through the same pipeline; page body passed as <Slot name="children" /> | user | accepted |
+| D-0007 | root.tsx uses defineRoot through the same pipeline; page body passed as <Slot name="children" /> | user | superseded by D-0385 |
 | D-0008 | Client JS, custom assets and iframes are allowed in block output (Shopify-like permissiveness) | user | accepted |
 | D-0009 | Single tenant: one site, one active artifact pointer | user | accepted |
 | D-0010 | The developer builds; the host never builds. A CLI produces and publishes artifacts | user | accepted |
@@ -55,7 +55,7 @@ hardened process-level sandboxing. These were the spec's own non-goals.
 | D-0019 | Head merge: stylesheets/scripts via React 19 hoisting; title/meta via Next generateMetadata | agent-unreviewed | needs-review |
 | D-0020 | Host calls the isolate with async Reference.apply plus a wall-clock watchdog that disposes the isolate | agent-unreviewed | needs-review |
 | D-0021 | Only two isolate shims (MessageChannel, TextEncoder); no timers, fetch, process or require | agent-unreviewed | needs-review |
-| D-0022 | Page cacheability headers set in the Next proxy (x-page-cacheable / no-store) | agent-unreviewed | needs-review |
+| D-0022 | Page cacheability headers set in the Next proxy (x-page-cacheable / no-store) | agent-unreviewed | superseded by D-0389 |
 | D-0023 | Editor loads bundle.js into a hidden same-origin iframe realm (shims would break React in the editor window) | agent-unreviewed | superseded by D-0080 |
 | D-0024 | pnpm 12 installed globally into the fnm Node 26 (Node 26 no longer ships corepack) | agent-unreviewed | needs-review |
 | D-0025 | Every script sets NODE_OPTIONS=--no-node-snapshot (isolated-vm guidance, harmless on Node 26) | agent-unreviewed | needs-review |

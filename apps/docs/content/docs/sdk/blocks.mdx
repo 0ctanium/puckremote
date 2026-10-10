@@ -42,7 +42,7 @@ export default defineBlock({
 
 Everything except `render` must be plain JSON: it is extracted at build time into the manifest.
 Pages ship with the theme, so there are no content migrations: change a block's fields and the
-pages that use it together ([Pages and publishing](/docs/guides/publishing)).
+pages that use it together ([Templates and publishing](/docs/guides/publishing)).
 `permissions`, `resolveData`, `resolveFields`, `resolvePermissions` and `inline` are rejected:
 the host owns those Puck features.
 
@@ -64,20 +64,41 @@ server-rendered children.
 
 ## `defineRoot(definition)`
 
-The page frame, in `root.tsx`. Same options as `defineBlock` without `label` and `category`. The
-page body is `<Slot name="children" />`.
+The frame around every template, in `root.tsx`. Same options as `defineBlock` without `label` and
+`category`. The template's content is `<Slot name="children" />`.
 
 ```tsx title="root.tsx"
 import { defineRoot, Slot } from '@puck-remote/sdk';
 
 export default defineRoot({
-  fields: { title: { type: 'text' } },
-  render: (props, data, ctx) => {
-    ctx.head.title(props.title);
-    return <main><Slot name="children" /></main>;
-  },
+  fields: { theme: { type: 'radio', options: [{ label: 'Light', value: 'light' }, { label: 'Dark', value: 'dark' }] } },
+  render: (props) => (
+    <main data-theme={props.theme} aria-label={props.title}>
+      <Slot name="children" />
+    </main>
+  ),
 });
 ```
+
+### Root props from the app
+
+The host app adds its own root fields to every template (its `root.fields`, see
+[Root fields](/docs/configuration#root-fields)); they come first in the editor and a theme field
+with the same name is ignored. `render` receives them with the theme's props. Type them once
+with `Register.rootProps` ([D-0369](/docs/internal/decisions#D-0369)):
+
+```ts title="puck-remote-env.d.ts"
+declare module '@puck-remote/sdk' {
+  interface Register {
+    rootProps: { title: string; description: string };
+  }
+}
+```
+
+`RootPropsOf<typeof fields>` turns a fields object into its props type, if the app shares its
+field definitions with the theme. Metadata (title, description) is the app's job: it reads root
+props from the template it loads, not from the theme
+([D-0370](/docs/internal/decisions#D-0370)).
 
 ## `defineCategories(categories)`
 

@@ -4,7 +4,7 @@
  * components here; slots are Puck's own, so drag and drop and inline editing work natively.
  */
 import type { ComponentConfig, Config, Fields as PuckFields } from '@puckeditor/core'
-import type { BlockMeta, Manifest } from '@puck-remote/core'
+import type { BlockMeta, FieldSpec, Manifest } from '@puck-remote/core'
 import { SlotContext } from '@puck-remote/sdk'
 import type { BlockDefinition, RenderCtx, RootDefinition } from '@puck-remote/sdk'
 import { Component, type CSSProperties, type ReactNode } from 'react'
@@ -129,7 +129,13 @@ function makeResolveFields(fields: PuckFields, meta: BlockMeta): ComponentConfig
   }
 }
 
-export function buildEditorConfig(manifest: Manifest, theme: ThemeModule, deps: EditorDeps, categoriesOverride?: Manifest['categories']): Config {
+/** Root fields and defaults to use instead of the manifest's (the app's merged with the theme's: EditorPayload.root). */
+export interface RootOverride {
+  fields: Record<string, unknown>
+  defaultProps: Record<string, unknown>
+}
+
+export function buildEditorConfig(manifest: Manifest, theme: ThemeModule, deps: EditorDeps, categoriesOverride?: Manifest['categories'], rootOverride?: RootOverride): Config {
   const components: Config['components'] = {}
   for (const [name, meta] of Object.entries(manifest.blocks)) {
     const def = Object.hasOwn(theme.blocks, name) ? theme.blocks[name] : null
@@ -159,24 +165,35 @@ export function buildEditorConfig(manifest: Manifest, theme: ThemeModule, deps: 
   }
   // The fallback is never insertable; it only stands in for unknown saved blocks.
   categories.__host = { title: 'Host', components: [MISSING_TYPE], visible: false }
-  const root = manifest.root
-  const rootDef = theme.root
+  const root = rootMeta(manifest.root, rootOverride)
+  const rootDef = manifest.root ? theme.root : null
   const rootFields = root ? mapFields(root.fields, deps.hostFields) : {}
   return {
     components,
     categories,
-    root:
-      root && rootDef
-        ? {
-            fields: rootFields,
-            defaultProps: root.defaultProps,
-            // Root data has the same { props } shape at runtime; Puck types it separately.
-            resolveFields: makeResolveFields(rootFields, root) as never,
-            resolveData: (Object.keys(root.data).length ? makeResolveData('root', root, deps) : undefined) as never,
-            render: (props: AnyProps) => <BrowserBlock name="root" def={rootDef} meta={root} props={props} deps={deps} extraSlots={{ children: props.children }} />,
-          }
-        : undefined,
+    root: root
+      ? {
+          fields: rootFields,
+          defaultProps: root.defaultProps,
+          // Root data has the same { props } shape at runtime; Puck types it separately.
+          resolveFields: makeResolveFields(rootFields, root) as never,
+          resolveData: (Object.keys(root.data).length ? makeResolveData('root', root, deps) : undefined) as never,
+          // Without a theme root, Puck's default root render shows the content.
+          render: rootDef
+            ? (props: AnyProps) => <BrowserBlock name="root" def={rootDef} meta={root} props={props} deps={deps} extraSlots={{ children: props.children }} />
+            : undefined,
+        }
+      : undefined,
   }
+}
+
+/** The theme's root meta with the override's fields and defaults; a data-less root when only the app has fields. */
+function rootMeta(theme: BlockMeta | null, override: RootOverride | undefined): BlockMeta | null {
+  if (!override) return theme
+  const fields = override.fields as Record<string, FieldSpec>
+  if (theme) return { ...theme, fields, defaultProps: override.defaultProps }
+  if (!Object.keys(fields).length) return null
+  return { label: 'Root', fields, defaultProps: override.defaultProps, data: {}, propRefs: {}, usesRequestParams: false, slots: [] }
 }
 
 /**

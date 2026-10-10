@@ -15,8 +15,8 @@ one file, `puck-remote.config.ts` ([D-0035](/docs/internal/decisions#D-0035)).
 Pages are part of the artifact ([D-0188](/docs/internal/decisions#D-0188)), so there is no separate page
 store. Authentication, caching, drafts, review and history are not core concerns
 ([D-0187](/docs/internal/decisions#D-0187), [D-0190](/docs/internal/decisions#D-0190)): your app owns its sessions,
-and publishing workflows are plugins built on `readPage`, `writePage` and the artifact pointer
-(see [Pages and publishing](/docs/guides/publishing)).
+and publishing workflows are plugins built on `readTemplate`, `writeTemplate` and the artifact pointer
+(see [Templates and publishing](/docs/guides/publishing)).
 
 ## Two very different kinds of "adapter"
 

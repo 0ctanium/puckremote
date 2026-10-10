@@ -12,7 +12,7 @@ concepts, Next.js, guides, configuration), **Core** (engine and adapters), **CLI
 
 ## Quick start
 
-Requires native **arm64 Node 26** (or Node 24+ on Linux) and **pnpm 12**.
+Requires **Node 26** (native arm64 on Apple Silicon) and **pnpm 12**.
 
 ```bash
 pnpm install

@@ -16,8 +16,8 @@ runtime turns them into an HTML string with `renderToString`.
 - `props`: the editor-provided props, merged over `defaultProps`. Slot fields are omitted.
 - `data`: one `QueryResult` per declared query: `{ ok: true, data }` or `{ ok: false, error }`.
   The type forces the failure case to be handled.
-- `ctx`: request context (`isEditing`, `locale`, `nonce`, `page.slug`, `site.name`), `assetUrl()`,
-  and the recorded effects `head.title/meta`, `assets.script/style`.
+- `ctx`: request context (`isEditing`, `locale`, `nonce`, `template.name`, `params`, `site.name`),
+  `assetUrl()`, and the recorded effects `assets.script/style`.
 
 Interactive parts go in `"use client"` modules: they are rendered here too, then hydrated in the
 browser as **islands** with JSON props ([interactive components](/docs/guides/interactive-components)).

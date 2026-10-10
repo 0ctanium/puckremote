@@ -30,7 +30,8 @@ Values inside a spec may be references the host substitutes per instance:
 | Ref | Value |
 |---|---|
 | `{ $prop: 'name' }` | The block prop (JSON scalars only; objects become `null`) |
-| `{ $page: 'slug' \| 'locale' }` | Current page |
+| `{ $template: 'name' \| 'locale' }` | The template being rendered, the render locale |
+| `{ $params: name }` | A param the app passed with the template (e.g. a product handle) |
 | `{ $site: 'locale' \| 'name' }` | Site config |
 | `{ $query: 'q' }` | URL search param (max 256 chars). **Makes the page uncacheable.** |
 | `{ $secret: 'NAME' }` | Header value only; substituted by the host for bound origins |

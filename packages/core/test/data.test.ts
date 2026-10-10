@@ -216,7 +216,7 @@ describe('11. editor RPC ignores client-supplied specs', () => {
       blockDataSchema.parse({
         block: 'latest-posts',
         props: { count: 2 },
-        slug: 'home',
+        template: 'home',
         spec: { source: 'host', op: 'find', collection: 'users', args: {} },
         data: { posts: { source: 'host', op: 'find', collection: 'users', args: {} } },
         query: { source: 'http', origin: 'https://169.254.169.254', path: '/' },
@@ -229,7 +229,7 @@ describe('11. editor RPC ignores client-supplied specs', () => {
     expect(posts.data.docs).toHaveLength(2)
     expect(JSON.stringify(res)).not.toContain('admin@example.com')
     expect(Object.keys(res.data)).toEqual(['posts'])
-    await expect(resolveBlock({ block: 'nope', props: {}, slug: 'home' }, h.deps)).rejects.toThrow(UnknownBlockError)
+    await expect(resolveBlock({ block: 'nope', props: {}, template: 'home' }, h.deps)).rejects.toThrow(UnknownBlockError)
     await h.close()
   })
 })
@@ -244,7 +244,7 @@ describe('12. draft visibility', () => {
     expect(titles(pub)).not.toContain('DRAFT')
     expect(titles(draft)).toContain('DRAFT')
     // The editor's block data always uses draft mode.
-    const rpc = await resolveBlock({ block: 'latest-posts', props: { count: 12 }, slug: 'home' }, h.deps)
+    const rpc = await resolveBlock({ block: 'latest-posts', props: { count: 12 }, template: 'home' }, h.deps)
     expect(JSON.stringify(rpc)).toContain('DRAFT')
     await h.close()
   })

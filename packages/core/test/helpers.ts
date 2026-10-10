@@ -49,7 +49,7 @@ export function ctx(overrides: Partial<CtxInput> = {}): CtxInput {
     isEditing: false,
     locale: 'en',
     nonce: 'n0nce0000000000000000000000000000',
-    page: { slug: 'home' },
+    template: { name: 'home' }, params: {},
     site: { name: 'Test' },
     assetBase: '/cdn/assets/',
     assetVersions: {},
@@ -147,7 +147,7 @@ export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; 
 }
 
 export const env = (query: Record<string, string> = {}) => ({
-  page: { slug: 'home', locale: 'en' },
+  template: { name: 'home', locale: 'en' }, params: {},
   site: { name: 'Test', locale: 'en' },
   query,
 })
@@ -162,17 +162,17 @@ import { createHost } from '../src/server/host.ts'
 
 const sha = (b: string | Uint8Array) => createHash('sha256').update(b).digest('hex')
 
-/** Copy a built theme and replace its pages (pages/<slug>.json, listed in manifest.files). */
+/** Copy a built theme and replace its templates (templates/<name>.json, listed in manifest.files). */
 export async function withPages(distDir: string, pages: Record<string, unknown>): Promise<string> {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'puck-remote-dist-'))
   await cp(distDir, dir, { recursive: true })
   const manifest = JSON.parse(await readF(path.join(dir, 'manifest.json'), 'utf8'))
-  for (const f of Object.keys(manifest.files)) if (f.startsWith('pages/')) delete manifest.files[f]
+  for (const f of Object.keys(manifest.files)) if (f.startsWith('templates/')) delete manifest.files[f]
   for (const [slug, data] of Object.entries(pages)) {
     const body = JSON.stringify(data)
-    await mkdir(path.dirname(path.join(dir, 'pages', `${slug}.json`)), { recursive: true })
-    await writeFile(path.join(dir, 'pages', `${slug}.json`), body)
-    manifest.files[`pages/${slug}.json`] = sha(body)
+    await mkdir(path.dirname(path.join(dir, 'templates', `${slug}.json`)), { recursive: true })
+    await writeFile(path.join(dir, 'templates', `${slug}.json`), body)
+    manifest.files[`templates/${slug}.json`] = sha(body)
   }
   await writeFile(path.join(dir, 'manifest.json'), JSON.stringify(manifest))
   return dir

@@ -23,12 +23,12 @@ suppressed; debug with `process.stderr.write`. Sandbox suites run against **both
 | 16 | Parity: the editor config (theme browser bundle loaded through the editor globals, Puck slots) renders the same HTML as the public isolate render (island wrappers unwrapped) | `editor.test.tsx` |
 | — | Islands: record with JSON props and `hydrate`, marker swapped for `ThemeIsland`; non-JSON props, `children` and more than 200 per page fail the block; forged markers stay inert; no `islandsUrl` without islands; server rendering never registers the shared modules | `islands.test.tsx` |
 | 17 | Missing blocks; stale props; page-level infinite loop | `rendering.test.tsx` |
-| 18 | `resolveData` output is stripped by `writePage` | `editor.test.tsx` |
+| 18 | `resolveData` output is stripped by `writeTemplate` | `editor.test.tsx` |
 | 19 | Tampered bundle, page, manifest or asset rejected; previous artifact keeps serving; non-public files never served | `artifacts.test.ts` |
 | 20 | Publish by id (identical content dedupes); atomic pointer; hot swap disposes old runtime; rollback | `artifacts.test.ts` |
 | 21 | Build rejects functions, custom/external fields, forbidden keys, non-JSON, bad refs | `packages/cli/test/build.test.ts` |
 | — | Theme file versions: current and older `v` served `immutable`, no or unknown `v` → current file, `no-cache`, `etag`, `304`; index refresh throttled; asset URLs unchanged after a page save | `routes.test.ts` |
-| — | Entry points: theme route (versioned assets, browser bundle, CORS, 404/405, old id layout 404), `readPage`, `writePage` (new id, pointer untouched, cleaning, invalid input), `editorPayload`, `resolveBlockData`, origins config, a counter-id store end to end | `routes.test.ts` |
+| — | Entry points: theme route (versioned assets, browser bundle, CORS, 404/405, old id layout 404), `readTemplate`, `writeTemplate` (new id, pointer untouched, cleaning, invalid input), `editorPayload` (merged root, params), `resolveBlockData`, origins config, a counter-id store end to end | `routes.test.ts` |
 | A7 | No developer code outside the isolate: static scan, bundle-sink allowlist, realm check, import boundaries; `ThemeIsland.tsx` is the only browser-only exception (one `import()`, only `@puck-remote/sdk/browser`, [D-0260](/docs/internal/decisions#D-0260)) | `no-dev-code.test.ts` |
 | M1 | Contract suite against `artifacts-fs` and a counter-id store; content-hash ids | `adapters.test.ts` |
 | M2 | Worker permissions (fs, network, child processes, threads, env), watchdog kill, crash, recycling, no secrets over IPC, bubblewrap (Linux) | `worker.test.ts` |

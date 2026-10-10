@@ -6,7 +6,7 @@ description: Measured costs of the isolate and the worker pool.
 Measured on an M1 Max, arm64 Node 26.10, 222 KB bundle, with
 `pnpm --filter @puck-remote/core bench` (needs a published artifact and the mock API).
 
-| Runtime | First session (cold) | Session (warm, median) | Block render median / p95 | `preparePage('home')`, 8 blocks, warm data |
+| Runtime | First session (cold) | Session (warm, median) | Block render median / p95 | `prepareTemplate('home')`, 8 blocks, warm data |
 |---|---|---|---|---|
 | in-process | 5.4 ms | 1.5 ms | 0.08 / 0.16 ms | 3.8 ms |
 | worker pool (default) | 91 ms (spawns a worker, once) | 1.4 ms | 0.16 / 0.28 ms | 4.3 ms |

@@ -1,1 +1,1 @@
-export { PuckRemotePage, pageMetadata } from './PuckRemotePage.tsx'
+export { PuckRemoteTemplate } from './PuckRemoteTemplate.tsx'

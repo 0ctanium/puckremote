@@ -23,7 +23,7 @@ See [Core › Adapters](/docs/core/adapters) for each contract and the built-in 
 
 <TypeTable
   type={{
-    artifacts: { description: "Where theme artifacts (code and pages) and the current-artifact pointer live.", type: 'ArtifactStore', required: true },
+    artifacts: { description: "Where theme artifacts (code and templates) and the current-artifact pointer live.", type: 'ArtifactStore', required: true },
     source: { description: "Answers the find / findByID / global queries of blocks.", type: 'DataSource', required: true },
     renderer: { description: "Where theme code runs.", type: 'RendererFactory', default: 'workerPoolRenderer()' },
   }}
@@ -53,9 +53,40 @@ headers. See [Origins](/docs/concepts/origins).
 <TypeTable
   type={{
     'site.name': { description: "Exposed to blocks as ctx.site.name and the $site ref.", type: 'string', default: "'Site'" },
-    'site.locale': { description: "Default locale (ctx.locale, $page.locale) unless a page context overrides it.", type: 'string', default: "'en'" },
+    'site.locale': { description: "Default locale (ctx.locale, $template.locale) unless the app passes another one with the template.", type: 'string', default: "'en'" },
   }}
 />
+
+## Root fields
+
+Every template's root holds the props your app needs around the content, for example the SEO
+title and description its routes turn into metadata. Declare them once in `root`
+([D-0372](/docs/internal/decisions#D-0372)):
+
+```ts title="puck-remote.config.ts"
+export default defineConfig({
+  // …
+  root: {
+    fields: {
+      title: { type: 'text', label: 'Page title' },
+      description: { type: 'textarea', label: 'Meta description' },
+    },
+    defaultProps: { title: 'Untitled page', description: '' },
+  },
+});
+```
+
+<TypeTable
+  type={{
+    'root.fields': { description: "Root fields of every template, with the same JSON shapes as block fields (text, select, array, host:media…). Validated at startup (ConfigError).", type: 'Record<string, FieldSpec>', default: '{}' },
+    'root.defaultProps': { description: "Their default values, used for a new template.", type: 'Record<string, unknown>', default: '{}' },
+  }}
+/>
+
+The editor shows your fields first, then the theme's own root fields. A theme cannot override
+yours: on a name collision your field is used and a warning is logged once per artifact
+([D-0373](/docs/internal/decisions#D-0373)). The theme's root component receives your props too;
+it types them with `Register.rootProps` (see [Root props from the app](/docs/sdk/blocks#root-props-from-the-app)).
 
 ## Artifacts
 

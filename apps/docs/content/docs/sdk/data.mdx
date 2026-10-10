@@ -56,9 +56,10 @@ Values in a query can reference the current context:
 <TypeTable
   type={{
     '{ $prop: name }': { description: "A prop of this block instance (JSON scalars only; objects become null).", type: 'scalar' },
-    "{ $page: 'slug' | 'locale' }": { description: "The current page.", type: 'string' },
+    "{ $template: 'name' | 'locale' }": { description: "The template being rendered, and the render locale.", type: 'string' },
+    '{ $params: name }': { description: "A param the app passed with the template (e.g. a product handle).", type: 'string | null' },
     "{ $site: 'locale' | 'name' }": { description: "Site settings.", type: 'string' },
-    '{ $query: name }': { description: "A URL search parameter (max 256 characters). Makes every page using this block uncacheable.", type: 'string | null' },
+    '{ $query: name }': { description: "A URL search parameter (max 256 characters). Makes every template using this block uncacheable.", type: 'string | null' },
     '{ $secret: NAME }': { description: "In http/adapter headers only. Substituted by the host, for the origins the secret is bound to; never visible to the theme.", type: 'header value' },
   }}
 />

@@ -1,8 +1,9 @@
 /**
- * The framework-agnostic host runtime: loads remote theme artifacts (code + pages), renders
- * pages in the sandbox, resolves declarative data, and reads/writes pages inside artifacts.
- * Saving, publishing, drafts and history are left to plugins built on readPage/writePage and the
- * artifact pointer. Frameworks bind to it through plain functions (see @puck-remote/next).
+ * The framework-agnostic host runtime: loads remote theme artifacts (code + templates), renders
+ * templates in the sandbox, resolves declarative data, and reads/writes templates inside artifacts.
+ * Which template a route uses is the app's choice. Saving, publishing, drafts and history are
+ * left to plugins built on readTemplate/writeTemplate and the artifact pointer. Frameworks bind to
+ * it through plain functions (see @puck-remote/next).
  */
 import type { ArtifactId } from "@puck-remote/sdk/host";
 import {
@@ -20,24 +21,30 @@ import {
 } from "./server/editor-rpc.ts";
 import { createHost, type Host } from "./server/host.ts";
 import { manifestSchema, type Manifest } from "./server/manifest-schema.ts";
-import { rewriteMissing, type PageData } from "./server/page-tree.ts";
-import { readPage, stripResolved, writePage } from "./server/pages.ts";
+import { rewriteMissing, type TemplateData } from "./server/page-tree.ts";
+import { checkParams, readTemplate, stripResolved, writeTemplate } from "./server/templates.ts";
+import { rootOf, type MergedRoot } from "./server/root.ts";
 import {
-  preparePage,
-  type PageContext,
-  type PreparedPage,
+  prepareTemplate,
+  type PreparedTemplate,
+  type TemplateOptions,
 } from "./server/public-render.ts";
 import type { RenderSession } from "./server/runtime/types.ts";
 import { fileResponse, ThemeFiles } from "./server/static-files.ts";
 import { themeAssetBase, themeFileUrl } from "./shared/urls.ts";
 
-/** Everything the editor iframe needs to edit a page (JSON only; sent in the `init` message). */
+/** Everything the editor iframe needs to edit a template (JSON only; sent in the `init` message). */
 export interface EditorPayload {
   artifact: ArtifactId;
-  slug: string;
+  template: string;
+  /** The params the app passed (data resolution in the editor uses them). */
+  params: Record<string, string>;
   manifest: Manifest;
-  /** The page (unknown blocks shown as placeholders), or an empty page when the artifact has none. */
-  data: PageData;
+  /** Root fields and defaults: the app's merged with the theme's. */
+  root: MergedRoot;
+  /** The template (unknown blocks shown as placeholders), or an empty one when the artifact has none. */
+
+  data: TemplateData;
   /** Absolute URL of the theme's browser bundle (ESM). */
   bundleUrl: string;
   /** Absolute URL prefix of the theme's assets. */
@@ -52,36 +59,36 @@ export interface PuckRemoteCore {
   config: HostConfig;
   /** Resolves once the first artifact load was attempted (loads lazily on first use). */
   host(): Promise<Host>;
-  /** Resolve data and render every block of a page of the current artifact. null: no such page. */
-  preparePage(
-    slug: string,
-    query?: Record<string, string>,
-    context?: PageContext,
-  ): Promise<PreparedPage | null>;
-  /** A page of an artifact (default: the current one), or null when it has no such page. */
-  readPage(
-    slug: string,
+  /** Resolve data and render every block of a template of the current artifact. null: no such template. */
+  prepareTemplate(
+    name: string,
+    opts?: TemplateOptions,
+  ): Promise<PreparedTemplate | null>;
+  /** A template of an artifact (default: the current one), or null when it has no such template. */
+  readTemplate(
+    name: string,
     opts?: { artifact?: ArtifactId },
-  ): Promise<{ artifact: ArtifactId; data: PageData } | null>;
+  ): Promise<{ artifact: ArtifactId; data: TemplateData } | null>;
   /**
-   * Write a page into a copy of `base` and return the new artifact's id. Never moves the
+   * Write a template into a copy of `base` and return the new artifact's id. Never moves the
    * pointer: going live is `config.artifacts.writePointer(id)`, decided by the caller.
    */
-  writePage(
-    slug: string,
+  writeTemplate(
+    name: string,
     data: unknown,
     opts: { base: ArtifactId },
   ): Promise<{ id: ArtifactId }>;
-  /** Data for one block in draft mode (the editor's resolveData). Only block name + props come from the caller. */
+  /** Data for one block in draft mode (the editor's resolveData). Only block name + props (and the template's params) come from the caller. */
   resolveBlockData(
-    slug: string,
+    name: string,
     block: string,
     props: Record<string, unknown>,
+    opts?: { params?: Record<string, string> },
   ): Promise<BlockDataResult>;
-  /** What the admin page passes to <PuckEditorFrame>: page, manifest and theme URLs. Needs `origins`. */
+  /** What the admin page passes to <PuckEditorFrame>: template, root fields, manifest and theme URLs. Needs `origins`. */
   editorPayload(
-    slug: string,
-    opts?: { artifact?: ArtifactId },
+    name: string,
+    opts?: { artifact?: ArtifactId; params?: Record<string, string> },
   ): Promise<EditorPayload>;
   /** `<routes.theme>/assets/**`, `bundle.browser.js` and `bundle.islands.js`, versioned by `?v=` (GET/HEAD); CORS for the editor origin. */
   handleTheme(request: Request): Promise<Response>;
@@ -131,20 +138,23 @@ function build(config: HostConfig): PuckRemoteCore {
   return {
     config,
     host,
-    async preparePage(slug, query = {}, context = {}) {
-      return preparePage(await host(), slug, query, context);
+    async prepareTemplate(name, opts = {}) {
+      const h = await host();
+      const current = h.store.peek();
+      if (current) rootOf(config.root, current.id, current.manifest);
+      return prepareTemplate(h, name, opts);
     },
-    async readPage(slug, opts = {}) {
+    async readTemplate(name, opts = {}) {
       const m = await manifestOf(await host(), opts.artifact);
       if (!m) return null;
-      const data = await readPage(config.artifacts, m.id, m.manifest, slug);
+      const data = await readTemplate(config.artifacts, m.id, m.manifest, name);
       return data ? { artifact: m.id, data } : null;
     },
-    async writePage(slug, data, opts) {
-      return writePage(config.artifacts, opts.base, slug, data);
+    async writeTemplate(name, data, opts) {
+      return writeTemplate(config.artifacts, opts.base, name, data);
     },
-    async resolveBlockData(slug, block, props) {
-      const input = blockDataSchema.parse({ slug, block, props });
+    async resolveBlockData(name, block, props, opts = {}) {
+      const input = blockDataSchema.parse({ template: name, block, props, params: opts.params });
       const h = await host();
       const { manifest, runtime } = h.store.get();
       let session: Promise<RenderSession> | null = null;
@@ -164,7 +174,8 @@ function build(config: HostConfig): PuckRemoteCore {
           )?.release();
       }
     },
-    async editorPayload(slug, opts = {}) {
+    async editorPayload(name, opts = {}) {
+      const params = checkParams(opts.params);
       const origins = config.origins;
       if (!origins)
         throw new ConfigError(
@@ -177,21 +188,24 @@ function build(config: HostConfig): PuckRemoteCore {
             ? `artifact ${opts.artifact} not found`
             : "no artifact loaded",
         );
-      const page = (await readPage(
+      const root = rootOf(config.root, m.id, m.manifest);
+      const template = (await readTemplate(
         config.artifacts,
         m.id,
         m.manifest,
-        slug,
+        name,
       )) ?? {
-        root: { props: { ...(m.manifest.root?.defaultProps ?? {}) } },
+        root: { props: { ...root.defaultProps } },
         content: [],
       };
       const base = origins.host[0];
       return {
         artifact: m.id,
-        slug,
+        template: name,
+        params,
         manifest: m.manifest,
-        data: rewriteMissing(stripResolved(page), m.manifest),
+        root,
+        data: rewriteMissing(stripResolved(template), m.manifest),
         bundleUrl: `${base}${themeFileUrl(config.routes.theme, "bundle.browser.js", m.manifest.files["bundle.browser.js"])}`,
         assetBase: `${base}${themeAssetBase(config.routes.theme)}`,
         origins,

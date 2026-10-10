@@ -19,6 +19,7 @@ my-app
 ├── next.config.ts
 └── src
     ├── puck-remote.ts
+    ├── template-name.ts
     ├── proxy.ts
     └── app
         ├── [[...path]]
@@ -41,10 +42,11 @@ my-app
 |---|---|
 | `puck-remote.config.ts` | The only file that knows your backend: adapters, origins, limits ([Configuration](/docs/configuration)) |
 | `src/puck-remote.ts` | The app instance: `createPuckRemote(config)` |
+| `src/template-name.ts` | Your routing: which template a path renders (here, the template of the same name) |
 | `src/proxy.ts` | Serves the editor page at the editor origin's root (everything else there is 404) and your `/admin` pages at the admin origin's root; security headers per origin (editor, admin or site) with a CSP nonce, cache headers |
-| `app/[[...path]]/page.tsx` | The public site (Puck RSC render) |
+| `app/[[...path]]/page.tsx` | The public site: picks the template, builds the metadata from its root props, renders it (Puck RSC) |
 | `app/admin/[[...path]]/page.tsx` | Your admin page: checks your session, renders `<PuckEditorFrame>` (the page data, history and fields) around the editor frame |
-| `app/admin/[[...path]]/actions.ts` | Server actions the frame's `rpc` map and your Publish button call (`core.resolveBlockData`, `core.writePage`), with your auth |
+| `app/admin/[[...path]]/actions.ts` | Server actions the frame's `rpc` map and your Publish button call (`core.resolveBlockData`, `core.writeTemplate`), with your auth |
 | `app/editor/[[...path]]/page.tsx` | The editor page (`<PuckRemoteEditor>`: canvas, drawer, outline), only reachable on `origins.editor` |
 | `app/cdn/[[...path]]/route.ts` | Theme files (`/cdn/assets/**`, `/cdn/bundle.browser.js`, `/cdn/bundle.islands.js`, versioned by `?v=`) |
 | `next.config.ts` | Keeps isolated-vm and the core external to the server bundle |
@@ -60,11 +62,26 @@ export const remote = createPuckRemote(config);
 
 ## Proxy
 
+```ts title="src/template-name.ts"
+// Path → template name ('' → 'home'), or null. Pure, so the proxy can use it too.
+export function normalizeSlug(parts: string[] | string | undefined): string | null {
+  const slug = (Array.isArray(parts) ? parts.join('/') : (parts ?? '')).replace(/^\/+|\/+$/g, '') || 'home';
+  return /^[a-z0-9][a-z0-9-]{0,63}(\/[a-z0-9][a-z0-9-]{0,63}){0,4}$/.test(slug) ? slug : null;
+}
+```
+
 ```ts title="src/proxy.ts"
 import { createProxy } from '@puck-remote/next/proxy';
 import remoteConfig from '../puck-remote.config';
+import { normalizeSlug } from './template-name';
 
-export const proxy = createProxy(remoteConfig);
+export const proxy = createProxy(remoteConfig, {
+  // The same mapping as your routes, for the cache headers.
+  template: (pathname) => {
+    const name = normalizeSlug(pathname);
+    return name ? { name } : null;
+  },
+});
 // Must be a literal. Every route except Next internals.
 export const config = { matcher: ['/((?!_next/|favicon\\.ico).*)'] };
 ```
@@ -74,17 +91,36 @@ The proxy imports only edge-safe entry points, never the isolate.
 ## Routes
 
 ```tsx title="src/app/[[...path]]/page.tsx"
-import { PuckRemotePage, type PageProps } from '@puck-remote/next';
+import { PuckRemoteTemplate, type RouteProps } from '@puck-remote/next';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { remote } from '@/puck-remote';
+import { normalizeSlug } from '@/template-name';
 
 export const dynamic = 'force-dynamic';
-export const generateMetadata = remote.generateMetadata;
 
-export default async function Page(props: PageProps) {
-  const page = await remote.loadPage(props /*, { locale } */);
-  return <PuckRemotePage page={page} />;
+async function load({ params, searchParams }: RouteProps) {
+  const name = normalizeSlug((await params).path);
+  if (!name) notFound();
+  return remote.loadTemplate(name, { params: { slug: name }, searchParams /*, locale */ });
+}
+
+export async function generateMetadata(props: RouteProps): Promise<Metadata> {
+  const { title, description } = (await load(props)).data.root.props ?? {};
+  return {
+    title: typeof title === 'string' ? title : undefined,
+    description: typeof description === 'string' ? description : undefined,
+  };
+}
+
+export default async function Page(props: RouteProps) {
+  return <PuckRemoteTemplate template={await load(props)} />;
 }
 ```
+
+This app renders the template named like the path; yours can map routes any way it likes (a
+fixed set of templates with route-specific params, like Shopify). `title` and `description` are
+root fields the app declares in its config ([Root fields](/docs/configuration#root-fields)).
 
 The admin and editor pages are shown in [Installation](/docs/installation#add-the-app-files) and
 [Customizing the editor](/docs/guides/editor-app); the example app (`examples/app`) has complete
