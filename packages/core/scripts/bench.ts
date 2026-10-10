@@ -8,7 +8,7 @@ import { fsArtifactStore } from '@puck-remote/artifacts-fs'
 import { mockCms } from '@puck-remote/source-mock'
 import { resolveConfig } from '../src/server/config.ts'
 import { createHost } from '../src/server/host.ts'
-import { preparePage } from '../src/server/public-render.ts'
+import { prepareTemplate } from '../src/server/public-render.ts'
 import { renderInIsolate } from '../src/server/render.ts'
 import { inProcessRenderer } from '../src/server/runtime/in-process.ts'
 import type { RendererFactory } from '../src/server/runtime/types.ts'
@@ -53,7 +53,7 @@ async function measure(name: string, renderer: RendererFactory) {
     s.release()
   }
 
-  const ctx = { isEditing: false, locale: 'en', nonce: 'x'.repeat(32), page: { slug: 'home' }, site: { name: 'Bench' }, assetBase: '/cdn/assets/', assetVersions: {} }
+  const ctx = { isEditing: false, locale: 'en', nonce: 'x'.repeat(32), template: { name: 'home' }, params: {}, site: { name: 'Bench' }, assetBase: '/cdn/assets/', assetVersions: {} }
   const data = { posts: { ok: true, data: { docs: Array.from({ length: 12 }, (_, i) => ({ title: `Post ${i}`, slug: `p${i}` })), totalDocs: 12, limit: 12 } }, events: { ok: true, data: [] }, results: { ok: true, data: { docs: [] } }, site: { ok: true, data: { tagline: 't', footer: 'f' } } }
   const renders: number[] = []
   const s = await runtime.session()
@@ -70,7 +70,7 @@ async function measure(name: string, renderer: RendererFactory) {
   let blocks = 0
   for (let i = 0; i < 30; i++) {
     t = performance.now()
-    const p = await preparePage(host, 'home', {})
+    const p = await prepareTemplate(host, 'home', {})
     pages.push(performance.now() - t)
     blocks = p!.stats.blocks
   }
@@ -82,7 +82,7 @@ async function measure(name: string, renderer: RendererFactory) {
   await host.http.close()
 }
 
-console.log('| runtime | first session (cold) | session (warm, median) | block render median / p95 | preparePage home, warm data |')
+console.log('| runtime | first session (cold) | session (warm, median) | block render median / p95 | prepareTemplate home, warm data |')
 console.log('|---|---|---|---|---|')
 await measure('in-process', inProcessRenderer({ log: quiet }))
 await measure('worker pool', workerPoolRenderer({ log: quiet }))

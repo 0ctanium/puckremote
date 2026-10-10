@@ -32,13 +32,13 @@ export const FORBIDDEN_DEFINITION_KEYS = [
   'inline',
 ] as const
 
-/** Caps for the isolate's only side channel (ctx.head / ctx.assets). */
+/** Caps for the isolate's only side channel (ctx.assets). */
 export const EFFECT_LIMITS = {
   maxEffects: 64,
   maxStringLength: 2048,
 } as const
 
-export const PAGE_REF_KEYS = ['slug', 'locale'] as const
+export const TEMPLATE_REF_KEYS = ['name', 'locale'] as const
 export const SITE_REF_KEYS = ['locale', 'name'] as const
 
 /** When an island hydrates on public pages (the reserved `hydrate` prop). The first is the default. */

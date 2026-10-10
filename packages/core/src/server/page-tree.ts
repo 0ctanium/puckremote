@@ -10,7 +10,7 @@ export interface PuckItem {
   readOnly?: Record<string, boolean>
 }
 
-export interface PageData {
+export interface TemplateData {
   root: { props?: Record<string, unknown>; readOnly?: Record<string, boolean> }
   content: PuckItem[]
   zones?: Record<string, PuckItem[]>
@@ -42,7 +42,7 @@ export function renderProps(props: Record<string, unknown>, meta: BlockMeta | nu
   return out
 }
 
-export function collectInstances(data: PageData, manifest: Manifest): Instance[] {
+export function collectInstances(data: TemplateData, manifest: Manifest): Instance[] {
   const out: Instance[] = []
   if (manifest.root) out.push({ id: ROOT_ID, kind: 'root', name: 'root', props: data.root?.props ?? {}, meta: manifest.root })
   const walk = (items: unknown) => {
@@ -63,7 +63,7 @@ export function collectInstances(data: PageData, manifest: Manifest): Instance[]
 }
 
 /** Map every item in the tree (content + slots), bottom-up. */
-export function mapItems(data: PageData, manifest: Manifest | null, fn: (item: PuckItem) => PuckItem): PageData {
+export function mapItems(data: TemplateData, manifest: Manifest | null, fn: (item: PuckItem) => PuckItem): TemplateData {
   const mapList = (items: unknown): unknown =>
     Array.isArray(items)
       ? items.map((item) => {
@@ -80,7 +80,7 @@ export function mapItems(data: PageData, manifest: Manifest | null, fn: (item: P
 }
 
 /** D2: Puck silently drops unknown types; make them explicit so they render a fallback. */
-export function rewriteMissing(data: PageData, manifest: Manifest): PageData {
+export function rewriteMissing(data: TemplateData, manifest: Manifest): TemplateData {
   let n = 0
   return mapItems(data, manifest, (item) => {
     const id = typeof item.props.id === 'string' && item.props.id ? item.props.id : `auto-${item.type}-${n++}`
@@ -90,7 +90,7 @@ export function rewriteMissing(data: PageData, manifest: Manifest): PageData {
 }
 
 /** Reverse of rewriteMissing, used by the editor's save path so unknown blocks are not lost. */
-export function restoreMissing(data: PageData): PageData {
+export function restoreMissing(data: TemplateData): TemplateData {
   return mapItems(data, null, (item) =>
     item.type === MISSING_TYPE && typeof item.props.originalType === 'string'
       ? { type: item.props.originalType, props: (item.props.originalProps as Record<string, unknown>) ?? { id: item.props.id } }

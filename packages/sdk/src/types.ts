@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { RegisteredRootProps } from './index.ts'
 
 // ---------------------------------------------------------------------------
 // Fields (JSON only; no functions anywhere)
@@ -77,11 +78,13 @@ export type PropsOf<F extends Fields> = {
 // ---------------------------------------------------------------------------
 
 export type PropRef = { $prop: string }
-export type PageRef = { $page: 'slug' | 'locale' }
+export type TemplateRef = { $template: 'name' | 'locale' }
+/** A param the app passed to loadTemplate (e.g. a product handle); null when absent. */
+export type ParamsRef = { $params: string }
 export type SiteRef = { $site: 'locale' | 'name' }
 export type QueryRef = { $query: string }
 export type SecretRef = { $secret: string }
-export type ParamRef = PropRef | PageRef | SiteRef | QueryRef
+export type ParamRef = PropRef | TemplateRef | ParamsRef | SiteRef | QueryRef
 
 export type Param = JsonPrimitive | ParamRef
 export type ParamValue = Param | Param[] | { [k: string]: ParamValue }
@@ -153,16 +156,14 @@ export interface RenderCtx {
   isEditing: boolean
   locale: string
   nonce: string
-  page: { slug: string }
+  template: { name: string }
+  /** Params the app passed for this template (e.g. { handle }). */
+  params: Readonly<Record<string, string>>
   site: { name: string }
   assetUrl(path: string): string
   assets: {
     script(url: string, opts?: ScriptOptions): void
     style(url: string): void
-  }
-  head: {
-    title(t: string): void
-    meta(name: string, content: string): void
   }
 }
 
@@ -171,7 +172,8 @@ export interface CtxInput {
   isEditing: boolean
   locale: string
   nonce: string
-  page: { slug: string }
+  template: { name: string }
+  params: Record<string, string>
   site: { name: string }
   assetBase: string
   /** Versions of the theme's assets (path below assets/ → v), appended as `?v=` by assetUrl. */
@@ -179,8 +181,6 @@ export interface CtxInput {
 }
 
 export type Effect =
-  | { kind: 'title'; value: string }
-  | { kind: 'meta'; name: string; content: string }
   | { kind: 'script'; url: string; opts: ScriptOptions }
   | { kind: 'style'; url: string }
 
@@ -217,8 +217,16 @@ export interface BlockDefinition<F extends Fields = Fields, D extends DataSpecs 
   render: (props: PropsOf<F>, data: DataOf<D>, ctx: RenderCtx) => ReactNode
 }
 
-export type RootDefinition<F extends Fields = Fields, D extends DataSpecs | undefined = DataSpecs | undefined> =
-  Omit<BlockDefinition<F, D>, 'label' | 'category'>
+export interface RootDefinition<F extends Fields = Fields, D extends DataSpecs | undefined = DataSpecs | undefined> {
+  fields: F
+  defaultProps?: Partial<PropsOf<F>>
+  data?: D
+  /** Props: the theme's root fields plus the app's (typed by `Register.rootProps`). */
+  render: (props: PropsOf<F> & RegisteredRootProps, data: DataOf<D>, ctx: RenderCtx) => ReactNode
+}
+
+/** Props of an app's root fields, for `Register.rootProps`: `RootPropsOf<typeof rootFields>`. */
+export type RootPropsOf<F extends Fields> = PropsOf<F>
 
 export interface AdapterRequest {
   method: 'GET' | 'POST'

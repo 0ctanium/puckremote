@@ -2,8 +2,6 @@ import { defineRoot, global, Slot } from '@puck-remote/sdk'
 
 export default defineRoot({
   fields: {
-    title: { type: 'text', label: 'Page title' },
-    description: { type: 'textarea', label: 'Meta description' },
     theme: {
       type: 'radio',
       options: [
@@ -12,13 +10,11 @@ export default defineRoot({
       ],
     },
   },
-  defaultProps: { title: 'Untitled page', description: '', theme: 'light' },
+  defaultProps: { theme: 'light' },
   data: {
     site: global('site'),
   },
   render: (props, data, ctx) => {
-    ctx.head.title(`${props.title} · ${ctx.site.name}`)
-    if (props.description) ctx.head.meta('description', props.description)
     ctx.assets.style(ctx.assetUrl('theme.css'))
     ctx.assets.script(ctx.assetUrl('enhance.js'), { defer: true })
     return (

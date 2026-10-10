@@ -39,8 +39,8 @@ export function ClientEditor({ payload, editorUrl }) {
     <PuckEditorFrame
       payload={payload}
       editorUrl={editorUrl}
-      resolveData={async (block, props) => (await resolveData({ slug: payload.slug, block, props })).data}
-      onPublish={(data) => publish({ slug: payload.slug, data })}
+      resolveData={async (block, props, template) => (await resolveData({ template: template.name, params: template.params, block, props })).data}
+      onPublish={(data) => publish({ template: payload.template, data })}
       overrides={overrides}
     />
   );
@@ -88,7 +88,7 @@ use Puck's components and hooks, and place `<PuckEditorFrame.Canvas />` where th
     payload: { description: "From remote.loadEditor() / core.editorPayload(): the page, the manifest, the theme URLs, the origins.", type: 'EditorPayload', required: true },
     editorUrl: { description: "URL of your editor page (on origins.editor).", type: 'string', required: true },
     editorOrigin: { description: "Defaults to editorUrl's origin; must match payload.origins.editor.", type: 'string' },
-    resolveData: { description: "Data for one block, e.g. a server action calling core.resolveBlockData. Needed when blocks declare data.", type: '(block, props) => Promise<data>' },
+    resolveData: { description: "Data for one block, e.g. a server action calling core.resolveBlockData with the template name and params it receives. Needed when blocks declare data.", type: '(block, props, template: { name, params }) => Promise<data>' },
     onPublish: { description: "Puck's native Publish button (your server action, with your session).", type: '(data) => void' },
     headerTitle: { description: "Header title; defaults to the page path.", type: 'string' },
     headerPath: { description: "Header path.", type: 'string' },

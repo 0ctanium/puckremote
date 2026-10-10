@@ -103,10 +103,16 @@ declare module 'react' {
 // and call find('posts', …) with full inference, or pass it explicitly through
 // `source<MockCms>().find('posts', …)`. (TypeScript has no partial generic inference, so
 // `find<MockCms>('posts')` could not also infer the collection name.)
+//
+// `Register.rootProps` types the props the app adds to the root (its `root.fields`):
+//   declare module '@puck-remote/sdk' { interface Register { rootProps: { title: string } } }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Register {}
 export type RegisteredSource = Register extends { source: infer S extends AnyDataSource } ? S : AnyDataSource
+/** The app's root props (its `root.fields` in the host config), registered as `Register.rootProps`. */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type RegisteredRootProps = Register extends { rootProps: infer P extends object } ? P : {}
 
 type Selected<D, Sel> = Sel extends readonly (infer F)[] ? Pick<D, Extract<F, keyof D> | Extract<'id', keyof D>> : D
 

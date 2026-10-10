@@ -76,7 +76,7 @@ const BUNDLE_READERS = new Set([
   'packages/core/src/server/artifact-loader.ts', // reads + hash-verifies bytes, never evaluates
   'packages/core/src/server/static-files.ts', // generic byte server
   'packages/core/src/server/manifest-schema.ts', // asserts bundle.js is listed in files
-  'packages/core/src/server/pages.ts', // copies every file's bytes into a new artifact, never evaluates
+  'packages/core/src/server/templates.ts', // copies every file's bytes into a new artifact, never evaluates
 ])
 
 // Browser-only modules: their code runs only in effects (never during SSR), where loading the
@@ -136,9 +136,9 @@ describe('acceptance 7: no developer code outside the isolate', () => {
 
   it('rendering a page never installs bundle globals in the host realm', async () => {
     const { testHost } = await import('./helpers.ts')
-    const { preparePage } = await import('../src/server/public-render.ts')
+    const { prepareTemplate } = await import('../src/server/public-render.ts')
     const h = await testHost({ theme: 'evil', pages: { home: { root: { props: {} }, content: [{ type: 'polluter', props: { id: 'p' } }, { type: 'probe', props: { id: 'q' } }] } } })
-    await preparePage(h.host, 'home', {})
+    await prepareTemplate(h.host, 'home')
     const g = globalThis as Record<string, unknown>
     expect(g.__render).toBeUndefined()
     expect(g.__toRequest).toBeUndefined()

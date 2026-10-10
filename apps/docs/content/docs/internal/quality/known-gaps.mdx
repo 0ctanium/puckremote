@@ -11,12 +11,12 @@ description: Accepted limitations and what is planned about them.
 | On the admin page, Puck records the data resolved at load (`resolveData`) as undo steps: undoing past the first edit removes the blocks' data (they show "Unavailable" until redo) | Puck's own behavior; a fix (reset the history once the first resolution is done) is not decided |
 | Blocks in one request share a context | Accepted ([D-0026](/docs/internal/decisions#D-0026)) |
 | Theme client scripts don't run in the editor canvas; `head.*` is ignored there | By design: blocks are real components in the editor ([D-0192](/docs/internal/decisions#D-0192)) |
-| Next marks dynamic pages `no-store`; `x-page-cacheable` is only a signal; pages render and run their queries on every request | No caching in the core ([D-0187](/docs/internal/decisions#D-0187)); cache in the data source or the CDN |
+| Next marks dynamic pages `no-store`; `x-template-cacheable` is only a signal; templates render and run their queries on every request | No caching in the core ([D-0187](/docs/internal/decisions#D-0187)); cache in the data source or the CDN |
 | No dependent (`$ref`) queries, no pagination helpers | Post-V1 ([D-0072](/docs/internal/decisions#D-0072)); client-side loading is the theme's job ([D-0011](/docs/internal/decisions#D-0011)) |
-| No drafts, history UI, preview links or concurrent-edit merging in the core | Plugins on `writePage` and the pointer ([D-0190](/docs/internal/decisions#D-0190)); the example publishes on save and refuses a stale base |
+| No drafts, history UI, preview links or concurrent-edit merging in the core | Plugins on `writeTemplate` and the pointer ([D-0190](/docs/internal/decisions#D-0190)); the example publishes on save and refuses a stale base |
 | `publish` from the CLI replaces pages edited since the last `pull` | As in Shopify; run `puck-remote pull` first ([D-0199](/docs/internal/decisions#D-0199)) |
 | Every page save stores a full artifact copy (`artifacts-fs` dedupes only identical artifacts) | Accepted for now; a store may share unchanged files internally |
-| No page list or delete in the core | Not in scope; an app can list `pages/` entries of the manifest |
+| No template list or delete in the core | Not in scope; an app can list `templates/` entries of the manifest |
 | No richtext or inline-editing field types in the SDK yet (the editor now runs real components, so Puck supports them) | M4, mandatory for V1 ([D-0071](/docs/internal/decisions#D-0071)) |
 | No localization | Post-V1, app-defined `LocaleResolver` ([D-0073](/docs/internal/decisions#D-0073)) |
 | Single tenant | ([D-0009](/docs/internal/decisions#D-0009)) |

@@ -9,7 +9,8 @@ export interface CtxInput {
   isEditing: boolean
   locale: string
   nonce: string
-  page: { slug: string }
+  template: { name: string }
+  params: Record<string, string>
   site: { name: string }
   assetBase: string
   /** Versions of the theme's assets (path below assets/ → v), appended by ctx.assetUrl. */
@@ -18,8 +19,6 @@ export interface CtxInput {
 
 const str = z.string().max(2048)
 const effectSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('title'), value: str }),
-  z.strictObject({ kind: z.literal('meta'), name: z.string().regex(/^[\w:.-]{1,64}$/), content: str }),
   z.strictObject({
     kind: z.literal('script'),
     url: str,
@@ -89,8 +88,6 @@ export async function renderInIsolate(
  * assets or absolute https URLs (Shopify-like permissiveness for third-party scripts).
  */
 export function mergeEffects(all: Effect[][], base: string, allow: { scriptOrigins: string[]; styleOrigins: string[] } = { scriptOrigins: [], styleOrigins: [] }): {
-  title: string | null
-  meta: { name: string; content: string }[]
   styles: string[]
   scripts: { url: string; defer: boolean; async: boolean; module: boolean }[]
 } {
@@ -104,21 +101,16 @@ export function mergeEffects(all: Effect[][], base: string, allow: { scriptOrigi
       return false
     }
   }
-  let title: string | null = null
-  const meta = new Map<string, string>()
   const styles = new Set<string>()
   const scripts = new Map<string, { url: string; defer: boolean; async: boolean; module: boolean }>()
   for (const list of all) {
     for (const e of list) {
-      if (e.kind === 'title') title ??= e.value
-      else if (e.kind === 'meta') {
-        if (!meta.has(e.name)) meta.set(e.name, e.content)
-      } else if (e.kind === 'style') {
+      if (e.kind === 'style') {
         if (okUrl(e.url, allow.styleOrigins)) styles.add(e.url)
       } else if (e.kind === 'script') {
         if (okUrl(e.url, allow.scriptOrigins) && !scripts.has(e.url)) scripts.set(e.url, { url: e.url, ...e.opts })
       }
     }
   }
-  return { title, meta: [...meta].map(([name, content]) => ({ name, content })), styles: [...styles], scripts: [...scripts.values()] }
+  return { styles: [...styles], scripts: [...scripts.values()] }
 }

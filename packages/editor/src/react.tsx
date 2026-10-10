@@ -461,14 +461,14 @@ function ReadyEditor(p: PuckRemoteEditorProps & { payload: EditorPayload; option
       isEditing: true,
       locale: payload.site.locale,
       nonce: '',
-      page: { slug: payload.slug },
+      template: { name: payload.template },
+      params: payload.params,
       site: { name: payload.site.name },
       assetUrl: assetUrlFor(payload.assetBase, (payload.manifest as Manifest).files ?? {}),
       assets: { script() {}, style: (url) => addStyle(url, payload.assetBase) },
-      head: { title() {}, meta() {} },
     }
     // The host resolves data and sends `__data` with its state.
-    const built = withoutResolveData(buildEditorConfig(payload.manifest as Manifest, theme, { ctx, resolve: async () => ({}) }, options.categories))
+    const built = withoutResolveData(buildEditorConfig(payload.manifest as Manifest, theme, { ctx, resolve: async () => ({}) }, options.categories, payload.root))
     return transformConfig ? transformConfig(built) : built
   }, [payload, options, theme, transformConfig])
   const sync = useMemo(() => createFrameSync(), [connection])

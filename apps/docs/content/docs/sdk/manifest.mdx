@@ -8,7 +8,7 @@ description: The structure of manifest.json, as the host validates it.
   artifactVersion: string            // "<package version>+<first 12 hex of bundle sha256>"
   sdkMajor: 3                        // anything else is rejected (rebuild older artifacts)
   createdAt: string
-  files: { [relPath]: sha256hex }    // every other file of the artifact, bundle.js required, pages/<slug>.json included
+  files: { [relPath]: sha256hex }    // every other file of the artifact, bundle.js required, templates/<name>.json included
   blocks: { [slug]: BlockMeta }      // slug: ^[a-z][a-z0-9-]*$
   root: BlockMeta | null
   adapters: { [name]: { origin } }   // bare origins
@@ -29,8 +29,9 @@ BlockMeta = {
 
 Cross-checks: adapter queries reference declared adapters; `slots` are slot fields; category
 components exist; file paths have no `.`/`..`/empty segments and are not absolute; paths under
-`pages/` are `pages/<slug>.json` with a valid slug. Writing a page from the editor adds or replaces
-its entry in `files` ([D-0206](/docs/internal/decisions#D-0206)).
+`templates/` are `templates/<name>.json` with a valid name; any `pages/` path is refused
+([D-0377](/docs/internal/decisions#D-0377)). Writing a template from the editor adds or replaces
+its entry in `files` ([D-0386](/docs/internal/decisions#D-0386)).
 
 Field specs are a closed union: `text`, `textarea`, `number`, `select`, `radio`, `array`,
 `object`, `slot`, `host:color`, `host:media`, `host:link`, each a strict object (unknown keys fail).

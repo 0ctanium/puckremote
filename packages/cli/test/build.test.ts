@@ -92,33 +92,33 @@ describe('21. build validation', () => {
   })
 })
 
-describe('pages and the browser bundle', () => {
+describe('templates and the browser bundle', () => {
   const page = (content: unknown[]) => JSON.stringify({ root: { props: {} }, content })
   const slotted = block(`defineBlock({ fields: { title: { type: 'text' }, s: { type: 'slot' } }, render: (p) => <div>{p.title}<Slot name="s" /></div> })`)
 
-  it('ships theme pages in the artifact, listed in manifest.files', async () => {
+  it('ships theme templates in the artifact, listed in manifest.files', async () => {
     const dir = await theme({
       'blocks/a.tsx': slotted,
-      'pages/home.json': page([{ type: 'a', props: { id: '1', s: [{ type: 'a', props: { id: '2' } }] } }]),
-      'pages/blog/post-1.json': page([]),
+      'templates/home.json': page([{ type: 'a', props: { id: '1', s: [{ type: 'a', props: { id: '2' } }] } }]),
+      'templates/blog/post-1.json': page([]),
     })
     const { manifest, outDir } = await build({ cwd: dir, quiet: true })
-    expect(Object.keys(manifest.files)).toEqual(expect.arrayContaining(['pages/home.json', 'pages/blog/post-1.json', 'bundle.browser.js']))
-    expect(JSON.parse(await readFile(path.join(outDir, 'pages', 'home.json'), 'utf8')).content[0].type).toBe('a')
+    expect(Object.keys(manifest.files)).toEqual(expect.arrayContaining(['templates/home.json', 'templates/blog/post-1.json', 'bundle.browser.js']))
+    expect(JSON.parse(await readFile(path.join(outDir, 'templates', 'home.json'), 'utf8')).content[0].type).toBe('a')
   })
 
   it('fails on a page using a block the theme does not have (also inside slots)', async () => {
-    await expectBuildError({ 'blocks/a.tsx': slotted, 'pages/home.json': page([{ type: 'gone', props: { id: '1' } }]) }, /pages\/home.json content\[0\]: unknown block "gone"/)
+    await expectBuildError({ 'blocks/a.tsx': slotted, 'templates/home.json': page([{ type: 'gone', props: { id: '1' } }]) }, /templates\/home.json content\[0\]: unknown block "gone"/)
     await expectBuildError(
-      { 'blocks/a.tsx': slotted, 'pages/home.json': page([{ type: 'a', props: { id: '1', s: [{ type: 'gone', props: {} }] } }]) },
+      { 'blocks/a.tsx': slotted, 'templates/home.json': page([{ type: 'a', props: { id: '1', s: [{ type: 'gone', props: {} }] } }]) },
       /content\[0\]\.props\.s\[0\]: unknown block "gone"/,
     )
   })
 
   it('fails on invalid page files', async () => {
-    await expectBuildError({ 'blocks/a.tsx': slotted, 'pages/Home.json': page([]) }, /pages\/<slug>\.json/)
-    await expectBuildError({ 'blocks/a.tsx': slotted, 'pages/home.json': '{ nope' }, /invalid JSON/)
-    await expectBuildError({ 'blocks/a.tsx': slotted, 'pages/home.json': '{"content": []}' }, /must be Puck data/)
+    await expectBuildError({ 'blocks/a.tsx': slotted, 'templates/Home.json': page([]) }, /templates\/<name>\.json/)
+    await expectBuildError({ 'blocks/a.tsx': slotted, 'templates/home.json': '{ nope' }, /invalid JSON/)
+    await expectBuildError({ 'blocks/a.tsx': slotted, 'templates/home.json': '{"content": []}' }, /must be Puck data/)
   })
 
   it('the browser bundle has no bare imports: React and the SDK come from the editor globals', async () => {
@@ -188,14 +188,14 @@ export const STEP = 1
 })
 
 describe('pull', () => {
-  it('downloads the current artifact pages into the theme repo', async () => {
-    const dir = await theme({ 'blocks/a.tsx': simpleBlock(), 'pages/home.json': JSON.stringify({ root: { props: {} }, content: [] }) })
+  it('downloads the current artifact templates into the theme repo', async () => {
+    const dir = await theme({ 'blocks/a.tsx': simpleBlock(), 'templates/home.json': JSON.stringify({ root: { props: {} }, content: [] }) })
     const { outDir } = await build({ cwd: dir, quiet: true })
     const store = path.join(dir, '.artifacts')
     const { id } = await publish({ distDir: outDir, artifacts: store, quiet: true })
     const target = await theme({})
-    expect(await pull({ cwd: target, artifacts: store, quiet: true })).toEqual({ id, pages: ['pages/home.json'] })
-    expect(JSON.parse(await readFile(path.join(target, 'pages', 'home.json'), 'utf8'))).toEqual({ root: { props: {} }, content: [] })
+    expect(await pull({ cwd: target, artifacts: store, quiet: true })).toEqual({ id, templates: ['templates/home.json'] })
+    expect(JSON.parse(await readFile(path.join(target, 'templates', 'home.json'), 'utf8'))).toEqual({ root: { props: {} }, content: [] })
     await expect(pull({ cwd: target, artifacts: path.join(dir, '.empty'), quiet: true })).rejects.toThrow(/nothing published/)
   })
 })

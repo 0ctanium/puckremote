@@ -19,7 +19,9 @@ const ADMIN = "https://admin.example.com";
 const EDITOR = "https://editor.example.net";
 const payload: EditorPayload = {
   artifact: "a".repeat(64),
-  slug: "home",
+  template: "home",
+  params: {},
+  root: { fields: {}, defaultProps: {} },
   manifest: { blocks: { hero: {}, card: {} }, root: null, categories: {} } as never,
   data: { root: { props: {} }, content: [] },
   bundleUrl: `${ADMIN}/cdn/bundle.browser.js?v=${"a".repeat(12)}`,

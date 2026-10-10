@@ -1,5 +1,5 @@
 /**
- * Host wiring: the only place that knows where artifacts (theme code + pages) and data live.
+ * Host wiring: the only place that knows where artifacts (theme code + templates) and data live.
  * Swap the plugins for a real backend (Payload, SQL, a headless CMS, S3…) without touching @puck-remote/core.
  */
 import path from 'node:path'
@@ -27,4 +27,13 @@ export default defineConfig({
   site: { name: 'POC Site', locale: 'en' },
   http: { allowedOrigins: [MOCK_API], insecureDevOrigins: dev ? [MOCK_API] : [] },
   secrets: { EVENTS_API_KEY: { value: process.env.EVENTS_API_KEY ?? 'dev-events-key-7f3a9c', origins: [MOCK_API] } },
+  // Every template gets these root fields (the theme's own come after). The theme types them in
+  // its puck-remote-env.d.ts (Register.rootProps); the public page builds its metadata from them.
+  root: {
+    fields: {
+      title: { type: 'text', label: 'Page title' },
+      description: { type: 'textarea', label: 'Meta description' },
+    },
+    defaultProps: { title: 'Untitled page', description: '' },
+  },
 })

@@ -4,44 +4,57 @@
  *
  *   // src/puck-remote.ts
  *   export const remote = createPuckRemote(config)
- *   // app/[[...path]]/page.tsx            → remote.loadPage(props) + <PuckRemotePage page={page} />
- *   // app/admin/[[...path]]/page.tsx      → <PuckEditorFrame payload={await remote.loadEditor(props)} … />
+ *   // any route of the app (it picks the template and its params):
+ *   //   const template = await remote.loadTemplate('product', { params: { handle } })
+ *   //   → <PuckRemoteTemplate template={template} />; metadata from template.data.root.props
+ *   // app/admin/[[...path]]/page.tsx      → <PuckEditorFrame payload={await remote.loadEditor(name)} … />
  *   // app/editor/[[...path]]/page.tsx     → <PuckRemoteEditor {...await remote.loadEditorPage()} … /> (on origins.editor)
  *   // app/theme/[[...path]]/route.ts      → export const { GET, HEAD } = remote.createThemeHandler()
  */
 import {
   createCore,
-  normalizeSlug,
   type EditorPayload,
-  type PageContext,
   type PuckRemoteConfig,
   type PuckRemoteCore,
-  type PreparedPage,
+  type PreparedTemplate,
 } from "@puck-remote/core";
 import { requestOrigin } from "@puck-remote/core/edge";
-import { pageMetadata } from "@puck-remote/core/react";
-import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
-export { PuckRemotePage, pageMetadata } from "@puck-remote/core/react";
-export type { EditorPayload, PageContext, PuckRemoteConfig, PreparedPage };
+export { PuckRemoteTemplate } from "@puck-remote/core/react";
+export type { EditorPayload, PuckRemoteConfig, PreparedTemplate };
 
 type Params = Promise<{ path?: string[] }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-export interface PageProps {
+/** Props Next passes to a catch-all page (`[[...path]]`). */
+export interface RouteProps {
   params: Params;
   searchParams?: SearchParams;
 }
 
+export interface LoadTemplateOptions {
+  /** Page-specific data for the template (e.g. { handle }), read by `$params` refs and `ctx.params`. */
+  params?: Record<string, string>;
+  /** The page's searchParams, read by `$query` refs. */
+  searchParams?: SearchParams;
+  /** Overrides the site locale (e.g. from i18n routing). */
+  locale?: string;
+}
+
 export interface PuckRemote {
   core: PuckRemoteCore;
-  /** Resolve data and render all blocks in the isolate. Calls notFound() for unknown pages and on host origins. */
-  loadPage(props: PageProps, context?: PageContext): Promise<PreparedPage>;
-  generateMetadata(props: PageProps): Promise<Metadata>;
+  /**
+   * Resolve data and render every block of a template in the isolate. Calls notFound() for
+   * unknown templates and on host origins. Memoized per request (metadata and page share it).
+   */
+  loadTemplate(name: string, opts?: LoadTemplateOptions): Promise<PreparedTemplate>;
   /** The editor payload for an admin page. Calls notFound() outside origins.host. */
-  loadEditor(props: { params: Params }): Promise<EditorPayload>;
+  loadEditor(
+    name: string,
+    opts?: { params?: Record<string, string> },
+  ): Promise<EditorPayload>;
   /**
    * Props for <PuckRemoteEditor> on the app's editor page (`<routes.editor>/[[...path]]/page.tsx`).
    * Calls notFound() outside origins.editor; createProxy rewrites that origin to this page.
@@ -52,12 +65,6 @@ export interface PuckRemote {
     GET: (req: Request) => Promise<Response>;
     HEAD: (req: Request) => Promise<Response>;
   };
-}
-
-async function slugOf(params: Params): Promise<string> {
-  const slug = normalizeSlug((await params).path);
-  if (!slug) notFound();
-  return slug;
 }
 
 function firstValues(
@@ -82,43 +89,39 @@ export function createPuckRemote(config: PuckRemoteConfig): PuckRemote {
   // Per-request memo: generateMetadata and the page share one isolate pass.
   // React cache() is per request, so the memo never crosses requests (or hostnames).
   const prepare = cache(
-    async (slug: string, qs: string, locale: string | undefined) => {
-      return core.preparePage(
-        slug,
-        Object.fromEntries(new URLSearchParams(qs)),
-        { locale },
-      );
+    async (name: string, params: string, qs: string, locale: string | undefined) => {
+      return core.prepareTemplate(name, {
+        params: JSON.parse(params),
+        query: Object.fromEntries(new URLSearchParams(qs)),
+        locale,
+      });
     },
   );
   const isHost = (origin: string) =>
     !!core.config.origins?.host.includes(origin);
-  const loadPage: PuckRemote["loadPage"] = async (
-    { params, searchParams },
-    context = {},
-  ) => {
-    const slug = await slugOf(params);
+  const loadTemplate: PuckRemote["loadTemplate"] = async (name, opts = {}) => {
     // Theme scripts run on public pages: never next to the admin session.
     if (isHost(await currentOrigin())) notFound();
     const qs = new URLSearchParams(
-      firstValues((await searchParams) ?? {}),
+      firstValues((await opts.searchParams) ?? {}),
     ).toString();
-    const page = await prepare(slug, qs, context.locale);
-    if (!page) notFound();
+    // Sorted keys: the same params share the memo.
+    const params = JSON.stringify(
+      Object.fromEntries(Object.entries(opts.params ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),
+    );
+    const template = await prepare(name, params, qs, opts.locale);
+    if (!template) notFound();
     // Theme <script> tags need the per-request CSP nonce set by createProxy.
     const nonce = (await headers()).get("x-nonce");
-    return nonce ? { ...page, scriptNonce: nonce } : page;
+    return nonce ? { ...template, scriptNonce: nonce } : template;
   };
   return {
     core,
-    loadPage,
-    async generateMetadata(props) {
-      return pageMetadata(await loadPage(props));
-    },
-    async loadEditor({ params }) {
-      const slug = await slugOf(params);
+    loadTemplate,
+    async loadEditor(name, opts = {}) {
       // Admin pages exist only on host origins (the editor's existence isn't revealed elsewhere).
       if (!isHost(await currentOrigin())) notFound();
-      return core.editorPayload(slug);
+      return core.editorPayload(name, { params: opts.params });
     },
     async loadEditorPage() {
       const origins = core.config.origins;

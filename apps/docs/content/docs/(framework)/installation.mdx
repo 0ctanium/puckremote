@@ -101,19 +101,21 @@ export const remote = createPuckRemote(config);
 import { createProxy } from '@puck-remote/next/proxy';
 import remoteConfig from '../puck-remote.config';
 
+// Without `template`, no cache headers: see the Next.js setup for a path → template mapping.
 export const proxy = createProxy(remoteConfig);
 export const config = { matcher: ['/((?!_next/|favicon\\.ico).*)'] };
 ```
 
 ```tsx tab="app/[[...path]]/page.tsx"
-import { PuckRemotePage, type PageProps } from '@puck-remote/next';
+import { PuckRemoteTemplate, type RouteProps } from '@puck-remote/next';
 import { remote } from '@/puck-remote';
 
 export const dynamic = 'force-dynamic';
-export const generateMetadata = remote.generateMetadata;
 
-export default async function Page(props: PageProps) {
-  return <PuckRemotePage page={await remote.loadPage(props)} />;
+// Your routing: here, the template named like the path (/ → home).
+export default async function Page({ params, searchParams }: RouteProps) {
+  const name = (await params).path?.join('/') || 'home';
+  return <PuckRemoteTemplate template={await remote.loadTemplate(name, { searchParams })} />;
 }
 ```
 
@@ -125,7 +127,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function Admin(props: { params: Promise<{ path?: string[] }> }) {
   // Check your own admin session here first. loadEditor 404s outside origins.host.
-  return <ClientEditor payload={await remote.loadEditor(props)} />;
+  const name = (await props.params).path?.join('/') || 'home';
+  return <ClientEditor payload={await remote.loadEditor(name)} />;
 }
 ```
 
@@ -143,7 +146,7 @@ export function ClientEditor({ payload }: { payload: EditorPayload }) {
       <PuckEditorFrame
         editorUrl="https://editor.example.net/"
         payload={payload}
-        resolveData={async (block, props) => (await resolveData({ slug: payload.slug, block, props })).data}
+        resolveData={async (block, props, template) => (await resolveData({ template: template.name, params: template.params, block, props })).data}
       />
     </div>
   );
@@ -154,9 +157,9 @@ export function ClientEditor({ payload }: { payload: EditorPayload }) {
 'use server';
 import { remote } from '@/puck-remote';
 
-export async function resolveData(params: { slug: string; block: string; props: Record<string, unknown> }) {
+export async function resolveData(p: { template: string; params: Record<string, string>; block: string; props: Record<string, unknown> }) {
   // Check your own admin session here.
-  return remote.core.resolveBlockData(params.slug, params.block, params.props);
+  return remote.core.resolveBlockData(p.template, p.block, p.props, { params: p.params });
 }
 ```
 

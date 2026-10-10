@@ -1,6 +1,6 @@
 /**
- * The framework-agnostic entry points (createCore → handleTheme / preparePage / readPage /
- * writePage / editorPayload / resolveBlockData), exercised exactly as any framework binding
+ * The framework-agnostic entry points (createCore → handleTheme / prepareTemplate / readTemplate /
+ * writeTemplate / editorPayload / resolveBlockData), exercised exactly as any framework binding
  * calls them.
  */
 import { publish } from "@puck-remote/cli";
@@ -13,7 +13,7 @@ import { fsArtifactStore } from "@puck-remote/artifacts-fs";
 import {
   ConfigError,
   createCore,
-  PageError,
+  TemplateError,
   resolveConfig,
   UnknownBlockError,
   type PuckRemoteCore,
@@ -56,7 +56,7 @@ describe("createCore", () => {
     expect(createCore({ id: `routes-${process.pid}` } as never)).toBe(core);
   });
 
-  it("handleTheme serves assets and the browser bundle, never the isolate bundle, manifest or pages", async () => {
+  it("handleTheme serves assets and the browser bundle, never the isolate bundle, manifest or templates", async () => {
     const files = (await core.host()).store.get().manifest.files;
     const v = (p: string) => files[p].slice(0, 12);
     const css = await core.handleTheme(
@@ -79,7 +79,7 @@ describe("createCore", () => {
     for (const p of [
       `/_remote/theme/bundle.js`,
       `/_remote/theme/manifest.json`,
-      `/_remote/theme/pages/home.json`,
+      `/_remote/theme/templates/home.json`,
       `/_remote/theme/assets/../manifest.json`,
       `/_remote/theme/assets/%2e%2e/manifest.json`,
       `/_remote/theme/assets/nope.css`,
@@ -100,33 +100,33 @@ describe("createCore", () => {
     ).toBe(405);
   });
 
-  it("preparePage renders pages of the current artifact; unknown pages are null", async () => {
-    const page = await core.preparePage("home");
+  it("prepareTemplate renders templates of the current artifact; unknown templates are null", async () => {
+    const page = await core.prepareTemplate("home");
     expect(page?.artifact).toBe(first);
     expect(
       page?.head.styles.some((s) =>
         /^\/_remote\/theme\/assets\/theme\.css\?v=[0-9a-f]{12}$/.test(s),
       ),
     ).toBe(true);
-    expect(await core.preparePage("nope")).toBeNull();
+    expect(await core.prepareTemplate("nope")).toBeNull();
   });
 });
 
-describe("pages live in the artifact", () => {
-  it("readPage reads the current artifact or a given one", async () => {
-    const r = await core.readPage("home");
+describe("templates live in the artifact", () => {
+  it("readTemplate reads the current artifact or a given one", async () => {
+    const r = await core.readTemplate("home");
     expect(r?.artifact).toBe(first);
     expect(r?.data.content.length).toBeGreaterThan(0);
-    expect((await core.readPage("home", { artifact: first }))?.artifact).toBe(
+    expect((await core.readTemplate("home", { artifact: first }))?.artifact).toBe(
       first,
     );
-    expect(await core.readPage("nope")).toBeNull();
+    expect(await core.readTemplate("nope")).toBeNull();
     expect(
-      await core.readPage("home", { artifact: "f".repeat(64) }),
+      await core.readTemplate("home", { artifact: "f".repeat(64) }),
     ).toBeNull();
   });
 
-  it("writePage produces a new artifact (same code, new page) and never moves the pointer", async () => {
+  it("writeTemplate produces a new artifact (same code, new template) and never moves the pointer", async () => {
     const page = {
       root: { props: { title: "New" } },
       content: [
@@ -137,7 +137,7 @@ describe("pages live in the artifact", () => {
         },
       ],
     };
-    const { id } = await core.writePage("about/team", page, { base: first });
+    const { id } = await core.writeTemplate("about/team", page, { base: first });
     expect(id).not.toBe(first);
     const { artifacts } = core.config;
     expect(await artifacts.readPointer()).toBe(first);
@@ -147,29 +147,29 @@ describe("pages live in the artifact", () => {
     const base = (rel: string) =>
       readFile(path.join(dir, "artifacts", first, rel), "utf8");
     expect(await art("bundle.js")).toBe(await base("bundle.js"));
-    expect(await art("pages/home.json")).toBe(await base("pages/home.json"));
+    expect(await art("templates/home.json")).toBe(await base("templates/home.json"));
     expect(Object.keys(JSON.parse(await art("manifest.json")).files)).toContain(
-      "pages/about/team.json",
+      "templates/about/team.json",
     );
     // Resolved data is stripped before storage.
-    const stored = await art("pages/about/team.json");
+    const stored = await art("templates/about/team.json");
     expect(stored).not.toContain("__data");
     expect(stored).not.toContain("readOnly");
     expect(
-      (await core.readPage("about/team", { artifact: id }))?.data.content[0]
+      (await core.readTemplate("about/team", { artifact: id }))?.data.content[0]
         .props.title,
     ).toBe("Written");
-    expect(await core.readPage("about/team")).toBeNull(); // not current until the pointer moves
+    expect(await core.readTemplate("about/team")).toBeNull(); // not current until the pointer moves
 
     // Going live is the caller's decision.
     await artifacts.writePointer(id);
     expect((await (await core.host()).store.reload()).ok).toBe(true);
-    expect((await core.preparePage("about/team"))?.artifact).toBe(id);
+    expect((await core.prepareTemplate("about/team"))?.artifact).toBe(id);
     await artifacts.writePointer(first);
     await (await core.host()).store.reload();
   });
 
-  it("writePage restores unknown blocks shown as placeholders, and rejects invalid input", async () => {
+  it("writeTemplate restores unknown blocks shown as placeholders, and rejects invalid input", async () => {
     const page = {
       root: { props: {} },
       content: [
@@ -183,10 +183,10 @@ describe("pages live in the artifact", () => {
         },
       ],
     };
-    const { id } = await core.writePage("legacy", page, { base: first });
+    const { id } = await core.writeTemplate("legacy", page, { base: first });
     const stored = JSON.parse(
       await readFile(
-        path.join(dir, "artifacts", id, "pages", "legacy.json"),
+        path.join(dir, "artifacts", id, "templates", "legacy.json"),
         "utf8",
       ),
     );
@@ -196,41 +196,41 @@ describe("pages live in the artifact", () => {
     });
 
     await expect(
-      core.writePage("home", { nope: true }, { base: first }),
-    ).rejects.toThrow(PageError);
+      core.writeTemplate("home", { nope: true }, { base: first }),
+    ).rejects.toThrow(TemplateError);
     await expect(
-      core.writePage(
+      core.writeTemplate(
         "../x",
         { root: { props: {} }, content: [] },
         { base: first },
       ),
-    ).rejects.toThrow(PageError);
+    ).rejects.toThrow(TemplateError);
     await expect(
-      core.writePage(
+      core.writeTemplate(
         "home",
         { root: { props: {} }, content: [] },
         { base: "../x" },
       ),
-    ).rejects.toThrow(PageError);
+    ).rejects.toThrow(TemplateError);
     await expect(
-      core.writePage(
+      core.writeTemplate(
         "home",
         { root: { props: {} }, content: [] },
         { base: "f".repeat(64) },
       ),
-    ).rejects.toThrow(PageError);
+    ).rejects.toThrow(TemplateError);
     const huge = {
       root: { props: { blob: "x".repeat(2 * 1024 * 1024) } },
       content: [],
     };
-    await expect(core.writePage("home", huge, { base: first })).rejects.toThrow(
+    await expect(core.writeTemplate("home", huge, { base: first })).rejects.toThrow(
       /larger than/,
     );
   });
 });
 
 describe("editor entry points", () => {
-  it("editorPayload: page, manifest, absolute theme URLs on the admin origin, origins", async () => {
+  it("editorPayload: template, manifest, absolute theme URLs on the admin origin, origins", async () => {
     const p = await core.editorPayload("home");
     expect(p.artifact).toBe(first);
     expect(p.bundleUrl).toBe(
@@ -264,6 +264,33 @@ describe("editor entry points", () => {
     await expect(core.resolveBlockData("home", "nope", {})).rejects.toThrow(
       UnknownBlockError,
     );
+  });
+});
+
+describe("templates: app root fields and params", () => {
+  it("editorPayload sends the merged root (app fields first) and the params", async () => {
+    const withRoot = createCore({
+      id: `routes-root-${process.pid}`,
+      artifacts: core.config.artifacts,
+      source: core.config.source,
+      origins: ORIGINS,
+      root: { fields: { seo: { type: "text" } }, defaultProps: { seo: "x" } },
+    });
+    const p = await withRoot.editorPayload("new-template", { params: { slug: "new-template" } });
+    expect(p.template).toBe("new-template");
+    expect(p.params).toEqual({ slug: "new-template" });
+    expect(Object.keys(p.root.fields)[0]).toBe("seo");
+    expect(p.root.fields).toHaveProperty("theme");
+    // A template the theme doesn't have yet starts with the merged root defaults.
+    expect(p.data.root.props).toMatchObject({ seo: "x", theme: "light" });
+    await expect(withRoot.editorPayload("home", { params: { n: 1 } as never })).rejects.toThrow(TemplateError);
+    (await withRoot.host()).store.close();
+  });
+
+  it("prepareTemplate keeps the params it rendered with", async () => {
+    const t = (await core.prepareTemplate("home", { params: { slug: "home" } }))!;
+    expect(t.template).toBe("home");
+    expect(t.params).toEqual({ slug: "home" });
   });
 });
 
@@ -347,7 +374,7 @@ describe("theme file versions (?v=)", () => {
 });
 
 describe("any ArtifactStore: ids are opaque", () => {
-  it("renders, reads and writes pages with a counter-id store", async () => {
+  it("renders, reads and writes templates with a counter-id store", async () => {
     const store = counterStore();
     const dist = await withPages((await buildExample()).outDir, {
       home: {
@@ -368,21 +395,21 @@ describe("any ArtifactStore: ids are opaque", () => {
       renderer: inProcessRenderer(),
       origins: ORIGINS,
     });
-    expect((await c.preparePage("home"))?.artifact).toBe("a1");
-    const w = await c.writePage(
+    expect((await c.prepareTemplate("home"))?.artifact).toBe("a1");
+    const w = await c.writeTemplate(
       "home",
       { root: { props: { title: "Two" } }, content: [] },
       { base: "a1" },
     );
     expect(w.id).toBe("a2");
     expect(
-      (await c.readPage("home", { artifact: "a2" }))?.data.root.props?.title,
+      (await c.readTemplate("home", { artifact: "a2" }))?.data.root.props?.title,
     ).toBe("Two");
     // A page save is a new artifact, but unchanged files keep their URLs (D-0262).
-    const before = (await c.preparePage("home"))!.head;
+    const before = (await c.prepareTemplate("home"))!.head;
     await store.writePointer(w.id);
     await (await c.host()).store.reload();
-    const after = (await c.preparePage("home"))!;
+    const after = (await c.prepareTemplate("home"))!;
     expect(after.artifact).toBe("a2");
     expect(after.head.styles).toEqual(before.styles);
     expect(after.head.scripts).toEqual(before.scripts);

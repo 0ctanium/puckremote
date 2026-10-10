@@ -7,7 +7,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { SDK_MAJOR } from '@puck-remote/sdk/constants'
 import { ISOLATE_SHIMS } from '@puck-remote/sdk/shims'
-import { BuildError, toJson, validateAdapter, validateDefinition, validatePage, type BlockMeta } from './validate.ts'
+import { BuildError, toJson, validateAdapter, validateDefinition, validateTemplate, type BlockMeta } from './validate.ts'
 
 /** Modules the browser and islands bundles take from the page (globalThis.__puckRemoteModules) instead of bundling. */
 export const BROWSER_EXTERNALS = ['react', 'react/jsx-runtime', 'react-dom', 'react-dom/client', '@puck-remote/sdk'] as const
@@ -293,13 +293,13 @@ export default { blocks, root: rootDef };`
   // 5. Assets.
   if (existsSync(path.join(cwd, 'assets'))) await cp(path.join(cwd, 'assets'), path.join(outDir, 'assets'), { recursive: true })
 
-  // 6. Pages (Shopify-like: content ships with the theme).
-  const pageFiles = await listFiles(path.join(cwd, 'pages'))
-  for (const rel of pageFiles) {
-    const file = `pages/${rel}`
-    const page = validatePage(file, await readFile(path.join(cwd, file), 'utf8'), blocks, root)
+  // 6. Templates (Shopify-like: content ships with the theme).
+  const templateFiles = await listFiles(path.join(cwd, 'templates'))
+  for (const rel of templateFiles) {
+    const file = `templates/${rel}`
+    const template = validateTemplate(file, await readFile(path.join(cwd, file), 'utf8'), blocks, root)
     await mkdir(path.dirname(path.join(outDir, file)), { recursive: true })
-    await writeFile(path.join(outDir, file), JSON.stringify(page, null, 2) + '\n')
+    await writeFile(path.join(outDir, file), JSON.stringify(template, null, 2) + '\n')
   }
 
   const files: Record<string, string> = {}
@@ -317,6 +317,6 @@ export default { blocks, root: rootDef };`
     categories,
   }
   await writeFile(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2))
-  log(`${Object.keys(blocks).length} blocks, ${islandFiles.size} island modules, ${Object.keys(adapters).length} adapters, ${pageFiles.length} pages, bundle ${(bundle.length / 1024).toFixed(0)} KB → ${path.relative(process.cwd(), outDir) || outDir}`)
+  log(`${Object.keys(blocks).length} blocks, ${islandFiles.size} island modules, ${Object.keys(adapters).length} adapters, ${templateFiles.length} templates, bundle ${(bundle.length / 1024).toFixed(0)} KB → ${path.relative(process.cwd(), outDir) || outDir}`)
   return { manifest, outDir }
 }

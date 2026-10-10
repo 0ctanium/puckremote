@@ -44,12 +44,12 @@ describe('19. tamper detection', () => {
     store.close()
   })
 
-  it('a tampered page is rejected like any other file', async () => {
+  it('a tampered template is rejected like any other file', async () => {
     const { artifactsDir, store } = await setup()
     const { id } = await publish({ distDir: (await buildExample()).outDir, artifacts: artifactsDir, quiet: true })
-    await appendFile(path.join(artifactsDir, id, 'pages', 'home.json'), ' ')
+    await appendFile(path.join(artifactsDir, id, 'templates', 'home.json'), ' ')
     const r = await store.reload()
-    expect(!r.ok && r.error).toMatch(/hash mismatch for pages\/home.json/)
+    expect(!r.ok && r.error).toMatch(/hash mismatch for templates\/home.json/)
   })
 
   it('a tampered manifest (invalid schema / added block) is rejected', async () => {
@@ -73,7 +73,7 @@ describe('19. tamper detection', () => {
     expect(await readArtifactFile(artifacts, id, 'assets/theme.css')).not.toBeNull()
     expect(await readArtifactFile(artifacts, id, 'bundle.browser.js')).not.toBeNull()
     // The isolate bundle, the manifest and pages are never served.
-    for (const hidden of ['bundle.js', 'manifest.json', 'pages/home.json']) expect(await readArtifactFile(artifacts, id, hidden), hidden).toBeNull()
+    for (const hidden of ['bundle.js', 'manifest.json', 'templates/home.json']) expect(await readArtifactFile(artifacts, id, hidden), hidden).toBeNull()
     await appendFile(path.join(artifactsDir, id, 'assets', 'theme.css'), 'body{display:none}')
     expect(await readArtifactFile(artifacts, id, 'assets/theme.css')).toBeNull()
     for (const bad of ['../current.json', 'assets/../manifest.json', '/etc/passwd', 'assets//theme.css', 'assets\\theme.css']) {

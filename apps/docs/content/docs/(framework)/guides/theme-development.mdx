@@ -43,7 +43,7 @@ my-theme
 | `adapters/*.ts` | Optional sans-IO adapters to external APIs, `defineAdapter(...)` |
 | `config/categories.ts` | Optional editor categories, `defineCategories(...)` |
 | `assets/**` | Copied as-is: CSS, client scripts, images |
-| `pages/<slug>.json` | The theme's pages (Puck data), shipped with the code; see [Pages and publishing](/docs/guides/publishing) |
+| `templates/<name>.json` | The theme's templates (Puck data), shipped with the code; see [Templates and publishing](/docs/guides/publishing) |
 | `puck-remote-env.d.ts` | Optional: [type your host queries](/docs/guides/typing-queries) |
 
 <Steps>
@@ -97,12 +97,12 @@ same output in both.
 ```tsx title="root.tsx"
 import { defineRoot, global, Slot } from '@puck-remote/sdk';
 
+// The app adds its own root fields (e.g. title, description) to these.
 export default defineRoot({
-  fields: { title: { type: 'text', label: 'Page title' } },
-  defaultProps: { title: 'Untitled page' },
+  fields: { theme: { type: 'radio', options: [{ label: 'Light', value: 'light' }, { label: 'Dark', value: 'dark' }] } },
+  defaultProps: { theme: 'light' },
   data: { site: global('site') },
   render: (props, data, ctx) => {
-    ctx.head.title(`${props.title} · ${ctx.site.name}`);
     ctx.assets.style(ctx.assetUrl('theme.css'));
     return (
       <main>
@@ -152,7 +152,7 @@ operator must allowlist the origin and bind the secret to it ([Configuration](/d
 }
 ```
 
-Run `pull` before changing blocks: it brings the pages edited in the editor into `pages/`, so the
+Run `pull` before changing blocks: it brings the templates edited in the editor into `templates/`, so the
 next publish keeps them. Build errors name the file and the key at fault. See the [CLI](/docs/cli).
 
 </Step>

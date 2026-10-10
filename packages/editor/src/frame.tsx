@@ -39,7 +39,7 @@ import {
   type FrameAction,
   type HostToEditor,
   type ItemSelector,
-  type PageData,
+  type TemplateData,
   type RpcHandlers,
 } from "./protocol.ts";
 
@@ -53,18 +53,25 @@ export interface PuckEditorFrameProps {
   editorUrl: string;
   /** Origin of the editor page; defaults to editorUrl's. Must match payload.origins.editor. */
   editorOrigin?: string;
-  /** From core.editorPayload(): page, manifest, theme URLs, origins. */
+  /** From core.editorPayload(): template, root fields, manifest, theme URLs, origins. */
   payload: EditorPayload;
   /** JSON-only options (permissions, locales, categories, flags), applied on both sides. */
   options?: EditorOptions;
   /** Methods the editor may call (allow-list). They run with this page's session; theme code can call them. */
   rpc?: RpcHandlers;
-  /** Data for one block, e.g. a server action calling core.resolveBlockData. Needed when blocks declare data. */
-  resolveData?: (block: string, props: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  /**
+   * Data for one block, e.g. a server action calling core.resolveBlockData (with the template and
+   * its params from the payload). Needed when blocks declare data.
+   */
+  resolveData?: (
+    block: string,
+    props: Record<string, unknown>,
+    template: { name: string; params: Record<string, string> },
+  ) => Promise<Record<string, unknown>>;
   /** Replacements for the built-in host:* field UIs. */
   fields?: HostFieldFactories;
-  /** Every change of the page data (this side's Puck). */
-  onChange?: (data: PageData) => void;
+  /** Every change of the template data (this side's Puck). */
+  onChange?: (data: TemplateData) => void;
   onError?: (message: string) => void;
   /** Passed to this side's Puck (e.g. headerActions, fields). `preview` is always the frame. */
   overrides?: Partial<Overrides>;
@@ -74,8 +81,8 @@ export interface PuckEditorFrameProps {
    */
   plugins?: Plugin[];
   /** Puck's native Publish button. */
-  onPublish?: (data: PageData) => void;
-  /** Header title (default: the page path) and path. */
+  onPublish?: (data: TemplateData) => void;
+  /** Header title (default: the template name as a path) and path. */
   headerTitle?: string;
   headerPath?: string;
   /** Your own layout instead of Puck's native one: place <PuckEditorFrame.Canvas /> and Puck's components. */
@@ -382,7 +389,7 @@ function EditorBridge() {
     const json = JSON.stringify({ data, itemSelector, ack: ack.current });
     if (json === lastSent.current) return;
     lastSent.current = json;
-    post({ v: PROTOCOL_VERSION, type: "state", data: data as unknown as PageData, itemSelector: itemSelector ?? null, ack: ack.current });
+    post({ v: PROTOCOL_VERSION, type: "state", data: data as unknown as TemplateData, itemSelector: itemSelector ?? null, ack: ack.current });
   }, [data, itemSelector, frameReady, resync, post, getPuck, ctx]);
   return null;
 }
@@ -405,7 +412,7 @@ function Canvas({ title = "Page editor", className, style }: { title?: string; c
     );
   return (
     <iframe
-      key={`${p.payload.artifact}:${p.payload.slug}`}
+      key={`${p.payload.artifact}:${p.payload.template}`}
       ref={ctx.iframe}
       src={p.editorUrl}
       title={title}
@@ -454,11 +461,11 @@ export function PuckEditorFrame(props: PuckEditorFrameProps) {
       isEditing: true,
       locale: payload.site.locale,
       nonce: "",
-      page: { slug: payload.slug },
+      template: { name: payload.template },
+      params: payload.params,
       site: { name: payload.site.name },
       assetUrl: (p) => p,
       assets: { script() {}, style() {} },
-      head: { title() {}, meta() {} },
     };
     return buildEditorConfig(
       manifest,
@@ -469,13 +476,14 @@ export function PuckEditorFrame(props: PuckEditorFrameProps) {
         resolve: async (block, blockProps) => {
           const resolve = latest.current.resolveData;
           if (!resolve) throw new Error(`no resolveData for block ${block}`);
-          return resolve(block, blockProps);
+          return resolve(block, blockProps, { name: payload.template, params: payload.params });
         },
       },
       options.categories,
+      payload.root,
     );
     // The latest resolveData is read at call time.
-  }, [manifest, payload.site, payload.slug, fields, options.categories]);
+  }, [manifest, payload.site, payload.template, payload.params, payload.root, fields, options.categories]);
 
   const value = useMemo<FrameContextValue>(
     () => ({
@@ -493,12 +501,12 @@ export function PuckEditorFrame(props: PuckEditorFrameProps) {
   return (
     <FrameContext.Provider value={value}>
       <Puck
-        key={`${payload.artifact}:${payload.slug}`}
+        key={`${payload.artifact}:${payload.template}`}
         config={config}
         data={payload.data as unknown as Data}
-        onChange={(data) => latest.current.onChange?.(data as unknown as PageData)}
-        onPublish={(data) => latest.current.onPublish?.(data as unknown as PageData)}
-        headerTitle={props.headerTitle ?? `/${payload.slug === "home" ? "" : payload.slug}`}
+        onChange={(data) => latest.current.onChange?.(data as unknown as TemplateData)}
+        onPublish={(data) => latest.current.onPublish?.(data as unknown as TemplateData)}
+        headerTitle={props.headerTitle ?? `/${payload.template === "home" ? "" : payload.template}`}
         headerPath={props.headerPath}
         permissions={options.permissions}
         overrides={overrides}

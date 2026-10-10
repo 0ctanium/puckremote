@@ -21,9 +21,9 @@ Validates every definition and page, and fails with the file and key at fault, f
 rejected: functions other than `render` / `toRequest` / `fromResponse`, non-JSON values (class
 instances, Dates, Maps, symbols, `undefined`, non-finite numbers), unknown field types,
 `permissions` / `resolve*` / `inline` keys, unknown adapters, invalid parameter references, block
-names that are not lowercase slugs or start with `__`, page files that are not
-`pages/<slug>.json` Puck data, and pages using a block the theme doesn't have, e.g.
-`✖ build failed: pages/home.json content[4]: unknown block "old-banner"`.
+names that are not lowercase slugs or start with `__`, template files that are not
+`templates/<name>.json` Puck data, and templates using a block the theme doesn't have, e.g.
+`✖ build failed: templates/home.json content[4]: unknown block "old-banner"`.
 
 ## `puck-remote publish`
 
@@ -39,8 +39,8 @@ puck-remote publish --artifacts ../my-app/artifacts
   }}
 />
 
-Stores the build output (code **and pages**) as an artifact and makes it current; running hosts
-switch to it automatically. It prints the artifact id. Pages edited in the editor since your last
+Stores the build output (code **and templates**) as an artifact and makes it current; running hosts
+switch to it automatically. It prints the artifact id. Templates edited in the editor since your last
 `pull` are replaced by the repo's: pull first.
 
 ## `puck-remote pull`
@@ -52,13 +52,13 @@ puck-remote pull --artifacts ../my-app/artifacts
 <TypeTable
   type={{
     '--artifacts': { description: "Artifact directory.", type: 'path', default: '$PUCK_REMOTE_ARTIFACTS_DIR', required: true },
-    '--cwd': { description: "Theme folder: pages are written to <cwd>/pages/<slug>.json.", type: 'path', default: 'current directory' },
+    '--cwd': { description: "Theme folder: templates are written to <cwd>/templates/<name>.json.", type: 'path', default: 'current directory' },
     '--artifact': { description: "An artifact id.", type: 'string', default: 'the current artifact' },
   }}
 />
 
-Downloads an artifact's pages into the theme repo, like `shopify theme pull`
-([D-0199](/docs/internal/decisions#D-0199)). Existing files are overwritten; other files are left alone.
+Downloads an artifact's templates into the theme repo, like `shopify theme pull`
+([D-0390](/docs/internal/decisions#D-0390)). Existing files are overwritten; other files are left alone.
 
 ## `puck-remote activate`
 

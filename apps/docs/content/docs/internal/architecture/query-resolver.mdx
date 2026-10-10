@@ -10,7 +10,7 @@ description: Planning, dedupe, budget, execution and caching of a page's queries
 
 For each instance, in tree order, for each data spec:
 
-- `substitute` param refs (`$prop` → JSON scalars only, `$page`, `$site`, `$query` cut to 256
+- `substitute` param refs (`$prop` → JSON scalars only, `$template`, `$params`, `$site`, `$query` cut to 256
   chars; `$secret` left for the HTTP layer; unknown refs → `invalid-ref`);
 - hash `{ mode (host queries only), concrete spec }` with a stable stringify + sha256;
 - group consumers by hash. **Identical queries run once** ([D-0033](/docs/internal/decisions#D-0033)).

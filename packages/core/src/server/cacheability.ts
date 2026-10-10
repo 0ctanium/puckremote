@@ -1,12 +1,12 @@
 /**
- * Lightweight page cacheability check for proxies/middleware: no isolate (it only decides a
+ * Lightweight template cacheability check for proxies/middleware: no isolate (it only decides a
  * response header; usesRequestParams is recomputed from the specs).
  * Importing this module never loads isolated-vm.
  */
 import type { ArtifactStore } from '@puck-remote/sdk/host'
 import { isArtifactId } from './artifact-loader.ts'
 import { analyzeSpecs, type QuerySpec } from './manifest-schema.ts'
-import { readPage } from './pages.ts'
+import { readTemplate } from './templates.ts'
 
 interface ArtifactInfo {
   files: Record<string, string>
@@ -33,13 +33,13 @@ async function artifactInfo(artifacts: ArtifactStore, id: string): Promise<Artif
   return info
 }
 
-export async function pageCacheability(config: { artifacts: ArtifactStore }, slug: string): Promise<{ cacheable: boolean; blocks: string[] } | null> {
+export async function templateCacheability(config: { artifacts: ArtifactStore }, name: string): Promise<{ cacheable: boolean; blocks: string[] } | null> {
   const id = await config.artifacts.readPointer().catch(() => null)
   if (!isArtifactId(id)) return null
   const info = await artifactInfo(config.artifacts, id).catch(() => null)
   if (!info) return null
-  const page = await readPage(config.artifacts, id, info, slug).catch(() => null)
-  if (!page) return null
+  const template = await readTemplate(config.artifacts, id, info, name).catch(() => null)
+  if (!template) return null
   const types = info.uncacheable
   const found = new Set<string>()
   if (types.has('__root')) found.add('root')
@@ -52,8 +52,7 @@ export async function pageCacheability(config: { artifacts: ArtifactStore }, slu
       for (const v of Object.values(props ?? {})) if (Array.isArray(v)) walk(v)
     }
   }
-  walk(page.content)
+  walk(template.content)
   return { cacheable: found.size === 0, blocks: [...found] }
 }
 
-export { normalizeSlug } from './pages.ts'

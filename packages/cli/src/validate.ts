@@ -6,7 +6,7 @@
 import {
   FIELD_TYPES,
   FORBIDDEN_DEFINITION_KEYS,
-  PAGE_REF_KEYS,
+  TEMPLATE_REF_KEYS,
   SITE_REF_KEYS,
   WHERE_OPERATORS,
 } from '@puck-remote/sdk/constants'
@@ -134,7 +134,7 @@ export interface QueryAnalysis {
   usesRequestParams: boolean
 }
 
-const REF_KEYS = ['$prop', '$page', '$site', '$query', '$secret']
+const REF_KEYS = ['$prop', '$template', '$params', '$site', '$query', '$secret']
 
 function walkRefs(v: unknown, path: string, a: QueryAnalysis, allowSecret: boolean): void {
   if (Array.isArray(v)) return v.forEach((x, i) => walkRefs(x, `${path}[${i}]`, a, allowSecret))
@@ -146,7 +146,7 @@ function walkRefs(v: unknown, path: string, a: QueryAnalysis, allowSecret: boole
     if (typeof val !== 'string' || !val) fail(path, `${refKey} must be a non-empty string`)
     if (refKey === '$prop') a.propRefs.push(val as string)
     if (refKey === '$query') a.usesRequestParams = true
-    if (refKey === '$page' && !(PAGE_REF_KEYS as readonly string[]).includes(val as string)) fail(path, `$page supports ${PAGE_REF_KEYS.join(', ')}`)
+    if (refKey === '$template' && !(TEMPLATE_REF_KEYS as readonly string[]).includes(val as string)) fail(path, `$template supports ${TEMPLATE_REF_KEYS.join(', ')}`)
     if (refKey === '$site' && !(SITE_REF_KEYS as readonly string[]).includes(val as string)) fail(path, `$site supports ${SITE_REF_KEYS.join(', ')}`)
     if (refKey === '$secret' && !allowSecret) fail(path, '$secret is only allowed in http()/adapter request headers')
     return
@@ -281,23 +281,23 @@ export function validateAdapter(def: unknown, file: string): { name: string; ori
   return { name: d.name as string, origin: d.origin as string }
 }
 
-const PAGE_FILE = /^pages\/((?:[a-z0-9][a-z0-9-]{0,63}\/){0,4}[a-z0-9][a-z0-9-]{0,63})\.json$/
+const TEMPLATE_FILE = /^templates\/((?:[a-z0-9][a-z0-9-]{0,63}\/){0,4}[a-z0-9][a-z0-9-]{0,63})\.json$/
 const MISSING_TYPE = '__missing'
 
 /**
- * A theme page (pages/<slug>.json, Puck data). Every item must be a block of this theme: a page
- * and the code it renders with ship together, so they must agree.
+ * A theme template (templates/<name>.json, Puck data). Every item must be a block of this theme:
+ * a template and the code it renders with ship together, so they must agree.
  */
-export function validatePage(file: string, source: string, blocks: Record<string, BlockMeta>, root: BlockMeta | null): Record<string, unknown> {
-  if (!PAGE_FILE.test(file)) fail(file, 'page files must be pages/<slug>.json with lowercase slug segments')
-  let page: unknown
+export function validateTemplate(file: string, source: string, blocks: Record<string, BlockMeta>, root: BlockMeta | null): Record<string, unknown> {
+  if (!TEMPLATE_FILE.test(file)) fail(file, 'template files must be templates/<name>.json with lowercase name segments')
+  let template: unknown
   try {
-    page = JSON.parse(source)
+    template = JSON.parse(source)
   } catch (e) {
     fail(file, `invalid JSON (${e instanceof Error ? e.message : e})`)
   }
-  if (!isPlainObject(page) || !isPlainObject(page.root) || !Array.isArray(page.content)) fail(file, 'must be Puck data: { root: { props }, content: [] }')
-  const p = page as { root: { props?: unknown }; content: unknown[] }
+  if (!isPlainObject(template) || !isPlainObject(template.root) || !Array.isArray(template.content)) fail(file, 'must be Puck data: { root: { props }, content: [] }')
+  const p = template as { root: { props?: unknown }; content: unknown[] }
   if (p.root.props !== undefined && !isPlainObject(p.root.props)) fail(`${file} root.props`, 'must be an object')
   const walk = (items: unknown[], at: string) => {
     items.forEach((item, i) => {
@@ -318,5 +318,5 @@ export function validatePage(file: string, source: string, blocks: Record<string
     const v = (p.root.props as Record<string, unknown> | undefined)?.[slot]
     if (Array.isArray(v)) walk(v, `root.props.${slot}`)
   }
-  return toJson(page, file) as Record<string, unknown>
+  return toJson(template, file) as Record<string, unknown>
 }

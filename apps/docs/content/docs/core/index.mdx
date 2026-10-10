@@ -1,13 +1,23 @@
 ---
 title: Overview
-description: "@puck-remote/core: load remote theme components (code and pages) and render them."
+description: "@puck-remote/core: load remote theme components (code and templates) and render them."
 icon: Cpu
 ---
 
-`@puck-remote/core` loads and verifies theme artifacts (code and pages), runs blocks in the
-sandbox, resolves their data, renders pages with Puck, reads and writes pages inside artifacts,
-and prepares what the editor needs. It has no framework imports and no authority of its own
-([D-0187](/docs/internal/decisions#D-0187)): auth, publishing workflows and caching belong to your app.
+`@puck-remote/core` loads and verifies theme artifacts (code and templates), runs blocks in the
+sandbox, resolves their data, renders templates with Puck, reads and writes templates inside
+artifacts, and prepares what the editor needs. It has no framework imports and no authority of its
+own ([D-0187](/docs/internal/decisions#D-0187)): routing, auth, publishing workflows and caching
+belong to your app.
+
+## Templates
+
+Like a Shopify theme, an artifact carries **templates**: named Puck documents
+(`templates/<name>.json`) with any root props. The core never maps URLs to templates: your app
+decides which template a route renders and which **params** it gets (for example
+`/products/[handle]` → template `product` with `{ handle }`), and builds the page metadata from
+the template's root props ([D-0371](/docs/internal/decisions#D-0371),
+[D-0370](/docs/internal/decisions#D-0370)).
 
 ```npm
 npm install @puck-remote/core
@@ -37,25 +47,25 @@ first use.
 
 <TypeTable
   type={{
-    preparePage: {
-      description: "Resolves the page's data and renders every block of a page of the current artifact in the sandbox. Returns null for an unknown page.",
-      type: '(slug: string, query?: Record<string, string>, context?: { locale?: string }) => Promise<PreparedPage | null>',
+    prepareTemplate: {
+      description: "Resolves the template's data and renders every block of a template of the current artifact in the sandbox. Returns null for an unknown template. Throws TemplateError for invalid params.",
+      type: '(name: string, opts?: TemplateOptions) => Promise<PreparedTemplate | null>',
     },
-    readPage: {
-      description: "A page of the current artifact, or of another one. null when the artifact has no such page.",
-      type: '(slug: string, opts?: { artifact?: string }) => Promise<{ artifact: string; data: PageData } | null>',
+    readTemplate: {
+      description: "A template of the current artifact, or of another one. null when the artifact has no such template.",
+      type: '(name: string, opts?: { artifact?: string }) => Promise<{ artifact: string; data: TemplateData } | null>',
     },
-    writePage: {
-      description: "Validates and cleans the page, writes it into a copy of `base` and returns the new artifact's id. Never moves the pointer. Throws PageError on invalid input.",
-      type: '(slug: string, data: unknown, opts: { base: string }) => Promise<{ id: string }>',
+    writeTemplate: {
+      description: "Validates and cleans the template, writes it into a copy of `base` and returns the new artifact's id. Never moves the pointer. Throws TemplateError on invalid input.",
+      type: '(name: string, data: unknown, opts: { base: string }) => Promise<{ id: string }>',
     },
     editorPayload: {
-      description: "What <PuckEditorFrame> sends to the editor: page, manifest, theme URLs, origins. Throws ConfigError without `origins`.",
-      type: '(slug: string, opts?: { artifact?: string }) => Promise<EditorPayload>',
+      description: "What <PuckEditorFrame> sends to the editor: template, params, merged root fields, manifest, theme URLs, origins. Throws ConfigError without `origins`.",
+      type: '(name: string, opts?: { artifact?: string; params?: Record<string, string> }) => Promise<EditorPayload>',
     },
     resolveBlockData: {
-      description: "Data for one block in draft mode (the editor's resolveData). Only the block name and its props come from the caller. Throws UnknownBlockError.",
-      type: '(slug: string, block: string, props: Record<string, unknown>) => Promise<{ data; usesRequestParams }>',
+      description: "Data for one block in draft mode (the editor's resolveData). Only the block name, its props and the template's params come from the caller. Throws UnknownBlockError.",
+      type: '(name: string, block: string, props: Record<string, unknown>, opts?: { params?: Record<string, string> }) => Promise<{ data; usesRequestParams }>',
     },
     handleTheme: { description: "Serves /cdn/assets/**, /cdn/bundle.browser.js and /cdn/bundle.islands.js, versioned by ?v= (GET, HEAD).", type: '(request: Request) => Promise<Response>' },
     host: { description: "The stateful services (artifact loader, data source, HTTP client). Advanced use.", type: '() => Promise<Host>' },
@@ -63,18 +73,29 @@ first use.
   }}
 />
 
-### `PreparedPage`
+### `TemplateOptions`
 
 <TypeTable
   type={{
-    slug: { description: "Normalized page slug.", type: 'string' },
-    artifact: { description: "Id of the artifact the page and its blocks come from.", type: 'string' },
+    params: { description: "Page-specific data, read by `$params` refs and `ctx.params`. At most 32 string values of up to 1 KB.", type: 'Record<string, string>' },
+    query: { description: "The request's URL search params, read by `$query` refs.", type: 'Record<string, string>' },
+    locale: { description: "Overrides `site.locale` (e.g. from i18n routing).", type: 'string' },
+  }}
+/>
+
+### `PreparedTemplate`
+
+<TypeTable
+  type={{
+    template: { description: "The template's name.", type: 'string' },
+    params: { description: "The params it was rendered with.", type: 'Record<string, string>' },
+    artifact: { description: "Id of the artifact the template and its blocks come from.", type: 'string' },
     manifest: { description: "Manifest of that artifact.", type: 'Manifest' },
-    data: { description: "Page data as rendered (unknown blocks marked as missing).", type: 'PageData' },
+    data: { description: "Template data as rendered (unknown blocks marked as missing). Build your metadata from `data.root.props`.", type: 'TemplateData' },
     rendered: { description: "Pre-rendered HTML per block instance.", type: 'Record<string, { ok: boolean; html: string; nonce: string; error?: string }>' },
-    head: { description: "Title, meta, stylesheets and scripts requested by blocks, deduped.", type: '{ title; meta; styles; scripts }' },
+    head: { description: "Stylesheets and scripts requested by blocks, deduped.", type: '{ styles; scripts }' },
     cacheable: { description: "false when a block reads URL query parameters.", type: 'boolean' },
-    uncacheableBlocks: { description: "Which blocks made the page uncacheable.", type: 'string[]' },
+    uncacheableBlocks: { description: "Which blocks made the template uncacheable.", type: 'string[]' },
     scriptNonce: { description: "CSP nonce for theme scripts, set by bindings.", type: 'string' },
     stats: { description: "Timings, query counts, failures.", type: 'object' },
   }}
@@ -84,10 +105,12 @@ first use.
 
 <TypeTable
   type={{
-    artifact: { description: "The artifact being edited (use it as writePage's base).", type: 'string' },
-    slug: { description: "The page.", type: 'string' },
+    artifact: { description: "The artifact being edited (use it as writeTemplate's base).", type: 'string' },
+    template: { description: "The template's name.", type: 'string' },
+    params: { description: "The params the app passed (the editor resolves data with them).", type: 'Record<string, string>' },
+    root: { description: "Root fields and defaults: the app's (`config.root`) first, then the theme's.", type: '{ fields; defaultProps }' },
     manifest: { description: "The artifact's manifest (JSON).", type: 'Manifest' },
-    data: { description: "The page, or an empty page with the root defaults.", type: 'PageData' },
+    data: { description: "The template, or an empty one with the root defaults.", type: 'TemplateData' },
     bundleUrl: { description: "Absolute URL of bundle.browser.js on the first host origin, with ?v=.", type: 'string' },
     assetBase: { description: "Absolute URL prefix of the assets.", type: 'string' },
     origins: { description: "Host (admin) and editor origins, checked by both sides.", type: '{ host: string[]; editor: string }' },
@@ -99,6 +122,6 @@ first use.
 
 | Error | When | Answer |
 |---|---|---|
-| `ConfigError` | Invalid config, or `editorPayload` without `origins` | Fix the config |
-| `PageError` | `writePage` with invalid data, slug or base, or a page over 2 MB | 400 |
+| `ConfigError` | Invalid config (including `root.fields`), or `editorPayload` without `origins` | Fix the config |
+| `TemplateError` | `writeTemplate` with invalid data, name or base, a template over 2 MB, or invalid params | 400 |
 | `UnknownBlockError` | `resolveBlockData` for a block the artifact doesn't have | 404 |

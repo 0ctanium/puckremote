@@ -18,7 +18,7 @@ publishing) is your app's, so it uses your app's own session ([D-0187](/docs/int
 Files that aren't in the manifest return `404`. So does the old layout with an artifact id in the
 path ([D-0270](/docs/internal/decisions#D-0270)).
 
-`bundle.js`, `manifest.json` and `pages/**` are never served (`404`). Other methods get `405`.
+`bundle.js`, `manifest.json` and `templates/**` are never served (`404`). Other methods get `405`.
 With `origins` configured, served files carry `access-control-allow-origin: <editor origin>` and
 `cross-origin-resource-policy: cross-origin`, so the editor can import the bundle and show assets
 in its canvas.
@@ -28,5 +28,5 @@ in its canvas.
 There is no RPC route in puck-remote ([D-0239](/docs/internal/decisions#D-0239)). The editor only reaches
 the functions your admin page puts in `<PuckEditorFrame rpc={…}>`; how they reach your server is
 your choice (server actions, your own routes…). On the server, call `core.resolveBlockData` for
-block data and `core.writePage` to save, after checking your session. See
+block data and `core.writeTemplate` to save, after checking your session. See
 [Editor protocol](/docs/internal/architecture/editor-protocol).

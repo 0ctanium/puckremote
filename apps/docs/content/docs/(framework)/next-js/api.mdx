@@ -5,8 +5,8 @@ description: createPuckRemote, createProxy and withPuckRemote.
 
 | Import | Exports |
 |---|---|
-| `@puck-remote/next` | `createPuckRemote`, `PuckRemotePage`, `pageMetadata`, types (`EditorPayload`, `PageProps`…) |
-| `@puck-remote/next/proxy` | `createProxy` |
+| `@puck-remote/next` | `createPuckRemote`, `PuckRemoteTemplate`, types (`EditorPayload`, `RouteProps`, `LoadTemplateOptions`…) |
+| `@puck-remote/next/proxy` | `createProxy`, type `ProxyOptions` |
 | `@puck-remote/next/config` | `withPuckRemote` |
 
 `<PuckEditorFrame>` and `<PuckRemoteEditor>` come from `@puck-remote/editor` (see [The editor](/docs/concepts/editor)).
@@ -23,32 +23,64 @@ Returns a `PuckRemote`:
 
 <TypeTable
   type={{
-    loadPage: {
-      description: "Resolves data and renders every block for the page in the sandbox. Calls notFound() for unknown pages and on origins.host (theme scripts never run next to the admin session). Memoized per request, so generateMetadata and the page share one render pass.",
-      type: '(props: PageProps, context?: { locale?: string }) => Promise<PreparedPage>',
+    loadTemplate: {
+      description: "Resolves data and renders every block of the named template in the sandbox. Calls notFound() for unknown templates and on origins.host (theme scripts never run next to the admin session). Memoized per request, so your generateMetadata and the page share one render pass.",
+      type: '(name: string, opts?: LoadTemplateOptions) => Promise<PreparedTemplate>',
     },
-    generateMetadata: { description: "Title, description and meta collected from blocks (ctx.head).", type: '(props: PageProps) => Promise<Metadata>' },
     loadEditor: {
-      description: "The payload for <PuckEditorFrame> (core.editorPayload). Calls notFound() outside origins.host. Check your own session before calling it.",
-      type: '(props: { params }) => Promise<EditorPayload>',
+      description: "The payload for <PuckEditorFrame> (core.editorPayload) for the named template and its params. Calls notFound() outside origins.host. Check your own session before calling it.",
+      type: '(name: string, opts?: { params?: Record<string, string> }) => Promise<EditorPayload>',
     },
     loadEditorPage: {
       description: "Props for <PuckRemoteEditor> on your editor page: { allowedParents: origins.host }. Calls notFound() outside origins.editor.",
       type: '() => Promise<{ allowedParents: string[] }>',
     },
     createThemeHandler: { description: "Route handlers for theme files (assets and the browser bundle).", type: '() => { GET, HEAD }' },
-    core: { description: "The underlying engine (createCore): readPage, writePage, resolveBlockData…", type: 'PuckRemoteCore' },
+    core: { description: "The underlying engine (createCore): readTemplate, writeTemplate, resolveBlockData…", type: 'PuckRemoteCore' },
   }}
 />
 
-## `<PuckRemotePage page />`
+### `LoadTemplateOptions`
 
-Server component. Emits the theme's stylesheets (hoisted into `<head>`), the page rendered by
+<TypeTable
+  type={{
+    params: { description: "Page-specific data (e.g. { handle }), read by `$params` refs and `ctx.params`. At most 32 string values of up to 1 KB.", type: 'Record<string, string>' },
+    searchParams: { description: "The page's searchParams, read by `$query` refs (first value of each key).", type: 'Promise<Record<string, string | string[] | undefined>>' },
+    locale: { description: "Overrides `site.locale` (e.g. from i18n routing).", type: 'string' },
+  }}
+/>
+
+Your route picks the template ([D-0371](/docs/internal/decisions#D-0371)) and builds its
+metadata from the template's root props ([D-0370](/docs/internal/decisions#D-0370)):
+
+```tsx title="app/products/[handle]/page.tsx"
+import { PuckRemoteTemplate } from '@puck-remote/next';
+import type { Metadata } from 'next';
+import { remote } from '@/puck-remote';
+
+type Props = { params: Promise<{ handle: string }> };
+
+const load = async ({ params }: Props) =>
+  remote.loadTemplate('product', { params: { handle: (await params).handle } });
+
+export async function generateMetadata(props: Props): Promise<Metadata> {
+  const { title } = (await load(props)).data.root.props ?? {};
+  return { title: typeof title === 'string' ? title : undefined };
+}
+
+export default async function Page(props: Props) {
+  return <PuckRemoteTemplate template={await load(props)} />;
+}
+```
+
+## `<PuckRemoteTemplate template />`
+
+Server component. Emits the theme's stylesheets (hoisted into `<head>`), the template rendered by
 Puck's RSC renderer, and theme scripts carrying the CSP nonce.
 
-<TypeTable type={{ page: { description: "The result of remote.loadPage().", type: 'PreparedPage', required: true } }} />
+<TypeTable type={{ template: { description: "The result of remote.loadTemplate().", type: 'PreparedTemplate', required: true } }} />
 
-## `createProxy(config)`
+## `createProxy(config, options?)`
 
 <TypeTable
   type={{
@@ -56,6 +88,10 @@ Puck's RSC renderer, and theme scripts carrying the CSP nonce.
       description: "The same config object. Only artifacts, origins, routes and security are read.",
       type: 'PuckRemoteConfig',
       required: true,
+    },
+    'options.template': {
+      description: "The template a public path renders, for its cache headers. Use the same mapping as your routes. Without it no cache headers are set.",
+      type: '(pathname: string) => { name: string } | null',
     },
   }}
 />
@@ -75,8 +111,9 @@ For each request the proxy:
 5. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
    Next: the admin policy on `origins.host` (frames only the editor origin), the site policy
    elsewhere;
-6. on public pages, sets `x-page-cacheable: true`, or `false` with `cache-control: no-store` and
-   `x-uncacheable-blocks` when a block reads URL query parameters.
+6. on public pages that `options.template` maps to a template, sets `x-template-cacheable: true`,
+   or `false` with `cache-control: no-store` and `x-uncacheable-blocks` when a block reads URL
+   query parameters ([D-0389](/docs/internal/decisions#D-0389)).
 
 ## `withPuckRemote(nextConfig?)`
 

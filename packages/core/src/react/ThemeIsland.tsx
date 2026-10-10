@@ -3,7 +3,7 @@
  * One island on a public page: a theme client component (an export of a "use client" module).
  * It shows the isolate's server HTML, then, when its `hydrate` trigger fires, loads the theme's
  * islands bundle once and hydrates that HTML in its own React root. Internal: rendered by
- * <PuckRemotePage>, not by apps.
+ * <PuckRemoteTemplate>, not by apps.
  */
 import { registerSharedModules } from '@puck-remote/sdk/browser'
 import { createElement, useEffect, useRef, type ComponentType } from 'react'

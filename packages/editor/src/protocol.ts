@@ -10,10 +10,10 @@
  * sends its state back. Only JSON travels, except RPC params, which may also carry File/Blob
  * values (uploads). Functions never cross: each side builds its own Puck config.
  */
-import type { EditorPayload, PageData } from "@puck-remote/core";
+import type { EditorPayload, TemplateData } from "@puck-remote/core";
 import { z } from "zod";
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export const LIMITS = {
   /** Max size of one RPC request or result (JSON bytes). */
@@ -102,13 +102,13 @@ export type EditorToHost =
 
 export type HostToEditor =
   | { v: V; type: "init"; payload: EditorPayload; options: EditorOptions }
-  | { v: V; type: "state"; data: PageData; itemSelector: ItemSelector; ack: number }
+  | { v: V; type: "state"; data: TemplateData; itemSelector: ItemSelector; ack: number }
   | { v: V; type: "ui"; leftSideBarVisible: boolean; plugin: string | null; leftSideBarWidth: number | null }
   | { v: V; type: "rpc:result"; id: number; ok: true; value: unknown }
   | { v: V; type: "rpc:result"; id: number; ok: false; error: string }
   | { v: V; type: "error"; message: string };
 
-export type { EditorPayload, PageData };
+export type { EditorPayload, TemplateData };
 
 const v = z.literal(PROTOCOL_VERSION);
 const json: z.ZodType<Json> = z.lazy(() =>
@@ -127,7 +127,7 @@ const item = z
     props: z.record(z.string(), z.unknown()),
   })
   .passthrough();
-export const pageDataSchema = z
+export const templateDataSchema = z
   .object({
     root: z
       .object({ props: z.record(z.string(), z.unknown()).optional() })
@@ -193,7 +193,13 @@ const originsSchema = z.strictObject({
 });
 const payloadSchema = z.strictObject({
   artifact: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
-  slug: z.string().max(200),
+  template: z.string().max(200),
+  params: z.record(z.string(), z.string().max(1024)),
+  // Root fields and defaults (the app's merged with the theme's); validated like the manifest.
+  root: z.strictObject({
+    fields: z.record(z.string(), z.unknown()),
+    defaultProps: z.record(z.string(), z.unknown()),
+  }),
   // Validated by the editor when it builds the Puck config; here only its shape.
   manifest: z
     .object({
@@ -202,7 +208,7 @@ const payloadSchema = z.strictObject({
       categories: z.record(z.string(), z.unknown()),
     })
     .passthrough(),
-  data: pageDataSchema,
+  data: templateDataSchema,
   bundleUrl: z.string().url(),
   assetBase: z.string().url(),
   origins: originsSchema,
@@ -233,7 +239,7 @@ export const hostToEditorSchema = z.union([
     payload: payloadSchema,
     options: optionsSchema,
   }),
-  z.strictObject({ v, type: z.literal("state"), data: pageDataSchema, itemSelector, ack: z.number().int().nonnegative() }),
+  z.strictObject({ v, type: z.literal("state"), data: templateDataSchema, itemSelector, ack: z.number().int().nonnegative() }),
   // `plugin`: the frame plugin whose panel the editor shows (null: none).
   z.strictObject({ v, type: z.literal("ui"), leftSideBarVisible: z.boolean(), plugin: z.string().min(1).max(64).nullable(), leftSideBarWidth: panelWidth }),
   z.strictObject({

@@ -9,18 +9,18 @@
  *    (`/admin/x`) redirect to `/x`. On other origins, the admin route answers 404;
  *  - security headers: admin origins get the admin policy (no framing, only the editor origin
  *    may be framed); every other origin gets the public-site policy (CSP with a per-request nonce);
- *  - cache headers for public pages (pages using URL query params are never cacheable).
+ *  - cache headers for public pages, when `options.template` maps a path to its template
+ *    (templates using URL query params are never cacheable).
  * Imports only @puck-remote/core/edge (no isolate, no workers).
  *
  *   // src/proxy.ts
- *   export const proxy = createProxy(remoteConfig)
+ *   export const proxy = createProxy(remoteConfig, { template: (path) => ({ name: … }) })
  *   export const config = { matcher: ['/((?!_next/|favicon\\.ico).*)'] }
  */
 import {
   cspNonce,
   normalizeOrigin,
-  normalizeSlug,
-  pageCacheability,
+  templateCacheability,
   requestOrigin,
   securityHeaders,
   DEFAULT_SECURITY,
@@ -47,11 +47,20 @@ function withNonce(
   return out;
 }
 
+export interface ProxyOptions {
+  /**
+   * The template a public path renders, for its cache headers (`x-template-cacheable`, and
+   * `no-store` when it uses URL query params). Without it no cache headers are set.
+   */
+  template?: (pathname: string) => { name: string } | null;
+}
+
 export function createProxy(
   config: Pick<
     PuckRemoteConfig,
     "artifacts" | "origins" | "security" | "routes"
   >,
+  options: ProxyOptions = {},
 ) {
   const admin = (config.origins?.host ?? []).map(normalizeOrigin);
   const editorOrigin = config.origins
@@ -136,14 +145,14 @@ export function createProxy(
     });
     for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
     if (surface !== "site") return res;
-    const slug = normalizeSlug(req.nextUrl.pathname);
-    if (!slug) return res;
-    const c = await pageCacheability(config, slug).catch(() => null);
+    const template = options.template?.(req.nextUrl.pathname);
+    if (!template) return res;
+    const c = await templateCacheability(config, template.name).catch(() => null);
     if (!c) return res;
-    if (c.cacheable) res.headers.set("x-page-cacheable", "true");
+    if (c.cacheable) res.headers.set("x-template-cacheable", "true");
     else {
       res.headers.set("cache-control", "no-store");
-      res.headers.set("x-page-cacheable", "false");
+      res.headers.set("x-template-cacheable", "false");
       res.headers.set("x-uncacheable-blocks", c.blocks.join(","));
     }
     return res;

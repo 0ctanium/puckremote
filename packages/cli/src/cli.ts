@@ -7,7 +7,7 @@ import { BuildError } from './validate.ts'
 const USAGE = `usage:
   puck-remote build   [--cwd .] [--out dist]
   puck-remote publish [--cwd .] [--out dist] --artifacts <dir>
-  puck-remote pull    [--cwd .] --artifacts <dir> [--artifact <id>]   (pages → <cwd>/pages)
+  puck-remote pull    [--cwd .] --artifacts <dir> [--artifact <id>]   (templates → <cwd>/templates)
   puck-remote activate <id> --artifacts <dir>          (rollback = activate an older artifact)`
 
 async function main() {

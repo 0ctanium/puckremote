@@ -7,8 +7,8 @@ description: What each import path of @puck-remote/core provides, and where it i
 |---|---|---|
 | `@puck-remote/core` | `createCore`, renderers, errors, types | yes (lazily) |
 | `@puck-remote/core/config` | `defineConfig`, `resolveOrigins` | no |
-| `@puck-remote/core/edge` | Security headers, request origin, page cacheability | no |
-| `@puck-remote/core/react` | `PuckRemotePage`, `pageMetadata` (server components) | no |
+| `@puck-remote/core/edge` | Security headers, request origin, template cacheability | no |
+| `@puck-remote/core/react` | `PuckRemoteTemplate` (server component) | no |
 | `@puck-remote/core/testing` | The artifact store contract test suite (vitest) | no |
 
 Use `/config` in your config file and `/edge` in middleware or proxies: they never import
@@ -17,10 +17,11 @@ isolated-vm. The editor lives in its own package, `@puck-remote/editor`
 
 ## `@puck-remote/core`
 
-`createCore`, `defineConfig`, `resolveConfig`, `DEFAULT_ROUTES`, `normalizeSlug`, `ConfigError`,
-`PageError`, `MAX_PAGE_BYTES`, `UnknownBlockError`, `inProcessRenderer`, `workerPoolRenderer`,
-`bubblewrap`, `workerLaunchOptions`, and the types (`EditorPayload`, `EditorOrigins`, `PageData`,
-`Manifest`…).
+`createCore`, `defineConfig`, `resolveConfig`, `DEFAULT_ROUTES`, `ConfigError`,
+`TemplateError`, `MAX_TEMPLATE_BYTES`, `UnknownBlockError`, `inProcessRenderer`, `workerPoolRenderer`,
+`bubblewrap`, `workerLaunchOptions`, and the types (`EditorPayload`, `EditorOrigins`, `TemplateData`,
+`TemplateOptions`, `PreparedTemplate`, `Manifest`…). Mapping URLs to template names is your
+app's job: the core has no slug helper ([D-0391](/docs/internal/decisions#D-0391)).
 
 ## `@puck-remote/core/edge`
 
@@ -29,8 +30,7 @@ isolated-vm. The editor lives in its own package, `@puck-remote/editor`
     requestOrigin: { description: "The origin the client addressed (X-Forwarded-Host/Proto, then Host).", type: '(request: Request) => string' },
     securityHeaders: { description: "Response headers (CSP and others) for public pages ('site'), admin pages ('admin', on origins.host) or the editor page ('editor').", type: "(surface, { nonce, dev?, policy?, editorOrigin?, hostOrigins? }) => Record<string, string>" },
     cspNonce: { description: "A fresh 128-bit nonce (Web Crypto).", type: '() => string' },
-    pageCacheability: { description: "Whether a page of the current artifact can be cached, without starting the sandbox.", type: '({ artifacts }, slug) => Promise<{ cacheable; blocks } | null>' },
-    normalizeSlug: { description: "Validates and normalizes a slug ('' → 'home').", type: '(parts: string | string[]) => string | null' },
+    templateCacheability: { description: "Whether a template of the current artifact can be cached, without starting the sandbox.", type: '({ artifacts }, name) => Promise<{ cacheable; blocks } | null>' },
     normalizeOrigin: { description: "Canonical scheme://host[:port].", type: '(origin: string) => string' },
     DEFAULT_SECURITY: { description: "Default security policy.", type: 'SecurityPolicy' },
   }}
@@ -38,8 +38,9 @@ isolated-vm. The editor lives in its own package, `@puck-remote/editor`
 
 ## `@puck-remote/core/react`
 
-- `<PuckRemotePage page={page} />`: renders a `PreparedPage` (server component).
-- `pageMetadata(page)`: `{ title, description, other }`, compatible with Next's `Metadata`.
+- `<PuckRemoteTemplate template={template} />`: renders a `PreparedTemplate` (server component).
+  Page metadata is yours to build, typically from `template.data.root.props`
+  ([D-0370](/docs/internal/decisions#D-0370)).
 
 ## `@puck-remote/core/testing`
 
