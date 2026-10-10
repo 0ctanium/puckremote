@@ -33,7 +33,9 @@ env: {}   (empty: no secrets, no config)
   from the worker to isolated-vm and `node-gyp-build`: the worker's own `dist` directory, each
   `node_modules` directory on the lookup path, and the real paths of both packages. Both the
   symlinked and real spelling of every path are included, because the permission model checks
-  real paths (pnpm symlinks; macOS `/var` → `/private/var`).
+  real paths (pnpm symlinks; macOS `/var` → `/private/var`). On Linux the allowlist also holds
+  `/etc/alpine-release`, which `node-gyp-build` stats while loading isolated-vm (its Alpine/musl
+  check); one non-secret path, allowed whether or not it exists ([D-0400](/docs/internal/decisions#D-0400)).
 
 ## Scheduling
 
@@ -48,7 +50,7 @@ env: {}   (empty: no secrets, no config)
 | Failure | Handling |
 |---|---|
 | Theme timeout / OOM | Inside the worker: the isolate's timeout, watchdog and recreation |
-| Worker unresponsive | Host watchdog after `2 × watchdogMs + 500` ms: SIGKILL, call returns `timeout` |
+| Worker unresponsive | Host watchdog after `2 × watchdogMs + 500` ms: SIGKILL, call returns `timeout`; the worker counts as dead at once, so no new session picks it before it exits ([D-0401](/docs/internal/decisions#D-0401)) |
 | Worker crash | Pending calls fail as `disposed`; the next session uses a fresh worker |
 | Runtime replaced (new artifact) | `dispose()` SIGKILLs all workers after the loader's grace period |
 

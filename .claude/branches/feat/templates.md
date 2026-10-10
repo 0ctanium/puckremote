@@ -67,6 +67,8 @@ the theme root).
 | D-0397 | Wording: TemplateError, ConfigError (root.fields), manifest pages/ refusal, params and CLI template messages; 'too many asset effects'; pull() returns { id, templates }; validatePage renamed validateTemplate | agent-unreviewed | needs-review |
 | D-0398 | Example app: src/template-name.ts holds normalizeSlug; admin editor route stays non-catch-all (edits home); metadata title format '<title> · <site>' and defaults moved from the theme; params { slug: name } | agent-unreviewed | needs-review |
 | D-0399 | Docs structure: 'Templates' section in core overview, 'Root fields' in configuration, 'Root props from the app' in SDK blocks; Next setup shows template-name.ts | agent-unreviewed | needs-review |
+| D-0400 | Linux render workers may also read /etc/alpine-release (node-gyp-build's musl check while loading isolated-vm), allowed whether or not it exists; fixes CI on Linux | user | accepted |
+| D-0401 | Worker.kill marks the worker dead as soon as the signal is sent (not on its exit event), so no session opens on a dying worker (EPIPE flake on macOS) | user-approved-plan | accepted |
 <!-- decisions:end -->
 
 ## Decision Record

@@ -79,6 +79,9 @@ function readAllowlist(worker: string): string[] {
     all.add(d)
     all.add(realpathSync(d))
   }
+  // node-gyp-build stats this file on Linux while loading isolated-vm (its Alpine/musl check). One
+  // non-secret path, allowed whether or not it exists.
+  if (process.platform === 'linux') all.add('/etc/alpine-release')
   return [...all]
 }
 
@@ -202,7 +205,11 @@ class Worker {
   }
 
   kill(signal: NodeJS.Signals = 'SIGKILL') {
-    if (this.alive) this.child.kill(signal)
+    if (!this.alive) return
+    this.child.kill(signal)
+    // Dead from now on: a session opened before the exit event arrives must not pick this worker
+    // (writing to it fails with EPIPE).
+    this.alive = false
   }
 }
 
