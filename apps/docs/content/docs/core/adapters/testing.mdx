@@ -15,4 +15,4 @@ The factory must return a **fresh, empty** store.
 
 | Suite | Checks |
 |---|---|
-| `artifactStoreContract(name, make)` | Starts empty; `writeArtifact` returns a URL-safe id per artifact; files are readable by id and artifacts never change; the pointer moves and refuses unknown ids; unsafe paths never resolve. No id format is assumed |
+| `artifactStoreContract(name, make)` | Starts empty; writes, replaces and removes a theme's files, themes independent of each other; `copyFiles` makes an independent copy; `deleteFiles` removes them; the theme list is replaced atomically and a stale version is refused (`THEME_CONFLICT`); unsafe paths never resolve |

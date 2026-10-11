@@ -146,14 +146,17 @@ operator must allowlist the origin and bind the secret to it ([Configuration](/d
 {
   "scripts": {
     "build": "puck-remote build",
-    "release": "puck-remote build && puck-remote publish --artifacts ../my-app/artifacts",
-    "pull": "puck-remote pull --artifacts ../my-app/artifacts"
+    "release": "puck-remote publish --url https://admin.example.com/api/themes",
+    "dev": "puck-remote dev --url https://admin.example.com/api/themes",
+    "pull": "puck-remote pull --url https://admin.example.com/api/themes"
   }
 }
 ```
 
 Run `pull` before changing blocks: it brings the templates edited in the editor into `templates/`, so the
-next publish keeps them. Build errors name the file and the key at fault. See the [CLI](/docs/cli).
+next publish keeps them. Use `dev` while you work: it pushes every change to your device's development theme and
+gives you a preview link ([Local theme development](/docs/guides/theme-dev)). Build errors name the
+file and the key at fault. See the [CLI](/docs/cli).
 
 </Step>
 </Steps>

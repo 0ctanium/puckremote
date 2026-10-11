@@ -25,16 +25,22 @@ my-app
         ├── [[...path]]
         │   └── page.tsx
         ├── admin
-        │   └── [[...path]]
+        │   └── editor
         │       ├── page.tsx
         │       ├── ClientEditor.tsx
         │       └── actions.ts
-        ├── editor
+        ├── api
+        │   └── themes
+        │       └── [[...path]]
+        │           └── route.ts
+        ├── cdn
         │   └── [[...path]]
-        │       ├── page.tsx
-        │       └── EditorPage.tsx
+        │       └── route.ts
         └── theme
-            └── [[...path]]
+            ├── editor
+            │   ├── page.tsx
+            │   └── EditorPage.tsx
+            └── preview
                 └── route.ts
 ```
 
@@ -45,10 +51,12 @@ my-app
 | `src/template-name.ts` | Your routing: which template a path renders (here, the template of the same name) |
 | `src/proxy.ts` | Serves the editor page at the editor origin's root (everything else there is 404) and your `/admin` pages at the admin origin's root; security headers per origin (editor, admin or site) with a CSP nonce, cache headers |
 | `app/[[...path]]/page.tsx` | The public site: picks the template, builds the metadata from its root props, renders it (Puck RSC) |
-| `app/admin/[[...path]]/page.tsx` | Your admin page: checks your session, renders `<PuckEditorFrame>` (the page data, history and fields) around the editor frame |
-| `app/admin/[[...path]]/actions.ts` | Server actions the frame's `rpc` map and your Publish button call (`core.resolveBlockData`, `core.writeTemplate`), with your auth |
-| `app/editor/[[...path]]/page.tsx` | The editor page (`<PuckRemoteEditor>`: canvas, drawer, outline), only reachable on `origins.editor` |
+| `app/admin/editor/page.tsx` | Your admin page (`/editor?previewPath=/x` on the admin origin): checks your session, renders `<PuckEditorFrame>` (the page data, history and fields) around the editor frame |
+| `app/admin/editor/actions.ts` | Server actions the frame's `rpc` map and your Publish button call (`core.resolveBlockData`, `core.writeTemplate`), with your auth |
+| `app/theme/editor/page.tsx` | The editor page (`<PuckRemoteEditor>`: canvas, drawer, outline), only reachable on `origins.editor` |
 | `app/cdn/[[...path]]/route.ts` | Theme files (`/cdn/assets/**`, `/cdn/bundle.browser.js`, `/cdn/bundle.islands.js`, versioned by `?v=`) |
+| `app/api/themes/[[...path]]/route.ts` | The artifacts API the CLI pushes through ([HTTP API](/docs/http-api#artifacts-api)) |
+| `app/theme/preview/route.ts` | Preview links of other themes ([HTTP API](/docs/http-api#preview-route)) |
 | `next.config.ts` | Keeps isolated-vm and the core external to the server bundle |
 
 ## The app instance
@@ -126,7 +134,7 @@ The admin and editor pages are shown in [Installation](/docs/installation#add-th
 [Customizing the editor](/docs/guides/editor-app); the example app (`examples/app`) has complete
 versions with a Publish button and an editor customization.
 
-```ts tab="theme/[[...path]]/route.ts"
+```ts tab="cdn/[[...path]]/route.ts"
 import { remote } from '@/puck-remote';
 
 export const { GET, HEAD } = remote.createThemeHandler();

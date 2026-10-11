@@ -13,10 +13,10 @@ may be actively hostile.
 |---|---|---|
 | Theme code on the server (`render`, adapter `toRequest`/`fromResponse`) | **No** | isolated-vm isolate, inside a permission-restricted worker process |
 | Theme code in the editor (`render` from `bundle.browser.js`) | **No** | The editor's origin, another site: no cookies, no secrets |
-| Theme metadata and pages | **No**, validated as data | Read from the artifact, hash-checked and re-validated by the host with zod |
+| Theme metadata and pages | **No**, validated as data | Read from the theme's files, checked against the manifest's sha256 when uploaded, re-validated by the host with zod |
 | Theme client scripts (`ctx.assets.script`) and islands (`bundle.islands.js`, [D-0243](/docs/internal/decisions#D-0243)) | **No** | The visitor's browser, on the public site only |
 | The editor page (`<PuckRemoteEditor>`, served by the app on the editor origin) | Holds no authority | The editor origin; can only send typed messages to the admin page |
-| Host plugins (`DataSource`, `ArtifactStore`), the app's admin pages, RPC handlers and publish plugin | Yes, chosen by the operator | Node and the admin origin |
+| Host plugins (`DataSource`, `ArtifactStore`, and the stored files themselves), the app's admin pages, RPC handlers and publish plugin | Yes, chosen by the operator | Node and the admin origin |
 | The CLI on the developer's machine | Not by the host | The developer's machine; its output is re-checked |
 | Editors | Authenticated by the app | Their browser: the admin page on the admin origin, the editor in the iframe |
 
@@ -49,10 +49,10 @@ may be actively hostile.
 - **Use an admin session from the public site.** Public pages are refused on admin origins, and
   admin cookies are host-only ([origins](/docs/concepts/origins)).
 - **Point the editor at other code.** The bridge only imports a bundle URL on an admin origin;
-  the theme route serves only hash-verified files of a stored artifact.
+  the theme route serves only files listed in a theme's manifest, which were hash-checked when uploaded.
 - **Forge slots.** Slot markers need a per-render nonce user content cannot know
   ([slots](/docs/concepts/slots)).
-- **Ship pages that bypass validation.** Pages are hash-checked like code and re-validated on
+- **Ship pages that bypass validation.** Templates are hash-checked like code when uploaded and re-validated on
   read; `writeTemplate` validates and strips resolved data before storing.
 
 ## Layers
@@ -70,6 +70,8 @@ Each layer assumes the previous one can fail.
 | Admin origins distinct from the editor; public pages refused on admin origins | Theme scripts using admin sessions | on (config check, bindings) |
 | CSP and security headers | Script injection, framing, sniffing, unlisted third-party scripts | admin enforced, site report-only by default |
 | Draft data only through the editor's RPC; public renders use `public` mode | Unpublished content leaking to visitors | on |
+| Artifacts API: the app's `authorize` before any body is read, full hash and file-set verification, size limits, host origins only | Unauthenticated or tampered uploads; zip bombs | on when the app mounts it ([D-0471](/docs/internal/decisions#D-0471)) |
+| Signed, expiring preview cookie (`HttpOnly`), previews never cached | Visitors or CDNs seeing a non-main theme | on when `preview` is configured |
 
 ## Known limits
 
@@ -88,6 +90,13 @@ Each layer assumes the previous one can fail.
   pattern with a demo login: a host-only signed session cookie checked by every admin page and
   every server action ([D-0301](/docs/internal/decisions#D-0301)). Its hard-coded `admin`/`admin`
   credentials are for the demo only.
+- The artifacts API is only as strong as the app's `authorize`: a token that may move `live` can
+  publish any theme code (still sandboxed and verified).
+- Stored files are not re-hashed on load ([D-0509](/docs/internal/decisions#D-0509)): whoever can write the store directly
+  (bypassing the artifacts API) can change what is served. The store is the app's own storage,
+  like its database; the sandbox still contains the code. Scope tokens with `action.kind` and `action.theme.role`.
+- A preview link is a bearer credential for viewing one theme until it expires; anyone holding it
+  sees that theme (nothing else).
 - The editor origin's isolation depends on it being another **site**; a subdomain of the app's
   registrable domain could receive `Domain=` cookies.
 

@@ -1,11 +1,11 @@
 ---
 title: Templates and publishing
-description: Templates live in the theme, like Shopify templates; your app picks which one a route renders; saving a template creates an artifact; publishing workflows are plugins.
+description: Templates live in the theme, like Shopify templates; your app picks which one a route renders; saving a template writes it into the theme; publishing workflows are plugins.
 ---
 
 Templates are part of the theme ([D-0188](/docs/internal/decisions#D-0188),
 [D-0386](/docs/internal/decisions#D-0386)). A theme repo has a `templates/` folder next to its
-blocks, and every artifact carries the templates it was published with:
+blocks, and every theme carries the templates it was pushed with:
 
 ```files
 my-theme
@@ -45,43 +45,43 @@ The core only reads and writes templates ([D-0190](/docs/internal/decisions#D-01
 [D-0387](/docs/internal/decisions#D-0387)):
 
 ```ts
-const template = await core.readTemplate('home') // current artifact, or { artifact: id }
-const { id } = await core.writeTemplate('home', data, { base: template.artifact })
+const template = await core.readTemplate('home') // main theme, or { theme }
+const { hash } = await core.writeTemplate('home', data, { theme: template.theme, expect: template.hash })
 ```
 
-`writeTemplate` validates and cleans the data (resolved editor data is removed), writes it into a
-**copy** of `base` (same code, same other templates) and returns the new artifact's id. It never
-changes what the site serves. Making it live is a separate step:
-
-```ts
-await core.config.artifacts.writePointer(id)
-```
+`writeTemplate` validates and cleans the data (resolved editor data is removed) and writes it into
+the [theme](/docs/concepts/themes): `templates/home.json` and the updated manifest, nothing else
+([D-0517](/docs/internal/decisions#D-0517)). `expect` refuses the save (`ThemeError`, 409) when the
+theme changed since that hash, so an older version never undoes newer changes. Saving into the main
+theme changes the live site; to prepare changes first, save into another theme and publish it.
 
 ## Publishing workflows are plugins
 
 Everything else is your app's choice, built on these primitives:
 
-- **Save = publish** (the example app): write the template, move the pointer. It refuses when the
-  pointer moved since the editor opened, so an older base never undoes newer changes.
-- **Drafts**: write templates to artifacts without moving the pointer; keep the draft artifact id
-  in your database; publish = move the pointer.
-- **History and rollback**: artifacts are immutable, so keeping their ids is the history;
-  rollback = move the pointer back.
+- **Save = publish** (the example app): write the template into the theme the editor was opened on
+  (the main theme, or another one with `?theme=<id>`), with `expect` = the hash the editor started
+  from, so a `puck-remote dev` push in between is never undone.
+- **Drafts**: with [several themes](/docs/concepts/themes), edit an unpublished theme (`duplicate`
+  the main one) and publish it (`core.themes.publish`).
+- **History and rollback**: themes keep only their current files. Keep history in git (the theme
+  repo, after `pull`) or in your own storage; rollback = push an older checkout.
 
 Who may do what is checked by your app with its own session, never by the editor.
 
 ## Developers and editors working together
 
-Like Shopify, the content edited in the editor lives in the theme's artifacts. Before publishing
+Like Shopify, the content edited in the editor lives in the theme's files. Before pushing
 new code, bring those changes into the theme repo:
 
 ```bash
-puck-remote pull --artifacts <store>
+puck-remote pull
 ```
 
-`pull` writes the current artifact's templates into `templates/`. Change blocks and the templates
+`pull` writes the main theme's templates into `templates/` (`-t` for another theme). Change blocks and the templates
 that use them together, build, and publish. Publishing uploads code **and** templates as they are
-in the repo, so templates edited since your last pull are replaced.
+in the repo, so templates edited since your last pull are replaced. To work on code without touching
+the site, use your development theme: see [Local theme development](/docs/guides/theme-dev).
 
 Artifacts built before templates (with a `pages/` folder) are refused: rebuild and republish the
 theme ([D-0377](/docs/internal/decisions#D-0377)).

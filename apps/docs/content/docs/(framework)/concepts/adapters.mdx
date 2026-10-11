@@ -9,13 +9,13 @@ one file, `puck-remote.config.ts` ([D-0035](/docs/internal/decisions#D-0035)).
 | Contract | Purpose | Default / example |
 |---|---|---|
 | `DataSource` | Answers `find`/`findByID`/`global` | `@puck-remote/source-mock` (example) |
-| `ArtifactStore` | Theme artifacts (code and pages) + current pointer | `@puck-remote/artifacts-fs` |
+| `ArtifactStore` | The theme list and each theme's files (code and templates) | `@puck-remote/artifacts-fs` |
 | `RendererFactory` | Where theme code runs | `workerPoolRenderer()`; `inProcessRenderer()` |
 
-Pages are part of the artifact ([D-0188](/docs/internal/decisions#D-0188)), so there is no separate page
+Templates are part of a theme's files ([D-0188](/docs/internal/decisions#D-0188)), so there is no separate page
 store. Authentication, caching, drafts, review and history are not core concerns
 ([D-0187](/docs/internal/decisions#D-0187), [D-0190](/docs/internal/decisions#D-0190)): your app owns its sessions,
-and publishing workflows are plugins built on `readTemplate`, `writeTemplate` and the artifact pointer
+and publishing workflows are plugins built on `readTemplate`, `writeTemplate` and the themes
 (see [Templates and publishing](/docs/guides/publishing)).
 
 ## Two very different kinds of "adapter"
@@ -28,7 +28,7 @@ and publishing workflows are plugins built on `readTemplate`, `writeTemplate` an
 ## Enforcement stays in the core
 
 Plugins only implement storage semantics. The core does policy (allowed fields, operators,
-limits, projection), hashing and validation of artifacts and pages, and the draft/public mode
+limits, projection), theme rules, hashing and validation of uploaded files and templates, and the draft/public mode
 split. That way a buggy plugin cannot widen what a theme can reach.
 
 A contract test suite in `@puck-remote/core/testing` lets store authors check their

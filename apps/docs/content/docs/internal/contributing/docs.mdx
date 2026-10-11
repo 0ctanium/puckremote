@@ -42,7 +42,7 @@ apps/docs/content/docs
 | Root | URL | Audience |
 |---|---|---|
 | Framework (`(framework)`, a folder group) | `/docs` | Developers installing and using puck-remote; includes `@puck-remote/next` |
-| Core | `/docs/core` | Engine API and the **Adapters** section (artifacts, data, renderer) |
+| Core | `/docs/core` | Engine API and the **Adapters** section (artifact store, data, renderer) |
 | CLI | `/docs/cli` | Theme developers building and publishing |
 | SDK | `/docs/sdk` | Theme developers writing blocks; adapter authors (`/host`) |
 | Internal | `/docs/internal` | People working on puck-remote: architecture, quality, contributing, decisions |
@@ -91,6 +91,9 @@ MDX setup: global remark plugins in `apps/docs/source.config.ts`, components in
 | `packages/core/src/server/runtime/*` | Core › Adapters › Renderer; Internal › Isolate runtime, Worker pool, Worker protocol |
 | `packages/core/src/server/query/*` | Framework › Declarative data; Internal › Query resolver, Host source, HTTP source |
 | `packages/core/src/server/artifact-loader.ts`, `static-files.ts`, `templates.ts` | Framework › Artifacts, Templates and publishing; Internal › Artifact loader |
+| `packages/core/src/server/themes.ts` (theme rules and the write path), `main-theme.ts` | Framework › Themes, Artifacts and themes, Configuration (Themes); Core › Adapters › Artifact store; Internal › Themes, preview and the artifacts API (Write path) |
+| `packages/core/src/server/artifacts-api.ts`, `package.ts`, `preview.ts`, `preview-runtimes.ts`, `shared/preview-cookie.ts` | Framework › HTTP API, Configuration (Preview, API limits), Local theme development; Internal › Themes, preview and the artifacts API |
+| `packages/cli/src/{api-client,diff,package,dev,publish,themes,config,reload-server}.ts` | CLI › Commands, Configuration, Programmatic API; Framework › Local theme development |
 | `packages/core/src/server/root.ts` | Framework › Configuration (Root fields); SDK › Blocks and root; Internal › Public request |
 | `packages/core/src/server/editor-rpc.ts` | Core › Overview; Internal › Editor lifecycle |
 | `packages/core/src/server/static-files.ts`, `packages/core/src/shared/urls.ts` | Concepts › Artifacts (Serving files), HTTP API, Internal › Artifact loader (Theme file URLs) |

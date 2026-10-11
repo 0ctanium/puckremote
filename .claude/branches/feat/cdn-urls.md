@@ -32,15 +32,15 @@ An external CDN or object storage upload step; multi-theme scoping (a Shopify `t
 |---|---|---|---|
 | D-0262 | Theme file URLs are <routes.theme>/<path>?v=<version> (no artifact id in the path) for assets/**, bundle.browser.js and bundle.islands.js; replaces the /theme/<id>/ layout of D-0197 | user | accepted |
 | D-0263 | DEFAULT_ROUTES.theme is /cdn | user | accepted |
-| D-0264 | A v from an older artifact is served from that artifact (lookup by content hash) | user | accepted |
+| D-0264 | A v from an older artifact is served from that artifact (lookup by content hash) | user | superseded by D-0508 |
 | D-0265 | v is the first 12 hex characters of the file sha256 from manifest.files; bytes still verified against the full hash | user-approved-plan | accepted |
-| D-0266 | Lookup: current artifact first, then a per-process path+v index built lazily from artifacts.list(), refreshed on pointer change and at most once per 10 s on a miss | user-approved-plan | accepted |
+| D-0266 | Lookup: current artifact first, then a per-process path+v index built lazily from artifacts.list(), refreshed on pointer change and at most once per 10 s on a miss | user-approved-plan | superseded by D-0518 |
 | D-0267 | Matching v: immutable 1-year cache; no or unknown v: current file with no-cache + etag (304 on If-None-Match); missing file 404 | user-approved-plan | accepted |
 | D-0268 | Host passes assetVersions (assets/** path to v) in CtxInput; ctx.assetUrl appends ?v when known; the editor builds the same map from manifest.files | user-approved-plan | accepted |
 | D-0269 | themeFileUrl(route, path, sha256) replaces themeBase/themeAssetBase; effect URLs still checked by the assetBase prefix | user-approved-plan | accepted |
 | D-0270 | No migration: old /<route>/<id>/ URLs answer 404 | user-approved-plan | accepted |
 | D-0271 | CDN URL tests: routes (current, older, missing/unknown v, 304, 404s, refresh throttle), rendering, editor payload, browser | user-approved-plan | accepted |
-| D-0272 | Internal names: ThemeFiles class, INDEX_REFRESH_MS, VERSION_LENGTH, a refreshes counter for tests; SDK CtxInput.assetVersions optional so themes built with an older SDK still render (unversioned URLs) | agent-unreviewed | needs-review |
+| D-0272 | Internal names: ThemeFiles class, INDEX_REFRESH_MS, VERSION_LENGTH, a refreshes counter for tests; SDK CtxInput.assetVersions optional so themes built with an older SDK still render (unversioned URLs) | agent-unreviewed | superseded by D-0532 |
 <!-- decisions:end -->
 
 ## Decision Record

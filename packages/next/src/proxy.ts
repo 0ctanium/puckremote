@@ -5,12 +5,14 @@
  *    other path answers 404 (only Next's `/_next/*` files pass): nothing else of the app is
  *    reachable there. On other origins, the editor route answers 404;
  *  - on host (admin) origins (`origins.host`), every path is rewritten under `routes.admin`
- *    (`/x` → `/admin/x`), except the theme route and `/_next/*`; old links already under it
- *    (`/admin/x`) redirect to `/x`. On other origins, the admin route answers 404;
+ *    (`/x` → `/admin/x`), except the theme route, the artifacts API route (`routes.api`) and
+ *    `/_next/*`; old links already under it (`/admin/x`) redirect to `/x`. On other origins, the
+ *    admin and API routes answer 404;
  *  - security headers: admin origins get the admin policy (no framing, only the editor origin
  *    may be framed); every other origin gets the public-site policy (CSP with a per-request nonce);
  *  - cache headers for public pages, when `options.template` maps a path to its template
- *    (templates using URL query params are never cacheable).
+ *    (templates using URL query params are never cacheable); requests carrying a preview
+ *    cookie are never cacheable, and may connect to a loopback live reload server (reload cookie).
  * Imports only @puck-remote/core/edge (no isolate, no workers).
  *
  *   // src/proxy.ts
@@ -20,6 +22,9 @@
 import {
   cspNonce,
   normalizeOrigin,
+  PREVIEW_COOKIE,
+  RELOAD_COOKIE,
+  reloadOrigin,
   templateCacheability,
   requestOrigin,
   securityHeaders,
@@ -31,6 +36,15 @@ import {
   type PuckRemoteConfig,
 } from "@puck-remote/core/config";
 import { NextResponse, type NextRequest } from "next/server";
+
+/** A URI-decoded cookie value, or null when it is malformed. */
+function safeDecode(v: string): string | null {
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return null;
+  }
+}
 
 /** Next reads the nonce from the request's CSP header (and pages from x-nonce) for its scripts. */
 function withNonce(
@@ -76,6 +90,7 @@ export function createProxy(
   const editorRoute = trim(config.routes?.editor ?? DEFAULT_ROUTES.editor);
   const adminRoute = trim(config.routes?.admin ?? DEFAULT_ROUTES.admin);
   const themeRoute = trim(config.routes?.theme ?? DEFAULT_ROUTES.theme);
+  const apiRoute = trim(config.routes?.api ?? DEFAULT_ROUTES.api);
   const under = (pathname: string, route: string) =>
     pathname === route || pathname.startsWith(route + "/");
   const notFound = (headers: Record<string, string> = {}) =>
@@ -109,10 +124,16 @@ export function createProxy(
     }
     const surface = admin.includes(origin) ? "admin" : "site";
     const nonce = cspNonce();
+    // A preview opened from `puck-remote dev` listens to the developer's loopback reload server.
+    const reload =
+      surface === "site" && req.cookies.has(PREVIEW_COOKIE)
+        ? reloadOrigin(safeDecode(req.cookies.get(RELOAD_COOKIE)?.value ?? ""))
+        : null;
     const headers = securityHeaders(surface, {
       nonce,
       dev,
       policy,
+      ...(reload ? { extraConnectSrc: [reload] } : {}),
       editorOrigin,
     });
     if (surface === "admin" && under(pathname, adminRoute)) {
@@ -127,6 +148,14 @@ export function createProxy(
       res.headers.set("cache-control", "no-store");
       return res;
     }
+    if (surface === "admin" && under(pathname, apiRoute)) {
+      // The artifacts API (CLI uploads): bearer-authenticated by the app's route, never cached.
+      const res = NextResponse.next();
+      for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
+      res.headers.set("cache-control", "no-store");
+      return res;
+    }
+    if (under(pathname, apiRoute)) return notFound(headers);
     if (surface === "admin" && !under(pathname, themeRoute)) {
       // Admin pages at the host origin's root: /x → <routes.admin>/x.
       const url = req.nextUrl.clone();
@@ -145,6 +174,12 @@ export function createProxy(
     });
     for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
     if (surface !== "site") return res;
+    if (req.cookies.has(PREVIEW_COOKIE)) {
+      // A preview renders a non-live head for this browser only.
+      res.headers.set("cache-control", "private, no-store");
+      res.headers.set("x-template-cacheable", "false");
+      return res;
+    }
     const template = options.template?.(req.nextUrl.pathname);
     if (!template) return res;
     const c = await templateCacheability(config, template.name).catch(() => null);

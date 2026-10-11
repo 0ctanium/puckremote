@@ -4,7 +4,7 @@
  * Importing this module never loads isolated-vm.
  */
 import type { ArtifactStore } from '@puck-remote/sdk/host'
-import { isArtifactId } from './artifact-loader.ts'
+import { mainTheme } from './main-theme.ts'
 import { analyzeSpecs, type QuerySpec } from './manifest-schema.ts'
 import { readTemplate } from './templates.ts'
 
@@ -15,12 +15,14 @@ interface ArtifactInfo {
 
 const memo = new WeakMap<ArtifactStore, Map<string, ArtifactInfo>>()
 
-async function artifactInfo(artifacts: ArtifactStore, id: string): Promise<ArtifactInfo | null> {
+/** Manifest analysis of a theme version, memoized by `<theme>-<hash>` (a new push has a new hash). */
+async function artifactInfo(artifacts: ArtifactStore, theme: string, hash: string): Promise<ArtifactInfo | null> {
   const perStore = memo.get(artifacts) ?? new Map<string, ArtifactInfo>()
   memo.set(artifacts, perStore)
-  const hit = perStore.get(id)
+  const key = `${theme}-${hash}`
+  const hit = perStore.get(key)
   if (hit) return hit
-  const bytes = await artifacts.readFile(id, 'manifest.json')
+  const bytes = await artifacts.readFile(theme, 'manifest.json')
   if (!bytes) return null
   const m = JSON.parse(new TextDecoder().decode(bytes))
   const uncacheable = new Set<string>()
@@ -29,16 +31,16 @@ async function artifactInfo(artifacts: ArtifactStore, id: string): Promise<Artif
   }
   if (m.root && analyzeSpecs(m.root.data ?? {}).usesRequestParams) uncacheable.add('__root')
   const info = { files: m.files ?? {}, uncacheable }
-  perStore.set(id, info)
+  perStore.set(key, info)
   return info
 }
 
 export async function templateCacheability(config: { artifacts: ArtifactStore }, name: string): Promise<{ cacheable: boolean; blocks: string[] } | null> {
-  const id = await config.artifacts.readPointer().catch(() => null)
-  if (!isArtifactId(id)) return null
-  const info = await artifactInfo(config.artifacts, id).catch(() => null)
+  const main = await mainTheme(config.artifacts).catch(() => null)
+  if (!main?.hash) return null
+  const info = await artifactInfo(config.artifacts, main.id, main.hash).catch(() => null)
   if (!info) return null
-  const template = await readTemplate(config.artifacts, id, info, name).catch(() => null)
+  const template = await readTemplate(config.artifacts, main.id, info, name).catch(() => null)
   if (!template) return null
   const types = info.uncacheable
   const found = new Set<string>()

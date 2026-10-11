@@ -1,10 +1,12 @@
 /**
- * Public render pipeline (D3): load a template from the current artifact → rewrite unknown blocks → resolve ALL data for the page
+ * Public render pipeline (D3): load a template from the main theme (or a previewed one) → rewrite unknown blocks → resolve ALL data for the page
  * (host walker, dedupe, budget) → render root + every block in ONE fresh isolate context →
  * hand Puck's RSC <Render> a map of pre-rendered HTML. Puck components then only parse HTML.
  */
 import type { Host } from './host.ts'
-import type { RenderSession } from './runtime/types.ts'
+import type { ThemeRole } from '@puck-remote/sdk/host'
+import type { LoadedArtifact } from './artifact-loader.ts'
+import type { RenderRuntime, RenderSession } from './runtime/types.ts'
 import type { Manifest } from './manifest-schema.ts'
 import { collectInstances, renderProps, restoreMissing, rewriteMissing, ROOT_ID, type Instance, type TemplateData } from './page-tree.ts'
 import { checkParams, readTemplate, stripResolved } from './templates.ts'
@@ -29,14 +31,21 @@ export interface TemplateOptions {
   query?: Record<string, string>
   /** Overrides the site locale (e.g. from i18n routing). */
   locale?: string
+  /**
+   * Render this theme (id) instead of the main one (a preview). Unknown theme: null, like an
+   * unknown template. Framework bindings set it from the preview cookie.
+   */
+  theme?: string
+  /** A `puck-remote dev` live reload server (loopback origin) the preview page listens to. Ignored without `theme`. */
+  reload?: string
 }
 
 export interface PreparedTemplate {
   /** CSP nonce for the template's <script> tags; set by framework bindings when they enforce a CSP. */
   scriptNonce?: string
-  /** The artifact the template and its blocks come from. */
-  artifact: string
-  /** The artifact manifest the template was rendered with (to build the matching Puck config). */
+  /** The theme (and its version) the template and its blocks come from. */
+  theme: { id: string; hash: string }
+  /** The theme manifest the template was rendered with (to build the matching Puck config). */
   manifest: Manifest
   template: string
   params: Record<string, string>
@@ -45,17 +54,23 @@ export interface PreparedTemplate {
   /** The theme's islands bundle, when this template has islands. */
   islandsUrl?: string
   head: ReturnType<typeof mergeEffects>
+  /** Set when the template was rendered from `TemplateOptions.theme` (a preview): never cache it. */
+  preview?: { theme: { id: string; name: string; role: ThemeRole }; reload?: string }
   cacheable: boolean
   uncacheableBlocks: string[]
   stats: { data: ResolveStats; renderMs: number; blocks: number; failures: number; contextMs: number }
 }
 
-export async function prepareTemplate(host: Host, name: string, opts: TemplateOptions = {}): Promise<PreparedTemplate | null> {
+export async function prepareTemplate(
+  host: Host,
+  name: string,
+  opts: TemplateOptions = {},
+  artifact: LoadedArtifact<RenderRuntime> = host.store.get(),
+): Promise<PreparedTemplate | null> {
   const params = checkParams(opts.params)
   const query = opts.query ?? {}
-  const artifact = host.store.get()
-  const { manifest, runtime: runner, id } = artifact
-  const template = await readTemplate(host.config.artifacts, id, manifest, name)
+  const { manifest, runtime: runner } = artifact
+  const template = await readTemplate(host.config.artifacts, artifact.theme, manifest, name)
   if (!template) return null
 
   const tCtx = performance.now()
@@ -102,7 +117,7 @@ export async function prepareTemplate(host: Host, name: string, opts: TemplateOp
     }
     if (uncacheableBlocks.length) console.info(`[cache] template ${name} is uncacheable: uses request params via ${uncacheableBlocks.join(', ')}`)
     return {
-      artifact: id,
+      theme: { id: artifact.theme, hash: artifact.hash },
       manifest,
       template: name,
       params,

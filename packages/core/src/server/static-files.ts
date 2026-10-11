@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
-import type { ArtifactStore } from '@puck-remote/sdk/host'
+import type { ArtifactStore, Theme } from '@puck-remote/sdk/host'
 import path from 'node:path'
-import { isArtifactId, shortId } from './artifact-loader.ts'
 import { themeVersion, VERSION_LENGTH } from '../shared/urls.ts'
 
 const TYPES: Record<string, string> = {
@@ -27,14 +26,16 @@ export function contentType(file: string): string {
   return TYPES[path.extname(file).toLowerCase()] ?? 'application/octet-stream'
 }
 
-/** Files of an artifact that browsers may load: theme assets, the editor's browser bundle and the islands bundle. */
+/** Files of a theme that browsers may load: theme assets, the editor's browser bundle and the islands bundle. */
 export const isPublicFile = (rel: string) => rel === 'bundle.browser.js' || rel === 'bundle.islands.js' || rel.startsWith('assets/')
 
 const safeRel = (rel: string) =>
   !!rel && !rel.startsWith('/') && !rel.includes('\\') && !rel.split('/').some((s) => s === '..' || s === '.' || s === '' || s.includes('\0'))
 
-async function manifestFiles(artifacts: ArtifactStore, id: string): Promise<Record<string, string> | null> {
-  const bytes = await artifacts.readFile(id, 'manifest.json').catch(() => null)
+const sha256 = (b: Uint8Array) => createHash('sha256').update(b).digest('hex')
+
+async function manifestFiles(store: ArtifactStore, theme: string): Promise<Record<string, string> | null> {
+  const bytes = await store.readFile(theme, 'manifest.json').catch(() => null)
   if (!bytes) return null
   try {
     const files = JSON.parse(new TextDecoder().decode(bytes)).files
@@ -44,95 +45,76 @@ async function manifestFiles(artifacts: ArtifactStore, id: string): Promise<Reco
   }
 }
 
-async function readVerified(artifacts: ArtifactStore, id: string, rel: string, expected: string): Promise<ThemeFile | null> {
-  const body = await artifacts.readFile(id, rel).catch(() => null)
-  if (!body) return null
-  if (createHash('sha256').update(body).digest('hex') !== expected) {
-    console.error(`[assets] hash mismatch for ${shortId(id)}/${rel}; refusing to serve`)
-    return null
-  }
-  return { body, type: contentType(rel), sha256: expected }
-}
-
 export interface ThemeFile {
   body: Uint8Array
   type: string
+  /** sha256 of the bytes served (the etag). */
   sha256: string
 }
 
 /**
- * Serve a file from an artifact, only if it is public, listed in that artifact's manifest and its
- * hash still matches. Guards against traversal, symlink escapes and tampering after publish.
- */
-export async function readArtifactFile(artifacts: ArtifactStore, id: string, rel: string): Promise<ThemeFile | null> {
-  if (!isArtifactId(id) || !safeRel(rel) || !isPublicFile(rel)) return null
-  const expected = (await manifestFiles(artifacts, id))?.[rel]
-  return typeof expected === 'string' ? readVerified(artifacts, id, rel, expected) : null
-}
-
-/** How often (at most) a request for an unknown `v` may rescan the store. */
-export const INDEX_REFRESH_MS = 10_000
-
-/**
- * Theme files by path and version (D-0264, D-0266): the current artifact first, then any stored
- * artifact holding that exact version, through a lazily built `path + v → id` index. Without a
- * known `v`, the current artifact's file (not immutable).
+ * Theme files by path and version (D-0518): `?v=` is the first 12 hex characters of the file's
+ * sha256 in a manifest. The main theme first, then any theme whose current manifest lists that
+ * path with that `v` (previews, the editor on another theme). Files are written in place, so the
+ * bytes are hashed when served: only bytes matching the requested version are `immutable` (a CDN
+ * never caches other bytes under a versioned URL); otherwise, and without a known `v`, the file is
+ * served with `no-cache` and an etag.
  */
 export class ThemeFiles {
   private manifests = new Map<string, Record<string, string> | null>()
-  private index = new Map<string, string>()
-  private indexed = new Set<string>()
-  private lastRefresh = -Infinity
-  private pointer: string | null = null
-  /** Number of store scans (tests). */
+  private index = new Map<string, { theme: string; sha: string }>()
+  private version: string | null = null
+  /** Number of index rebuilds (tests). */
   refreshes = 0
 
-  constructor(private artifacts: ArtifactStore, private now: () => number = () => performance.now()) {}
+  constructor(private store: ArtifactStore) {}
 
-  private async files(id: string) {
-    // Artifacts are immutable: a manifest never changes once read.
-    if (!this.manifests.has(id)) this.manifests.set(id, await manifestFiles(this.artifacts, id))
-    return this.manifests.get(id)!
+  private async files(t: Theme) {
+    if (!t.hash) return null
+    // A theme version's manifest never changes: a new push has a new hash.
+    const key = `${t.id}-${t.hash}`
+    if (!this.manifests.has(key)) this.manifests.set(key, await manifestFiles(this.store, t.id))
+    return this.manifests.get(key)!
   }
 
-  private async refresh() {
-    this.lastRefresh = this.now()
-    this.refreshes++
-    for (const id of await this.artifacts.list()) {
-      if (this.indexed.has(id) || !isArtifactId(id)) continue
-      this.indexed.add(id)
-      for (const [rel, sha] of Object.entries((await this.files(id)) ?? {}))
-        if (isPublicFile(rel) && typeof sha === 'string') this.index.set(`${rel}\0${themeVersion(sha)}`, id)
+  /** Rebuild the `path + v → theme` index when the theme list changed. */
+  private async themes(): Promise<Theme[]> {
+    const { version, themes } = await this.store.readThemes()
+    if (version !== this.version) {
+      this.version = version
+      this.refreshes++
+      const index = new Map<string, { theme: string; sha: string }>()
+      for (const t of themes)
+        for (const [rel, sha] of Object.entries((await this.files(t)) ?? {}))
+          if (isPublicFile(rel) && typeof sha === 'string') index.set(`${rel}\0${themeVersion(sha)}`, { theme: t.id, sha })
+      this.index = index
     }
+    return themes
+  }
+
+  private async read(theme: string, rel: string, expected: string | null): Promise<{ file: ThemeFile; immutable: boolean } | null> {
+    const body = await this.store.readFile(theme, rel).catch(() => null)
+    if (!body) return null
+    const sha = sha256(body)
+    return { file: { body, type: contentType(rel), sha256: sha }, immutable: expected !== null && sha === expected }
   }
 
   async get(rel: string, v: string | null): Promise<{ file: ThemeFile; immutable: boolean } | null> {
     if (!safeRel(rel) || !isPublicFile(rel)) return null
-    const current = await this.artifacts.readPointer()
-    if (current !== this.pointer) {
-      // A new artifact was published: let the next miss rescan right away.
-      this.pointer = current
-      this.lastRefresh = -Infinity
-    }
-    const currentFiles = current && isArtifactId(current) ? await this.files(current) : null
-    const currentSha = currentFiles?.[rel]
+    const themes = await this.themes()
+    const main = themes.find((t) => t.role === 'main') ?? null
+    const mainSha = main ? (await this.files(main))?.[rel] : undefined
     if (v && /^[0-9a-f]+$/.test(v) && v.length === VERSION_LENGTH) {
-      if (current && typeof currentSha === 'string' && themeVersion(currentSha) === v) {
-        const file = await readVerified(this.artifacts, current, rel, currentSha)
-        return file && { file, immutable: true }
-      }
-      const key = `${rel}\0${v}`
-      if (!this.index.has(key) && this.now() - this.lastRefresh >= INDEX_REFRESH_MS) await this.refresh()
-      const id = this.index.get(key)
-      const sha = id ? (await this.files(id))?.[rel] : undefined
-      if (id && typeof sha === 'string') {
-        const file = await readVerified(this.artifacts, id, rel, sha)
-        if (file) return { file, immutable: true }
+      if (main && typeof mainSha === 'string' && themeVersion(mainSha) === v) return this.read(main.id, rel, mainSha)
+      const hit = this.index.get(`${rel}\0${v}`)
+      if (hit) {
+        const f = await this.read(hit.theme, rel, hit.sha)
+        if (f) return f
       }
     }
-    if (!current || typeof currentSha !== 'string') return null
-    const file = await readVerified(this.artifacts, current, rel, currentSha)
-    return file && { file, immutable: false }
+    if (!main || typeof mainSha !== 'string') return null
+    const f = await this.read(main.id, rel, null)
+    return f && { file: f.file, immutable: false }
   }
 }
 

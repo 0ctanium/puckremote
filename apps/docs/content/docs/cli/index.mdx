@@ -1,12 +1,15 @@
 ---
 title: Overview
-description: "@puck-remote/cli: build a theme (code and pages) into an artifact, publish it, pull editor changes, roll back."
+description: "@puck-remote/cli: build a theme (code and templates), push it to the host's themes through its API, develop on your device's development theme, pull editor changes, roll back."
 icon: Terminal
 ---
 
 Theme developers use the CLI; the host never builds theme code. `build` turns a theme folder
-(blocks and pages) into an artifact; `publish` stores it and makes it current; `pull` brings pages
-edited in the editor back into the theme; `activate` moves the current artifact (rollback).
+(blocks and templates) into its files (`dist/`) and `package` packs them into one file. The other commands
+talk to the host's [artifacts API](/docs/http-api#artifacts-api) and mirror `shopify theme`: `push`
+uploads into a [theme](/docs/concepts/themes) only the files that changed, `publish` makes a theme live, `dev`
+pushes every change to your device's development theme, `pull` brings templates edited in the editor
+back into the repo, and `list`, `rename`, `delete`, `duplicate` and `share` manage themes.
 
 ```npm
 npm install -D @puck-remote/cli
@@ -14,25 +17,39 @@ npm install -D @puck-remote/cli
 
 ```mermaid
 graph LR
-  T[Theme folder] -->|puck-remote build| D[dist: manifest, bundles, assets, pages]
-  D -->|puck-remote publish| S[(Artifact store: artifacts + current.json)]
-  S -->|puck-remote pull| T
-  S -->|puck-remote activate id| S
+  T[Theme folder] -->|puck-remote build / package| D[dist or .tar.gz]
+  D -->|puck-remote push| A[Host artifacts API]
+  T -->|puck-remote dev| A
+  A --> S[(Artifact store: themes and their files)]
+  A -->|puck-remote pull| T
 ```
 
 ```json title="package.json"
 {
   "scripts": {
     "build": "puck-remote build",
-    "release": "puck-remote build && puck-remote publish --artifacts ../my-app/artifacts",
-    "pull": "puck-remote pull --artifacts ../my-app/artifacts"
+    "release": "puck-remote push --live",
+    "dev": "puck-remote dev",
+    "pull": "puck-remote pull"
   }
 }
 ```
 
+```ts title="puck-remote.cli.ts"
+import { defineCliConfig } from '@puck-remote/cli/config';
+
+export default defineCliConfig({
+  url: 'https://admin.example.com/api/themes',
+  headers: { authorization: `Bearer ${process.env.DEPLOY_TOKEN}` }, // whatever your host's authorize expects
+});
+```
+
+See [Configuration](/docs/cli/configuration).
+
 <Cards>
   <Card title="Commands" href="/docs/cli/commands" />
+  <Card title="Configuration" href="/docs/cli/configuration" />
   <Card title="Build output" href="/docs/cli/build-output" />
   <Card title="Programmatic API" href="/docs/cli/programmatic-api" />
-  <Card title="Build a theme" href="/docs/guides/theme-development" />
+  <Card title="Local theme development" href="/docs/guides/theme-dev" />
 </Cards>

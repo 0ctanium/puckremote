@@ -4,6 +4,7 @@ export default library(
   {
   "index": "src/index.ts",
   "cli": "src/cli.ts",
+  "config": "src/config.ts",
   },
   {},
 )

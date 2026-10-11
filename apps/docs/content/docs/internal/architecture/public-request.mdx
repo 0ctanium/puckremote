@@ -16,7 +16,7 @@ sequenceDiagram
   P->>R: request + x-nonce
   R->>R: route → template name + params
   R->>C: prepareTemplate(name, { params, query })
-  C->>C: read template from the current artifact, rewrite missing blocks, walk tree
+  C->>C: read template from the main theme, rewrite missing blocks, walk tree
   C->>W: open session (fresh context)
   C->>D: resolve all queries (dedupe, budget)
   C->>W: __render root + each block (fresh nonce each)
@@ -27,7 +27,7 @@ sequenceDiagram
 
 1. **Proxy** (`createProxy`): the `admin` surface on admin origins, `site` elsewhere; generate a
    CSP nonce; set security headers; when the app maps the path to a template (`options.template`), compute
-   cacheability from the current artifact's manifest and template (no isolate: it only decides a
+   cacheability from the main theme's manifest and template (no isolate: it only decides a
    header).
 2. **The app's route** picks the template and its params (the example app maps the path to the
    template of the same name) and calls `remote.loadTemplate(name, { params, searchParams })`:
@@ -36,12 +36,11 @@ sequenceDiagram
    `generateMetadata` (built from the template's root props) and the page share **one isolate
    pass**.
    On an admin origin it answers 404 first: theme scripts never run next to the admin session.
-3. **`core.prepareTemplate`** lazily starts the host (first artifact load, watcher). Params are checked (at most 32 string
+3. **`core.prepareTemplate`** lazily starts the host (first load of the main theme, watcher). Params are checked (at most 32 string
    values of up to 1 KB, else `TemplateError`), and shadowed app root fields are warned about once
-   per artifact.
+   per theme version.
 4. **`prepareTemplate` pipeline** ([D-0018](/docs/internal/decisions#D-0018)):
-   1. `readTemplate`: `templates/<name>.json` of the **current artifact**, hash-checked against
-      `manifest.files` and validated with zod (no such template → 404); `stripResolved` removes any
+   1. `readTemplate`: `templates/<name>.json` of the **main theme** (not re-hashed, [D-0509](/docs/internal/decisions#D-0509)) validated with zod (no such template → 404); `stripResolved` removes any
       stray `__data`;
    2. `rewriteMissing`: unknown block types become `__missing` ([missing blocks](/docs/internal/architecture/missing-blocks));
    3. `collectInstances`: the host's own depth-first walk of root → content → slots

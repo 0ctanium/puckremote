@@ -9,7 +9,7 @@ description: Variables read by the packages, the example app, the mock API and t
 |---|---|---|
 | `NODE_ENV` | core | `production` disables dev CSP relaxations |
 | `NODE_OPTIONS=--no-node-snapshot` | Node | Required by isolated-vm on Node ≥ 20; set by every script and in CI |
-| `PUCK_REMOTE_ARTIFACTS_DIR` | CLI | Default for `--artifacts` |
+| `PUCK_REMOTE_URL` | CLI | Default for `--url`, the host's artifacts API (over the `url` of `puck-remote.cli.ts`). Auth goes in the [CLI config file](/docs/cli/configuration). |
 
 Render workers get an **empty environment**: nothing from the host process reaches them.
 
@@ -26,6 +26,8 @@ Render workers get an **empty environment**: nothing from the host process reach
 | `PUCK_REMOTE_ALLOW_DEV_ORIGINS` | — | Lets a production build reach the mock API over http (local testing only) |
 | `EVENTS_API_KEY` | a dev key | Secret bound to the mock API origin |
 | `ADMIN_SESSION_SECRET` | a dev-only value | Signs the admin session cookie; **required in production** (without it no session is accepted) |
+| `PUCK_REMOTE_DEPLOY_TOKEN` | `dev-token` (development only) | The token the artifacts API accepts (`examples/theme/puck-remote.cli.ts` reads the same variable); in production without it every API request is refused |
+| `PUCK_REMOTE_PREVIEW_SECRET` | a dev-only value | Signs preview links; in production without it previews are off |
 
 The example has a **demo login** at `/login` on the admin origin: username `admin`, password
 `admin`, hard-coded for the demo only ([D-0301](/docs/internal/decisions#D-0301)). It shows the

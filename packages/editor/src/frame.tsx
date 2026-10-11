@@ -412,7 +412,7 @@ function Canvas({ title = "Page editor", className, style }: { title?: string; c
     );
   return (
     <iframe
-      key={`${p.payload.artifact}:${p.payload.template}`}
+      key={`${p.payload.theme}:${p.payload.hash}:${p.payload.template}`}
       ref={ctx.iframe}
       src={p.editorUrl}
       title={title}
@@ -501,7 +501,7 @@ export function PuckEditorFrame(props: PuckEditorFrameProps) {
   return (
     <FrameContext.Provider value={value}>
       <Puck
-        key={`${payload.artifact}:${payload.template}`}
+        key={`${payload.theme}:${payload.hash}:${payload.template}`}
         config={config}
         data={payload.data as unknown as Data}
         onChange={(data) => latest.current.onChange?.(data as unknown as TemplateData)}

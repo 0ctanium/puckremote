@@ -1,5 +1,5 @@
 "use server";
-import { TemplateError } from "@puck-remote/core";
+import { isThemeId, TemplateError, ThemeError } from "@puck-remote/core";
 import { normalizeSlug } from "@/template-name.ts";
 import { requireSession } from "@/auth.ts";
 import { remote } from "@/puck-remote.ts";
@@ -9,15 +9,16 @@ import { remote } from "@/puck-remote.ts";
 export async function resolveData(params: {
   template?: string;
   params?: Record<string, string>;
+  theme?: string;
   block?: string;
   props?: Record<string, unknown>;
 }) {
   await requireSession({ redirect: false });
-  const { template, params: templateParams, block, props } = params ?? {};
+  const { template, params: templateParams, theme, block, props } = params ?? {};
   const name = normalizeSlug(template);
-  if (!name || typeof block !== "string" || !props || typeof props !== "object")
+  if (!name || !isThemeId(theme) || typeof block !== "string" || !props || typeof props !== "object")
     throw new Error("invalid params");
-  return remote.core.resolveBlockData(name, block, props, { params: templateParams });
+  return remote.core.resolveBlockData(name, block, props, { params: templateParams, theme });
 }
 
 /** The signed-in user's name (an RPC the editor uses for its header badge). */
@@ -26,27 +27,27 @@ export async function currentUser() {
   return user;
 }
 
-// The demo's publishing plugin: "save = write the template into a new artifact + make it current".
+// The demo's publishing plugin: "save = write the template into the theme the editor was opened on"
+// (the main theme, or another one with ?theme=).
 // Drafts, review or history would be other plugins on the same two primitives.
 export async function publish(params: {
   template?: string;
   data?: unknown;
+  /** The theme's hash when the editor opened (or after the last save). */
   base?: string;
+  theme?: string;
 }) {
   await requireSession({ redirect: false });
-  const { template, data, base } = params ?? {};
+  const { template, data, base, theme } = params ?? {};
   const name = normalizeSlug(template);
-  if (!name || typeof base !== "string") throw new Error("invalid params");
-  const { artifacts } = remote.core.config;
-  // Writing on an old base would undo whatever was published since (templates or theme code).
-  if ((await artifacts.readPointer()) !== base)
-    return { ok: false, error: "conflict" };
+  if (!name || typeof base !== "string" || !isThemeId(theme)) throw new Error("invalid params");
   try {
-    const { id } = await remote.core.writeTemplate(name, data, { base });
-    await artifacts.writePointer(id);
-    await (await remote.core.host()).store.reload();
-    return { ok: true, id };
+    // `expect`: saving on an old version would undo whatever was pushed since (templates or theme
+    // code, e.g. a `puck-remote dev` push). The main theme reloads by itself.
+    const { hash } = await remote.core.writeTemplate(name, data, { theme, expect: base });
+    return { ok: true, hash };
   } catch (e) {
+    if (e instanceof ThemeError && e.status === 409) return { ok: false, error: "conflict" };
     if (e instanceof TemplateError) return { ok: false, error: e.message };
     throw e;
   }

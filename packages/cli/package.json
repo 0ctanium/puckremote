@@ -17,6 +17,11 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./config": {
+      "@puck-remote/source": "./src/config.ts",
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -34,14 +39,14 @@
   "dependencies": {
     "@puck-remote/sdk": "workspace:*",
     "esbuild": "0.28.2",
-    "@puck-remote/artifacts-fs": "workspace:*"
+    "tar": "7.5.22"
   },
   "devDependencies": {
     "@types/node": "26.6.4",
-    "typescript": "7.0.2",
+    "@types/react": "19.3.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "@types/react": "19.3.0",
+    "typescript": "7.0.2",
     "vitest": "5.0.3"
   },
   "publishConfig": {
