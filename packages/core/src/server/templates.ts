@@ -1,12 +1,11 @@
 /**
- * Templates live inside the theme artifact (templates/<name>.json, listed in manifest.files), like a
- * Shopify theme's templates. Reading verifies the template's hash; writing produces a new artifact
- * (same files, new template, rewritten manifest) and never moves the pointer.
+ * Templates live in the theme's files (templates/<name>.json, listed in manifest.files), like a
+ * Shopify theme's templates. Saving one changes two files of the theme: the template and the
+ * manifest (written through the themes' write path).
  */
 import { createHash } from 'node:crypto'
-import type { ArtifactId, ArtifactStore } from '@puck-remote/sdk/host'
+import type { ArtifactStore } from '@puck-remote/sdk/host'
 import { z } from 'zod'
-import { isArtifactId } from './artifact-loader.ts'
 import { templatePath, templateNames, type Manifest } from './manifest-schema.ts'
 import { mapItems, RESERVED_DATA_PROP, restoreMissing, type TemplateData, type PuckItem } from './page-tree.ts'
 
@@ -35,14 +34,12 @@ export class TemplateError extends Error {
   }
 }
 
-/** A template of an artifact, hash-verified and validated, or null when the artifact has no such template. */
-export async function readTemplate(store: ArtifactStore, id: ArtifactId, manifest: Pick<Manifest, 'files'>, name: string): Promise<TemplateData | null> {
+/** A template of a theme (validated), or null when the theme's manifest does not list it. */
+export async function readTemplate(store: ArtifactStore, theme: string, manifest: Pick<Manifest, 'files'>, name: string): Promise<TemplateData | null> {
   const file = templatePath(name)
-  const expected = Object.hasOwn(manifest.files, file) ? manifest.files[file] : null
-  if (!expected) return null
-  const bytes = await store.readFile(id, file)
-  if (!bytes) throw new TemplateError(`template ${name} is missing from artifact ${id}`)
-  if (sha256(bytes) !== expected) throw new TemplateError(`template ${name}: hash mismatch in artifact ${id}`)
+  if (!Object.hasOwn(manifest.files, file)) return null
+  const bytes = await store.readFile(theme, file)
+  if (!bytes) throw new TemplateError(`template ${name} is missing from theme ${theme}`)
   return templateSchema.parse(JSON.parse(decoder.decode(bytes))) as TemplateData
 }
 
@@ -79,12 +76,11 @@ export function cleanTemplate(data: unknown): TemplateData {
 }
 
 /**
- * Write a template into a copy of the `base` artifact and return the new artifact's id. The pointer
- * is not moved: making the result current is the caller's decision (a "publish" plugin).
+ * The files that saving a template changes in a theme: templates/<name>.json and the manifest that
+ * lists it. The caller writes them with the themes' write path (which checks `expect`).
  */
-export async function writeTemplate(store: ArtifactStore, base: ArtifactId, name: string, data: unknown): Promise<{ id: ArtifactId }> {
+export async function templateChanges(store: ArtifactStore, theme: string, name: string, data: unknown): Promise<Record<string, Uint8Array>> {
   if (!isTemplateName(name)) throw new TemplateError(`invalid template name ${name}`)
-  if (!isArtifactId(base)) throw new TemplateError('invalid base artifact id')
   let template: TemplateData
   try {
     template = cleanTemplate(data)
@@ -95,20 +91,12 @@ export async function writeTemplate(store: ArtifactStore, base: ArtifactId, name
   if (templateBytes.byteLength > MAX_TEMPLATE_BYTES) throw new TemplateError(`template ${name} is larger than ${MAX_TEMPLATE_BYTES} bytes`)
 
   // The raw manifest (not the loader's parsed copy, which carries recomputed analysis).
-  const manifestBytes = await store.readFile(base, 'manifest.json')
-  if (!manifestBytes) throw new TemplateError(`artifact ${base} does not exist`)
+  const manifestBytes = await store.readFile(theme, 'manifest.json')
+  if (!manifestBytes) throw new TemplateError(`theme ${theme} has no files`)
   const manifest = JSON.parse(decoder.decode(manifestBytes)) as { files: Record<string, string> }
-  const files: Record<string, Uint8Array> = {}
-  for (const [rel, expected] of Object.entries(manifest.files)) {
-    const bytes = await store.readFile(base, rel)
-    if (!bytes || sha256(bytes) !== expected) throw new TemplateError(`artifact ${base}: ${rel} is missing or corrupted`)
-    files[rel] = bytes
-  }
   const file = templatePath(name)
-  files[file] = templateBytes
   manifest.files = Object.fromEntries(Object.entries({ ...manifest.files, [file]: sha256(templateBytes) }).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
-  files['manifest.json'] = encoder.encode(JSON.stringify(manifest, null, 2))
-  return { id: await store.writeArtifact(files) }
+  return { [file]: templateBytes, 'manifest.json': encoder.encode(JSON.stringify(manifest, null, 2)) }
 }
 
 const MAX_PARAMS = 32

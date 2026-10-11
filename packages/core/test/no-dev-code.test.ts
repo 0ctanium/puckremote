@@ -73,10 +73,11 @@ const BUNDLE_SINKS: Record<string, RegExp> = {
   'packages/core/src/server/host.ts': /renderer\(\{ id, bundle, limits/,
 }
 const BUNDLE_READERS = new Set([
-  'packages/core/src/server/artifact-loader.ts', // reads + hash-verifies bytes, never evaluates
+  'packages/core/src/server/artifact-loader.ts', // reads the bytes for the runtime factory, never evaluates
   'packages/core/src/server/static-files.ts', // generic byte server
   'packages/core/src/server/manifest-schema.ts', // asserts bundle.js is listed in files
-  'packages/core/src/server/templates.ts', // copies every file's bytes into a new artifact, never evaluates
+  'packages/core/src/server/templates.ts', // rewrites the manifest's file list, never evaluates
+  'packages/core/src/server/themes.ts', // write path: checks bundle.js is listed, stores uploaded bytes, never evaluates
 ])
 
 // Browser-only modules: their code runs only in effects (never during SSR), where loading the

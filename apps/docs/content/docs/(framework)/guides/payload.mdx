@@ -11,10 +11,10 @@ the current design:
 - A `@puck-remote/source-payload` **DataSource** translates `NormalizedFind` to the Payload Local
   API with `overrideAccess: false`, a public user, and `draft: ctx.mode === 'draft'`. The core does
   not change.
-- Pages are part of theme artifacts ([D-0188](/docs/internal/decisions#D-0188)), so a Payload-backed
-  **ArtifactStore** would store artifacts (code and pages) and the current pointer; there is no
+- Templates are part of a theme's files ([D-0188](/docs/internal/decisions#D-0188)), so a Payload-backed
+  **ArtifactStore** would store each theme's files (code and templates) and the theme list; there is no
   page store.
 - Payload sessions authenticate the app's admin pages and RPC handlers; the core has no auth
   ([D-0187](/docs/internal/decisions#D-0187)).
-- Drafts or history would be a publishing plugin on `writeTemplate` and the pointer
+- Drafts or history would be a publishing plugin on `writeTemplate` and the themes
   ([D-0190](/docs/internal/decisions#D-0190)).

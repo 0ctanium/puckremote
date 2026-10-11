@@ -1,0 +1,75 @@
+---
+title: Configuration
+description: puck-remote.cli.ts, the CLI's config file - where the host's artifacts API is and how requests to it are made (any auth), and dev settings.
+---
+
+The CLI has no auth scheme of its own ([D-0484](/docs/internal/decisions#D-0484)). A config file in
+the theme repo tells it where the host's [artifacts API](/docs/http-api#artifacts-api) is and how to
+form requests, so it sends whatever your app's `authorize` expects: a bearer token, an API key, a
+cookie, a signature ([D-0482](/docs/internal/decisions#D-0482)).
+
+```ts title="puck-remote.cli.ts"
+import { defineCliConfig } from '@puck-remote/cli/config';
+
+export default defineCliConfig({
+  url: 'https://admin.example.com/api/themes',
+  headers: { authorization: `Bearer ${process.env.DEPLOY_TOKEN}` },
+});
+```
+
+The file is read from `--cwd` (the theme folder): `puck-remote.cli.ts`, then `.mts`, `.js`, `.mjs`.
+`--config <file>` names another one. It is a plain module loaded with `import()`. Node 26 runs
+TypeScript files directly, so it can read environment variables, files, a keychain… Only the API
+commands read it; `build` and `package` don't need it ([D-0486](/docs/internal/decisions#D-0486)).
+
+<TypeTable
+  type={{
+    url: { description: "Base URL of the host's artifacts API. --url and PUCK_REMOTE_URL take precedence.", type: 'string' },
+    headers: { description: "Added to every request. A function is called for each request (e.g. short-lived tokens).", type: 'Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>)' },
+    fetch: { description: "Sends each request (headers already added) and returns the response: full control over the transport. Default: global fetch.", type: '(request: Request) => Promise<Response>' },
+    'dev.reload': { description: "Live reload for puck-remote dev: false turns it off; port sets the local server's port (the next free one is used when busy).", type: 'false | { port?: number }', default: '{ port: 9293 }' },
+  }}
+/>
+
+Without a config file, requests carry no auth headers, which is enough only for a host that
+authorizes in another way (for example on a private network).
+
+## Examples
+
+```ts title="An API key from the environment"
+export default defineCliConfig({
+  url: process.env.PUCK_REMOTE_URL,
+  headers: () => ({ 'x-api-key': process.env.THEME_API_KEY ?? '' }),
+});
+```
+
+```ts title="A token from a command (short-lived, fetched per request)"
+import { execSync } from 'node:child_process';
+
+export default defineCliConfig({
+  url: 'https://admin.example.com/api/themes',
+  headers: () => ({ authorization: `Bearer ${execSync('my-sso token').toString().trim()}` }),
+});
+```
+
+```ts title="Signed requests"
+import { createHmac } from 'node:crypto';
+
+export default defineCliConfig({
+  url: 'https://admin.example.com/api/themes',
+  async fetch(request) {
+    const date = new Date().toUTCString();
+    const signature = createHmac('sha256', process.env.SIGNING_KEY!)
+      .update(`${request.method} ${new URL(request.url).pathname} ${date}`)
+      .digest('hex');
+    const headers = new Headers(request.headers);
+    headers.set('date', date);
+    headers.set('x-signature', signature);
+    return fetch(new Request(request, { headers }));
+  },
+});
+```
+
+`fetch` is also the place for a custom transport (a corporate proxy, client certificates through
+undici's `Agent`). The host checks whatever you send in its `authorize`
+([HTTP API › Authorization](/docs/http-api#authorization)).

@@ -1,29 +1,25 @@
 ---
 title: Artifacts and themes
-description: What a published theme contains (code and templates, like a Shopify theme), how it is identified, verified, activated and rolled back.
+description: What a theme's files contain (code and templates, like a Shopify theme), how they are pushed, versioned, verified and served.
 ---
 
-An **artifact** is one immutable, published state of a theme: its code **and its templates**, like a
-Shopify theme carries its sections and its `templates/*.json` together
-([D-0188](/docs/internal/decisions#D-0188), [D-0386](/docs/internal/decisions#D-0386)). Because a
-template always ships with the code it was made for, there are no content migrations: changing a
-block's fields and the templates that use it is one
-change, published at once.
+A theme's **files**, its *artifact*, are its code **and its templates**, like a Shopify theme carries its
+sections and its `templates/*.json` together ([D-0188](/docs/internal/decisions#D-0188),
+[D-0386](/docs/internal/decisions#D-0386)). Because a template always ships with the code it was made
+for, there are no content migrations: changing a block's fields and the templates that use it is
+one change, pushed at once.
 
 ```files
-artifacts
-├── current.json
-├── 1d361ac2d6ec…
-│   ├── manifest.json
-│   ├── bundle.js
-│   ├── bundle.browser.js
-│   ├── bundle.islands.js
-│   ├── assets
-│   │   └── theme.css
-│   └── templates
-│       ├── home.json
-│       └── search.json
-└── e1cf82a1deba…
+themes/0f3a9c21b7d4
+├── manifest.json
+├── bundle.js
+├── bundle.browser.js
+├── bundle.islands.js
+├── assets
+│   └── theme.css
+└── templates
+    ├── home.json
+    └── search.json
 ```
 
 | File | Content |
@@ -34,61 +30,66 @@ artifacts
 | `bundle.islands.js` | Only the theme's `"use client"` modules, hydrated on public pages ([interactive components](/docs/guides/interactive-components)); absent without islands |
 | `assets/**` | CSS, client scripts, images |
 | `templates/<name>.json` | Templates: Puck data with any root props |
-| `current.json` | The current artifact's id |
 
-## Ids
+## Themes and versions
 
-An artifact id is an **opaque string chosen by the store** ([D-0189](/docs/internal/decisions#D-0189)):
-the core never computes or interprets it, it only requires `[A-Za-z0-9._-]{1,128}` because ids
-appear in URLs. `@puck-remote/artifacts-fs` uses a content hash, like a git commit: the same
-files always give the same id, and storing them twice keeps one copy
-([D-0206](/docs/internal/decisions#D-0206)). Another store may use counters or database keys.
+Each [theme](/docs/concepts/themes) holds **its current files**, nothing else: there is no history of
+older versions ([D-0506](/docs/internal/decisions#D-0506)). A theme's `hash` is the sha256 of its
+`manifest.json`, and since the manifest lists every file's sha256, the hash identifies the whole
+version ([D-0508](/docs/internal/decisions#D-0508)). To roll back, push an older checkout of the
+theme repo.
 
 ## Lifecycle
 
 ```mermaid
 sequenceDiagram
   participant Dev as Theme developer
+  participant Host as Host (artifacts API)
   participant Store as Artifact store
-  participant Host as Host (core)
-  Dev->>Dev: puck-remote pull (editor changes into templates/)
-  Dev->>Dev: puck-remote build
-  Dev->>Store: puck-remote publish (store artifact, move pointer)
-  Host->>Store: watch / poll pointer
-  Host->>Store: read manifest + files
-  Host->>Host: validate manifest, verify hashes
-  Host->>Host: start new runtime, swap, dispose old after 30 s
+  Dev->>Dev: puck-remote build (dist/)
+  Dev->>Host: GET the theme's manifest.json
+  Dev->>Host: POST only the changed files + manifest.json
+  Host->>Host: validate the manifest, check every listed file (uploaded or unchanged)
+  Host->>Store: write changed files, manifest last, remove unlisted files
+  Host->>Store: theme hash = sha256(manifest.json)
+  Host->>Host: main theme changed: load manifest + bundle.js, new runtime, dispose the old one after 30 s
 ```
 
 1. `puck-remote build` produces `dist/` (code and templates) on the developer's machine
    ([build pipeline](/docs/internal/architecture/build-pipeline)). A template using a block the
    theme doesn't have fails the build.
-2. `puck-remote publish` stores it through an `ArtifactStore` and moves the pointer.
-3. The host notices the pointer change (store `watch`, or polling every `artifactPollMs`, default
-   2000 ms, [D-0065](/docs/internal/decisions#D-0065)).
-4. The [artifact loader](/docs/internal/architecture/artifact-loader) validates the manifest with zod,
-   recomputes derived data, verifies every file hash, creates a new render runtime, swaps it in,
-   and disposes the previous one after a 30 s grace period.
-5. **Any failure keeps the last good artifact serving.**
+2. `puck-remote push` (or `dev`) compares `dist/` with the theme's current manifest and uploads
+   **only the files that changed**, plus `manifest.json` ([D-0507](/docs/internal/decisions#D-0507)):
+   editing a block sends the bundles, an asset that asset, a template that template.
+3. The [artifacts API](/docs/http-api#artifacts-api) validates the new manifest and checks that every
+   file it lists was either uploaded, with the right sha256, or is already in the theme unchanged.
+   Then it writes the files and updates the theme's `hash`.
+4. When the main theme's hash changes, the host loads its `manifest.json` and `bundle.js`, starts a
+   new runtime, swaps it in and disposes the previous one after 30 s. It also notices changes made
+   elsewhere through the store's `watch`, or by polling every `artifactPollMs` (default 2000 ms,
+   [D-0065](/docs/internal/decisions#D-0065)).
+5. **Any failure keeps the last good version serving.**
 
-Saving a template from the editor also creates an artifact: the same files with the new template
-(see [Templates and publishing](/docs/guides/publishing)). Rollback is just
-`puck-remote activate <id>`.
+Saving a template from the editor writes two files into the theme: the template and the manifest
+(see [Templates and publishing](/docs/guides/publishing)).
 
-## Why the host re-validates everything
+## Why the host re-validates
 
 The CLI runs on an untrusted machine. The host therefore has its **own** manifest schema
 (`manifest-schema.ts`): closed field types, the `visibleIf` grammar and the query language. It
 recomputes `propRefs` and `usesRequestParams` instead of trusting the values the CLI wrote.
+Uploaded files are checked against the manifest's sha256 when they are pushed. Once stored, they
+are not re-hashed on load: the store is the app's own storage, written through the API
+([D-0509](/docs/internal/decisions#D-0509)).
 
 `sdkMajor` versions the wire contract between the SDK and the host. The host only accepts
-`sdkMajor: 3` and rejects older artifacts with an explicit message.
+`sdkMajor: 3` and rejects older themes with an explicit message.
 
 ## Storage
 
-Artifacts live behind the `ArtifactStore` contract ([D-0197](/docs/internal/decisions#D-0197)). The default
-`@puck-remote/artifacts-fs` suits a single server; serverless and multi-instance deployments need
-a shared store (S3-style). See [Core › Adapters](/docs/core/adapters).
+Themes and their files live behind the `ArtifactStore` contract ([D-0512](/docs/internal/decisions#D-0512)).
+The default `@puck-remote/artifacts-fs` suits a single server; serverless and multi-instance
+deployments need a shared store (S3-style). See [Core › Adapters](/docs/core/adapters).
 
 ## Serving files
 
@@ -100,19 +101,20 @@ Like Shopify's `/cdn/shop/t/…/assets/…?v=…`, the URL names the file, and `
 /cdn/bundle.islands.js?v=8e01d77a2c55
 ```
 
-`v` is the first 12 hex characters of the file's sha256 in the manifest. A page save creates a new
-artifact, but files it doesn't change keep their URL, so browsers and CDNs keep their copy.
+`v` is the first 12 hex characters of the file's sha256 in the manifest. Pushes and template
+saves leave unchanged files alone, so their URLs stay the same and browsers and CDNs keep their
+copy.
 
-- A `v` of the current artifact, or of any older stored artifact, is served from that artifact
-  with `immutable` caching ([D-0264](/docs/internal/decisions#D-0264)). Pages rendered just before a
-  publish keep working.
-- Without `v`, or with an unknown one, the current file is served with `no-cache` and an `etag`
-  (`304` when unchanged). Relative `url()`s inside your CSS land here.
+- The main theme's file is served for its own `v`; a `v` listed by another theme's manifest is
+  served from that theme, so previews and the editor on another theme get their files
+  ([D-0518](/docs/internal/decisions#D-0518)).
+- The bytes are hashed when served: only bytes matching the requested `v` get `immutable` caching.
+  During a push, or for a version that no longer exists, the current file is served with
+  `no-cache` and an `etag` (`304` when unchanged), so a CDN never keeps other bytes under a
+  versioned URL. Relative `url()`s inside your CSS (no `v`) land here too.
 
-Files are served only if they are listed in the manifest **and** their hash still matches, with
-`nosniff`.
-`bundle.js`, the manifest and templates are never served. When the editor is configured, these
-responses allow the editor origin (CORS), which loads the browser bundle
-([D-0200](/docs/internal/decisions#D-0200)).
+Only files listed in the manifest are served, with `nosniff`. `bundle.js`, the manifest and
+templates are never served. When the editor is configured, these responses allow the editor origin
+(CORS), which loads the browser bundle ([D-0200](/docs/internal/decisions#D-0200)).
 
 Deep dive: [artifact loader](/docs/internal/architecture/artifact-loader).

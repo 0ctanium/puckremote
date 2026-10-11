@@ -19,11 +19,20 @@ const PORT = process.env.PORT ?? '3100'
 // http://localhost:3100 (site).
 const HOST_ORIGINS = (process.env.PUCK_REMOTE_ADMIN_ORIGINS ?? `http://admin.localhost:${PORT}`).split(',')
 const EDITOR_ORIGIN = process.env.PUCK_REMOTE_EDITOR_ORIGIN ?? `http://127.0.0.1:${PORT}`
+// Preview links of non-live heads (`puck-remote dev`) open on the public site.
+const SITE_ORIGIN = `http://localhost:${PORT}`
+// Signs preview links. Production without it: preview disabled (fails closed).
+const PREVIEW_SECRET =
+  process.env.PUCK_REMOTE_PREVIEW_SECRET ?? (process.env.NODE_ENV === 'production' ? null : 'local-dev-only-preview-secret')
 
 export default defineConfig({
   artifacts: fsArtifactStore({ dir: path.join(root, 'data', 'artifacts') }),
   source: mockCms({ dataFile: path.join(root, 'data', 'cms.json') }),
-  origins: { host: HOST_ORIGINS, editor: EDITOR_ORIGIN },
+  origins: { host: HOST_ORIGINS, editor: EDITOR_ORIGIN, site: SITE_ORIGIN },
+  preview: PREVIEW_SECRET ? { secret: PREVIEW_SECRET } : null,
+  // Several themes like Shopify (main, unpublished, one development theme per device). Apps that
+  // want a single theme leave this out.
+  themes: { multiple: true },
   site: { name: 'POC Site', locale: 'en' },
   http: { allowedOrigins: [MOCK_API], insecureDevOrigins: dev ? [MOCK_API] : [] },
   secrets: { EVENTS_API_KEY: { value: process.env.EVENTS_API_KEY ?? 'dev-events-key-7f3a9c', origins: [MOCK_API] } },

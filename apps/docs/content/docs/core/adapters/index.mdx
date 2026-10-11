@@ -21,7 +21,7 @@ export default defineConfig({
 | `RendererFactory` | `workerPoolRenderer()`, `inProcessRenderer()` | [Renderer](/docs/core/adapters/renderer) |
 
 The contracts are types from `@puck-remote/sdk/host` ([Host contracts](/docs/sdk/host-contracts)),
-so an adapter package never depends on the engine itself. Pages live in artifacts
+so an adapter package never depends on the engine itself. Templates live in the themes' files
 ([D-0188](/docs/internal/decisions#D-0188)); there is no page store, cache or auth adapter
 ([D-0187](/docs/internal/decisions#D-0187)).
 
@@ -31,7 +31,8 @@ Adapters are your code and run on your server. The engine keeps the security rul
 so a buggy adapter cannot widen what a theme can reach:
 
 - data: exposed fields, filter operators, limits, depth and output projection;
-- artifacts: manifest validation and per-file hash verification (pages included), id format.
+- artifact store: theme rules, manifest validation and per-file hash checks of uploads (templates
+  included), theme id format ([D-0514](/docs/internal/decisions#D-0514)).
 
 <Callout title="Not to be confused with theme adapters">
   Themes can ship `defineAdapter` translators for external HTTP APIs. Those are **untrusted**,

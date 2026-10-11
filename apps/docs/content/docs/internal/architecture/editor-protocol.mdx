@@ -3,9 +3,9 @@ title: Editor protocol
 description: The typed, versioned postMessage protocol between the admin page's Puck and the editor frame's Puck.
 ---
 
-Both sides import the same module, `@puck-remote/editor/protocol`. Every message carries `v: 3`
+Both sides import the same module, `@puck-remote/editor/protocol`. Every message carries `v: 4`
 (`PROTOCOL_VERSION`, [D-0328](/docs/internal/decisions#D-0328), bumped for templates by
-[D-0382](/docs/internal/decisions#D-0382)) and a `type`, and is validated with
+[D-0382](/docs/internal/decisions#D-0382) and for the payload's theme id and `hash` by [D-0519](/docs/internal/decisions#D-0519)) and a `type`, and is validated with
 zod by the receiver.
 
 The admin page holds the page data, the history and the fields. The frame proposes **actions**;
@@ -15,7 +15,7 @@ the admin validates them, replays them on its own Puck and answers with its **st
 | Direction | `type` | Fields |
 |---|---|---|
 | editor → host | `ready` | — |
-| host → editor | `init` | `payload` (`EditorPayload`: template name, params, merged root fields, manifest, data, URLs), `options` (JSON only: `permissions`, `locales`, `categories`, `flags`, `extra`) |
+| host → editor | `init` | `payload` (`EditorPayload`: theme id and `hash`, template name, params, merged root fields, manifest, data, URLs), `options` (JSON only: `permissions`, `locales`, `categories`, `flags`, `extra`) |
 | editor → host | `action` | `seq` (1, 2, 3…), `action` (a `FrameAction`, below) |
 | host → editor | `state` | `data` (the full page, with `__data`), `itemSelector` (the selection or `null`), `ack` (last action applied) |
 | editor → host | `intent` | `undo` or `redo` (⌘Z / ⇧⌘Z pressed in the frame) |
@@ -88,7 +88,7 @@ frame back in line with the admin's page.
 
 Functions can't be structured-cloned, and the editor must not trust code from the parent anyway.
 `init` carries the manifest (JSON) and the URL of `bundle.browser.js`. The editor checks that the
-URL is on a host origin and imports it, so the code it runs is the artifact's, served by the host's
+URL is on a host origin and imports it, so the code it runs is the theme's, served by the host's
 theme route with hash verification.
 
 <Source path="packages/editor/src/protocol.ts" />

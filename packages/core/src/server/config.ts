@@ -17,9 +17,9 @@ export interface SecretDef {
 export interface HostConfig {
   id: string;
   routes: Routes;
-  /** Theme artifacts: code and pages (trusted host plugin chosen by the app). */
+  /** Theme artifacts (code and templates) and the theme list (trusted host plugin chosen by the app). */
   artifacts: ArtifactStore;
-  /** How often to poll the artifact pointer when the store has no change feed. */
+  /** How often to poll the theme list when the store has no change feed. */
   artifactPollMs: number;
   source: AnyDataSource;
   /** Where theme code runs. null → the host's default (see host.ts). */
@@ -61,6 +61,37 @@ export interface HostConfig {
   secrets: Record<string, SecretDef>;
   /** The app's root fields, merged with the theme's (the app's win on a name collision). */
   root: AppRoot;
+  /** Several themes (Shopify-like) or just the main one. */
+  themes: {
+    /** false: only a main theme exists (no unpublished or development themes, no previews). */
+    multiple: boolean;
+    /** Development themes not updated for this many days are deleted. */
+    devExpiryDays: number;
+  };
+  /** Runtimes kept for non-main artifacts (previewed themes), besides the main one. */
+  previewRuntimes: {
+    /** At most this many; the least recently used is disposed first. */
+    max: number;
+    /** Disposed after this long without a request. */
+    idleMs: number;
+  };
+  /** Signed preview links for non-main themes on public pages. null = preview disabled. */
+  preview: PreviewConfig | null;
+  /** Limits of the artifacts API (uploads from the CLI). */
+  api: {
+    /** Compressed package size. */
+    maxPackageBytes: number;
+    /** Total size of the unpacked files. */
+    maxUnpackedBytes: number;
+    maxFiles: number;
+  };
+}
+
+export interface PreviewConfig {
+  /** HMAC key for preview tokens. Keep it secret; rotating it ends every preview. */
+  secret: string;
+  /** Lifetime of a preview link and its cookie. */
+  ttlSeconds: number;
 }
 
 export interface AppRoot {
@@ -73,6 +104,8 @@ export interface EditorOrigins {
   host: string[];
   /** Origin of the static editor app loaded in the iframe. */
   editor: string;
+  /** Canonical public origin of the site, used to build preview links. */
+  site?: string;
 }
 
 export interface Routes {
@@ -82,6 +115,10 @@ export interface Routes {
   editor: string;
   /** Prefix of the app's admin pages; host origins serve them at their root (`/x` → `<admin>/x`). */
   admin: string;
+  /** Prefix of the artifacts API route (host origins only; not moved under `admin`). */
+  api: string;
+  /** Path of the preview route on public origins (sets or clears the preview cookie). */
+  preview: string;
 }
 
 type DeepPartial<T> = {
@@ -96,7 +133,8 @@ type Plugins =
   | "renderer"
   | "security"
   | "origins"
-  | "root";
+  | "root"
+  | "preview";
 
 /** What an app provides. Everything except the storage plugins has a default. */
 export interface PuckRemoteConfig extends DeepPartial<
@@ -120,6 +158,8 @@ export interface PuckRemoteConfig extends DeepPartial<
    * the theme's root fields. Type them for the theme with `Register.rootProps` (`RootPropsOf`).
    */
   root?: { fields: Record<string, FieldSpec>; defaultProps?: Record<string, unknown> };
+  /** Enables preview links for non-live heads on public pages. */
+  preview?: { secret: string; ttlSeconds?: number } | null;
 }
 
 export class ConfigError extends Error {}
@@ -129,7 +169,13 @@ export function defineConfig<C extends PuckRemoteConfig>(config: C): C {
   return config;
 }
 
-export const DEFAULT_ROUTES: Routes = { theme: "/cdn", editor: "/editor", admin: "/admin" };
+export const DEFAULT_ROUTES: Routes = {
+  theme: "/cdn",
+  editor: "/theme/editor",
+  admin: "/admin",
+  api: "/api/themes",
+  preview: "/theme/preview",
+};
 
 function resolveSecurity(
   input: Pick<PuckRemoteConfig, "security">,
@@ -157,7 +203,14 @@ export function resolveOrigins(
       `puck-remote: ${editor} is both a host and the editor origin. The editor runs theme code; it must live on its own origin, without the admin's session.`,
     );
   }
-  return { host: admin, editor };
+  return input.site ? { host: admin, editor, site: normalizeOrigin(input.site) } : { host: admin, editor };
+}
+
+function resolvePreview(input: PuckRemoteConfig["preview"]): PreviewConfig | null {
+  if (!input) return null;
+  if (typeof input.secret !== "string" || !input.secret)
+    throw new ConfigError("puck-remote: preview.secret must be a non-empty string");
+  return { secret: input.secret, ttlSeconds: input.ttlSeconds ?? 3600 };
 }
 
 function resolveRoot(input: PuckRemoteConfig["root"]): AppRoot {
@@ -202,5 +255,14 @@ export function resolveConfig(input: PuckRemoteConfig): HostConfig {
       ...input.http,
     },
     secrets: input.secrets ?? {},
+    themes: { multiple: false, devExpiryDays: 7, ...input.themes },
+    previewRuntimes: { max: 3, idleMs: 10 * 60_000, ...input.previewRuntimes },
+    preview: resolvePreview(input.preview),
+    api: {
+      maxPackageBytes: 50 * 1024 * 1024,
+      maxUnpackedBytes: 200 * 1024 * 1024,
+      maxFiles: 5000,
+      ...input.api,
+    },
   };
 }

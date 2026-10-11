@@ -63,6 +63,7 @@
     "dom-serializer": "3.1.1",
     "html-react-parser": "6.1.8",
     "isolated-vm": "7.0.1",
+    "tar": "7.5.22",
     "undici": "8.11.2",
     "zod": "4.6.5"
   },

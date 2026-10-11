@@ -7,14 +7,15 @@ description: The interfaces in @puck-remote/sdk/host that host adapters implemen
 in the SDK (not the engine) so adapter packages stay light.
 
 ```ts
-import type { ArtifactId, ArtifactStore, DataSource } from '@puck-remote/sdk/host';
+import type { ArtifactStore, DataSource, Theme } from '@puck-remote/sdk/host';
 import { defineCollection, defineDataSource, defineGlobal } from '@puck-remote/sdk/host';
 ```
 
 | Contract | Guide |
 |---|---|
 | `DataSource`, `CollectionDef`, `GlobalDef` | [Data source](/docs/core/adapters/data-source) |
-| `ArtifactStore`, `ArtifactId` | [Artifact store](/docs/core/adapters/artifact-store) |
+| `ArtifactStore`, `FileChanges`, `Theme`, `ThemeRole`, `THEME_ROLES`, `ThemeList`, `ThemeConflictError` | [Artifact store](/docs/core/adapters/artifact-store), [Themes](/docs/concepts/themes) |
+| `AuthorizeApi`, `ApiAction` | [HTTP API › Artifacts API](/docs/http-api#artifacts-api) |
 
 ## Helpers
 

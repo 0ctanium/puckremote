@@ -1,6 +1,6 @@
 ---
 title: Commands
-description: puck-remote build, publish, pull and activate.
+description: puck-remote build, package, push, publish, pull, dev, list, rename, delete, duplicate and share.
 ---
 
 ## `puck-remote build`
@@ -25,60 +25,167 @@ names that are not lowercase slugs or start with `__`, template files that are n
 `templates/<name>.json` Puck data, and templates using a block the theme doesn't have, e.g.
 `✖ build failed: templates/home.json content[4]: unknown block "old-banner"`.
 
-## `puck-remote publish`
+## Connecting to a host
+
+Every command except `build` and `package` talks to the host's
+[artifacts API](/docs/http-api#artifacts-api), so it works whatever artifact store the host uses.
+Where the API is and how requests carry auth come from
+[`puck-remote.cli.ts`](/docs/cli/configuration) in the theme folder; the CLI adds no auth of its own
+([D-0484](/docs/internal/decisions#D-0484)).
+
+<TypeTable
+  type={{
+    '--config': { description: "Config file to use instead of puck-remote.cli.ts (.mts, .js, .mjs) in --cwd.", type: 'path' },
+    '--url': { description: "Base URL of the host's artifacts API; overrides the config's url.", type: 'URL', default: "$PUCK_REMOTE_URL, then the config's url" },
+  }}
+/>
+
+## `puck-remote package`
 
 ```bash
-puck-remote publish --artifacts ../my-app/artifacts
+puck-remote package --file theme.tar.gz
 ```
 
 <TypeTable
   type={{
-    '--artifacts': { description: "Artifact directory (a file-system artifact store).", type: 'path', default: '$PUCK_REMOTE_ARTIFACTS_DIR', required: true },
     '--cwd': { description: "Theme folder.", type: 'path', default: 'current directory' },
-    '--out': { description: "The build output to publish.", type: 'path', default: 'dist' },
+    '--out': { description: "Build output folder.", type: 'path', default: 'dist' },
+    '--file': { description: "Package to write, relative to --cwd.", type: 'path', default: '<package name>-<12 chars of the bundle hash>.tar.gz' },
   }}
 />
 
-Stores the build output (code **and templates**) as an artifact and makes it current; running hosts
-switch to it automatically. It prints the artifact id. Templates edited in the editor since your last
-`pull` are replaced by the repo's: pull first.
+Builds, then writes the artifact as one gzip-compressed tar with the build output's files at its root
+([D-0405](/docs/internal/decisions#D-0405)). Hand it to someone else to publish, or keep it as a
+release file. It needs no host.
+
+The theme commands mirror `shopify theme` ([D-0448](/docs/internal/decisions#D-0448)). `-t,
+--theme` takes a theme id, or a name when exactly one theme has it.
+
+## `puck-remote push`
+
+```bash
+puck-remote push --live
+```
+
+<TypeTable
+  type={{
+    '-t, --theme': { description: "Update this theme (id or name).", type: 'string' },
+    '--live': { description: "Update the main theme (created, named --name or the package name, when the site has none).", type: 'boolean' },
+    '--unpublished': { description: "Create an unpublished theme, named --name or '<package name> (<6 hex>)'.", type: 'boolean' },
+    '--name': { description: "Name of a theme this push creates.", type: 'string' },
+    '--file': { description: "Upload this package whole instead of building.", type: 'path' },
+    '--cwd': { description: "Theme folder.", type: 'path', default: 'current directory' },
+    '--out': { description: "Build output folder.", type: 'path', default: 'dist' },
+  }}
+/>
+
+Builds the theme and uploads into one theme **only the files that changed** since what it holds
+(code **and templates**), plus the manifest ([D-0522](/docs/internal/decisions#D-0522)): it reads the
+theme's current manifest and compares each file's sha256. `--file` uploads a package whole instead.
+Use one of `--theme`, `--live` and `--unpublished`; `--live` and `--unpublished` create the theme
+first when needed. On a [single-theme site](/docs/concepts/themes#one-theme-or-several), no flag
+means the main theme. It prints what it sent (`theme #0f3a… (main) → 2 files (bundle.browser.js,
+bundle.js)`) and, for a non-main theme, a preview link. There is no history: to roll back, push an
+older checkout. Templates edited in the editor on that
+theme since your last `pull` are replaced by the repo's: pull first.
+
+## `puck-remote publish`
+
+```bash
+puck-remote publish -t Summer
+```
+
+Makes a theme the main (live) one. The previous main theme becomes unpublished, and running hosts
+switch at once.
 
 ## `puck-remote pull`
 
 ```bash
-puck-remote pull --artifacts ../my-app/artifacts
+puck-remote pull
 ```
 
 <TypeTable
   type={{
-    '--artifacts': { description: "Artifact directory.", type: 'path', default: '$PUCK_REMOTE_ARTIFACTS_DIR', required: true },
     '--cwd': { description: "Theme folder: templates are written to <cwd>/templates/<name>.json.", type: 'path', default: 'current directory' },
-    '--artifact': { description: "An artifact id.", type: 'string', default: 'the current artifact' },
+    '-t, --theme': { description: "Theme to pull from.", type: 'string', default: 'the main theme' },
   }}
 />
 
-Downloads an artifact's templates into the theme repo, like `shopify theme pull`
+Downloads a theme's templates into the theme repo, like `shopify theme pull`
 ([D-0390](/docs/internal/decisions#D-0390)). Existing files are overwritten; other files are left alone.
 
-## `puck-remote activate`
+## `puck-remote dev`
 
 ```bash
-puck-remote activate <id> --artifacts ../my-app/artifacts
+puck-remote dev
 ```
 
 <TypeTable
   type={{
-    '<id>': { description: "An existing artifact id.", type: 'string', required: true },
-    '--artifacts': { description: "Artifact directory.", type: 'path', default: '$PUCK_REMOTE_ARTIFACTS_DIR', required: true },
+    '-t, --theme': { description: "Develop on this theme instead of the device's development theme.", type: 'string' },
+    '--cwd': { description: "Theme folder.", type: 'path', default: 'current directory' },
+    '--out': { description: "Build output folder (not watched).", type: 'path', default: 'dist' },
+    '--no-reload': { description: "No live reload server (same as dev.reload: false in the config).", type: 'boolean' },
   }}
 />
 
-Moves the current-artifact pointer. This is how you roll back.
+Like `shopify theme dev`, it pushes to **this device's development theme**
+([D-0446](/docs/internal/decisions#D-0446)). The first run creates it, named
+`Development (<6 hex>-<host name>)`, and records its id in
+`${XDG_CONFIG_HOME:-~/.config}/puck-remote/dev-themes.json` (per API URL). Later runs reuse it, and
+if it was deleted or expired, a new one is created. It prints a preview link, then pushes again
+300 ms after each change in the theme folder (`dist`, `node_modules` and dot folders are ignored),
+sending **only the files that changed**: editing a block sends the bundles, an asset that asset, a
+template that template. Each push carries the theme's last known hash (`expect`); if someone else
+changed the theme meanwhile (an editor save), `dev` compares again and resends.
+Preview pages opened from the printed link **reload by themselves** after each push: `dev` runs a
+small Server-Sent Events server on `http://127.0.0.1:9293` (the next free port when busy;
+`dev.reload` in the config) and the link carries its address
+([D-0485](/docs/internal/decisions#D-0485)). A failed build is printed, the theme keeps its last good
+version and pages don't reload. The repo's templates replace editor edits on that theme: `pull -t <id>` first to
+keep them. Development themes are deleted after 7 days without a push (`themes.devExpiryDays`).
+Stop with Ctrl+C. On a single-theme site, `dev` is refused. See
+[Local theme development](/docs/guides/theme-dev).
+
+## `puck-remote list`
+
+```bash
+puck-remote list --role development
+```
+
+Prints every theme (`id  role  updated  name`), optionally of one role.
+
+## `puck-remote rename`, `delete`, `duplicate`
+
+```bash
+puck-remote rename -t 0f3a9c21b7d4 --name "Summer sale"
+```
+
+```bash
+puck-remote delete --development
+```
+
+```bash
+puck-remote duplicate -t "Summer sale" --name "Winter sale"
+```
+
+`delete -t <id|name>` deletes a theme and its files (never the main one). `delete
+--development` deletes this device's development theme and forgets it. `duplicate` creates an
+unpublished copy (`Copy of <name>` by default).
+
+## `puck-remote share`
+
+```bash
+puck-remote share
+```
+
+Builds, uploads, and creates an unpublished theme named `Share (<6 hex>-<host name>)`, then prints
+its preview link to send to someone.
 
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | `0` | Success |
-| `1` | Build, publish or pull error |
+| `1` | Build or API error (the message includes the HTTP status) |
 | `2` | Unknown command or bad usage |

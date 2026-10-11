@@ -20,7 +20,7 @@ export default defineBlock({
   render: (props) => (
     <article className={`t-card t-card--${props.tone}`}>
       <h3>{props.title}</h3>
-      {props.body && <p>{props.body}</p>}
+      {props.body && <p style={{ color: "blue" }}>{props.body}</p>}
       <Counter start={1} hydrate="visible" />
       <Slot name="content" />
     </article>

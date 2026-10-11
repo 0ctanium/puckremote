@@ -114,7 +114,7 @@ describe('16. parity: the editor shows exactly what the public site renders', ()
 describe('18. resolveData output never persists', () => {
   it('Puck merges resolveData output into page data (finding); writeTemplate strips it', async () => {
     const h = await testHost({ theme: 'example', mockOrigin: api.origin, pages: {} })
-    const { manifest, id } = h.host.store.get()
+    const { manifest } = h.host.store.get()
     const deps = { manifest, config: h.host.config, source: h.host.source, http: h.host.http, site: h.host.config.site, session: () => h.host.store.get().runtime.session() }
     const editorConfig = buildEditorConfig(manifest, theme, {
       ctx: ctx("/cdn/assets/"),
@@ -129,16 +129,19 @@ describe('18. resolveData output never persists', () => {
     const nested = (resolved.content[0].props.content as any)[0].props.content[0]
     expect(nested.props[RESERVED_DATA_PROP]).toBeDefined() // resolveAllData reaches slot content
 
-    const { writeTemplate, readTemplate } = await import('../src/server/templates.ts')
-    const w = await writeTemplate(h.host.config.artifacts, id, 'home', resolved)
-    const raw = new TextDecoder().decode((await h.host.config.artifacts.readFile(w.id, 'templates/home.json'))!)
+    const { templateChanges, readTemplate } = await import('../src/server/templates.ts')
+    const { themeOps } = await import('../src/server/themes.ts')
+    const themeId = h.host.store.get().theme
+    // Saving = the template + the manifest, through the themes' write path.
+    await themeOps(h.host.config).writeFiles(themeId, await templateChanges(h.host.config.artifacts, themeId, 'home', resolved))
+    const raw = new TextDecoder().decode((await h.host.config.artifacts.readFile(themeId, 'templates/home.json'))!)
     for (const s of [raw, JSON.stringify(stripResolved(resolved))]) {
       expect(s).not.toContain(RESERVED_DATA_PROP)
       expect(s).not.toContain('readOnly')
       expect(s).not.toContain('DRAFT')
     }
-    const manifestFiles = JSON.parse(new TextDecoder().decode((await h.host.config.artifacts.readFile(w.id, 'manifest.json'))!)).files
-    const stored = await readTemplate(h.host.config.artifacts, w.id, { files: manifestFiles }, 'home')
+    const manifestFiles = JSON.parse(new TextDecoder().decode((await h.host.config.artifacts.readFile(themeId, 'manifest.json'))!)).files
+    const stored = await readTemplate(h.host.config.artifacts, themeId, { files: manifestFiles }, 'home')
     // Everything else survives (Puck also normalises: empty slot arrays, root id/type, zones).
     expect(stored).toEqual(JSON.parse(JSON.stringify(stripResolved(resolved))))
     expect((stored!.content[0].props.content as any)[0].props.content[0].props.heading).toBe('Nested')

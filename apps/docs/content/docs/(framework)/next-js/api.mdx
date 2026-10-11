@@ -24,18 +24,20 @@ Returns a `PuckRemote`:
 <TypeTable
   type={{
     loadTemplate: {
-      description: "Resolves data and renders every block of the named template in the sandbox. Calls notFound() for unknown templates and on origins.host (theme scripts never run next to the admin session). Memoized per request, so your generateMetadata and the page share one render pass.",
+      description: "Resolves data and renders every block of the named template in the sandbox. Calls notFound() for unknown templates and on origins.host (theme scripts never run next to the admin session). Memoized per request, so your generateMetadata and the page share one render pass. With a valid preview cookie, renders the previewed theme (template.preview is set) and passes the live reload cookie, if any.",
       type: '(name: string, opts?: LoadTemplateOptions) => Promise<PreparedTemplate>',
     },
     loadEditor: {
-      description: "The payload for <PuckEditorFrame> (core.editorPayload) for the named template and its params. Calls notFound() outside origins.host. Check your own session before calling it.",
-      type: '(name: string, opts?: { params?: Record<string, string> }) => Promise<EditorPayload>',
+      description: "The payload for <PuckEditorFrame> (core.editorPayload) for the named template and its params, on the main theme or opts.theme (a theme id). Calls notFound() outside origins.host. Check your own session before calling it.",
+      type: '(name: string, opts?: { params?: Record<string, string>; theme?: string }) => Promise<EditorPayload>',
     },
     loadEditorPage: {
       description: "Props for <PuckRemoteEditor> on your editor page: { allowedParents: origins.host }. Calls notFound() outside origins.editor.",
       type: '() => Promise<{ allowedParents: string[] }>',
     },
     createThemeHandler: { description: "Route handlers for theme files (assets and the browser bundle).", type: '() => { GET, HEAD }' },
+    createArtifactsHandler: { description: "Route handlers for the artifacts API (routes.api), what the CLI publishes through. authorize is required: return true to allow the request. Answers 404 outside origins.host.", type: '(opts: { authorize: (request: Request, action: ApiAction) => boolean | Promise<boolean> }) => { GET, POST, PATCH, DELETE }' },
+    createPreviewHandler: { description: "Route handler for the preview route (routes.preview) on the public site: ?token= starts a preview, ?exit ends it.", type: '() => { GET }' },
     core: { description: "The underlying engine (createCore): readTemplate, writeTemplate, resolveBlockData…", type: 'PuckRemoteCore' },
   }}
 />
@@ -80,6 +82,25 @@ Puck's RSC renderer, and theme scripts carrying the CSP nonce.
 
 <TypeTable type={{ template: { description: "The result of remote.loadTemplate().", type: 'PreparedTemplate', required: true } }} />
 
+### Artifacts API and preview routes
+
+```ts title="app/api/themes/[[...path]]/route.ts"
+import { remote } from '@/puck-remote';
+
+export const { GET, POST, PATCH, DELETE } = remote.createArtifactsHandler({
+  // Your auth: here one deploy token. Scope by action.kind / action.theme if you need to.
+  authorize: (request, action) => isValidDeployToken(request.headers.get('authorization')),
+});
+```
+
+```ts title="app/theme/preview/route.ts"
+import { remote } from '@/puck-remote';
+
+export const { GET } = remote.createPreviewHandler();
+```
+
+See [HTTP API](/docs/http-api#artifacts-api) and [Local theme development](/docs/guides/theme-dev).
+
 ## `createProxy(config, options?)`
 
 <TypeTable
@@ -103,17 +124,23 @@ For each request the proxy:
    [editor's headers](/docs/security-headers#editor) and a fresh CSP nonce. Every other path,
    `routes.editor` itself included, answers 404 ([D-0282](/docs/internal/decisions#D-0282));
 3. on `origins.host`, rewrites every path under `routes.admin` (`/x` → `/admin/x`, `/` →
-   `/admin`), except the theme route, which the editor loads from there. Old links already under
+   `/admin`), except the theme route, which the editor loads from there, and the artifacts API
+   route (`routes.api`, passed through with `cache-control: no-store`,
+   [D-0422](/docs/internal/decisions#D-0422)). Old links already under
    the prefix (`/admin`, `/admin/x`) get a 307 redirect to `/` or `/x`, query string kept
    ([D-0307](/docs/internal/decisions#D-0307));
-4. on other origins, answers 404 for `routes.editor/**`, and for `routes.admin/**` when `origins`
-   is configured;
+4. on other origins, answers 404 for `routes.editor/**` and `routes.api/**`, and for
+   `routes.admin/**` when `origins` is configured;
 5. sets [security headers](/docs/security-headers) with a fresh CSP nonce and hands the nonce to
    Next: the admin policy on `origins.host` (frames only the editor origin), the site policy
    elsewhere;
 6. on public pages that `options.template` maps to a template, sets `x-template-cacheable: true`,
    or `false` with `cache-control: no-store` and `x-uncacheable-blocks` when a block reads URL
-   query parameters ([D-0389](/docs/internal/decisions#D-0389)).
+   query parameters ([D-0389](/docs/internal/decisions#D-0389)). A request carrying the preview
+   cookie gets `cache-control: private, no-store` and `x-template-cacheable: false` instead; with a
+   valid live reload cookie too, the site CSP's `connect-src` also allows that loopback origin
+   ([D-0495](/docs/internal/decisions#D-0495))
+   ([D-0480](/docs/internal/decisions#D-0480)).
 
 ## `withPuckRemote(nextConfig?)`
 

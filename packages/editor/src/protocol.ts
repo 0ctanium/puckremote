@@ -13,7 +13,7 @@
 import type { EditorPayload, TemplateData } from "@puck-remote/core";
 import { z } from "zod";
 
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 export const LIMITS = {
   /** Max size of one RPC request or result (JSON bytes). */
@@ -192,7 +192,8 @@ const originsSchema = z.strictObject({
   editor: z.string(),
 });
 const payloadSchema = z.strictObject({
-  artifact: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+  theme: z.string().regex(/^[0-9a-f]{12}$/),
+  hash: z.string().regex(/^[0-9a-f]{64}$/),
   template: z.string().max(200),
   params: z.record(z.string(), z.string().max(1024)),
   // Root fields and defaults (the app's merged with the theme's); validated like the manifest.

@@ -14,6 +14,7 @@
     "architecture/worker-pool",
     "architecture/worker-protocol",
     "architecture/artifact-loader",
+    "architecture/themes-and-preview",
     "architecture/query-resolver",
     "architecture/host-source",
     "architecture/http-source",

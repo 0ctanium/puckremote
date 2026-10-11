@@ -3,5 +3,11 @@
   "description": "@puck-remote/cli: build and publish themes",
   "root": true,
   "icon": "Terminal",
-  "pages": ["index", "commands", "build-output", "programmatic-api"]
+  "pages": [
+    "index",
+    "commands",
+    "configuration",
+    "build-output",
+    "programmatic-api"
+  ]
 }

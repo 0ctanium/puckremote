@@ -110,10 +110,10 @@ is removed. Compare it with the last published version to show unsaved changes.
 
 ## The editor page (Next.js)
 
-The proxy serves `routes.editor` (default `/editor`) at the root of `origins.editor` and answers
+The proxy serves `routes.editor` (default `/theme/editor`, [D-0549](/docs/internal/decisions#D-0549)) at the root of `origins.editor` and answers
 404 for it on every other origin.
 
-```tsx title="app/editor/page.tsx"
+```tsx title="app/theme/editor/page.tsx"
 import { remote } from '@/puck-remote';
 import { EditorPage } from './EditorPage';
 
@@ -126,7 +126,7 @@ export default async function Editor() {
 }
 ```
 
-```tsx title="app/editor/EditorPage.tsx"
+```tsx title="app/theme/editor/EditorPage.tsx"
 'use client';
 import '@puckeditor/core/no-external.css';
 import { PuckRemoteEditor } from '@puck-remote/editor/react';
@@ -195,7 +195,7 @@ export const rpc = { currentUser } satisfies RpcHandlers;
 export type AdminRpc = typeof rpc;
 ```
 
-```tsx title="app/editor/EditorPage.tsx"
+```tsx title="app/theme/editor/EditorPage.tsx"
 import type { AdminRpc } from '@/app/admin/editor/rpc';
 
 function Badge() {

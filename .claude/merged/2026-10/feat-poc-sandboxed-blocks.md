@@ -42,7 +42,7 @@ hardened process-level sandboxing. These were the spec's own non-goals.
 | D-0006 | No custom/external Puck fields, no permissions/resolvePermissions/function options; visibleIf replaces resolveFields; rich pickers only as host:* fields | user | accepted |
 | D-0007 | root.tsx uses defineRoot through the same pipeline; page body passed as <Slot name="children" /> | user | superseded by D-0385 |
 | D-0008 | Client JS, custom assets and iframes are allowed in block output (Shopify-like permissiveness) | user | accepted |
-| D-0009 | Single tenant: one site, one active artifact pointer | user | accepted |
+| D-0009 | Single tenant: one site, one active artifact pointer | user | superseded by D-0407 |
 | D-0010 | The developer builds; the host never builds. A CLI produces and publishes artifacts | user | accepted |
 | D-0011 | Client-side data loading (pagination, load more) is the theme developer's responsibility; out of scope | user | accepted |
 | D-0012 | Pages using $query params are uncacheable: flagged in the manifest, Cache-Control no-store, editor notice | user | accepted |
