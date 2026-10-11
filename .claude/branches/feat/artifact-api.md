@@ -217,6 +217,7 @@ D-0559).
 | D-0557 | No redirects from the old /puck-remote/* and /editor paths (unpublished) | user-approved-plan | accepted |
 | D-0558 | CLI API errors name the route itself '/' (e.g. 'GET /: 401 unauthorized') since paths are relative to url | agent-unreviewed | needs-review |
 | D-0559 | Installation docs: admin page moved to app/admin/editor/page.tsx reading ?previewPath= (trimmed slashes, none -> home); app trees list api/themes, cdn, theme/editor and theme/preview; a theme/preview/route.ts tab added | agent-unreviewed | needs-review |
+| D-0560 | CI smoke step runs 'puck-remote package' on the example theme (build + package, no host) instead of 'release', which now needs a running host; pushing is covered by cli-api.test.ts | agent-unreviewed | needs-review |
 <!-- decisions:end -->
 
 ## Decision Record
@@ -314,6 +315,9 @@ PUCK_REMOTE_TOKEN=dev-token against the running host).
   an empty main theme triggered a reload (D-0530); `no-dev-code` flagged `themes.ts`, which hashes
   uploaded bundles (D-0542). Old example data (artifacts layout) was moved aside, not migrated
   (D-0541).
+- CI on PR #3 failed at the smoke step `pnpm --filter theme release`: `push --live` now uploads
+  to a running host, and CI has none (`fetch failed`). The step now runs `puck-remote package`
+  (build + package, offline); pushing stays covered by `cli-api.test.ts` (D-0560).
 - Next refuses two dev servers in one app folder; the owner approved stopping the other session's
   server (PID 83965).
 
