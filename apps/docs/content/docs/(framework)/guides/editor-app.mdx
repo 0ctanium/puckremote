@@ -68,6 +68,98 @@ other. The editor page provides the real panel under the same name
 (`<PuckRemoteEditor plugins>`, below). The canvas toolbar (viewports, zoom) stays in the frame,
 next to the canvas it measures.
 
+### Template switcher
+
+Pass `templateHref` and the header's title becomes a template selector, like Shopify's
+([D-0622](/docs/internal/decisions#D-0622)). The button shows the template being edited
+(`blog / post`). It opens a list of the theme's templates and folders
+([D-0643](/docs/internal/decisions#D-0643)):
+
+- Clicking a folder shows its contents, with a back button and a breadcrumb
+  ([D-0640](/docs/internal/decisions#D-0640)).
+- Templates are links to the URL you return, and the current one is checked.
+- The template being edited is always listed, even when the theme has no file for it yet
+  (Publish creates it).
+- With the keyboard: the arrows, Home and End move; → opens a folder; ← or Backspace goes back;
+  Escape closes ([D-0641](/docs/internal/decisions#D-0641)).
+
+```tsx
+<PuckEditorFrame
+  // Same rule as your public pages: 'home' is '/', 'blog/post' is '/blog/post'.
+  templateHref={(name) => `/editor?previewPath=${encodeURIComponent(name === 'home' ? '/' : `/${name}`)}`}
+  …
+/>
+```
+
+Switching templates leaves the page, so warn about unpublished changes yourself. For example,
+add a `beforeunload` listener while the data differs from the published state
+([D-0626](/docs/internal/decisions#D-0626)).
+
+#### Your own tree
+
+By default the selector lists every template, with folders following `templates/`. To choose
+what it shows (labels, order, only some template names, as Shopify does), pass your own
+component as `templateSwitcher` and compose `<TemplateSelector>`
+([D-0635](/docs/internal/decisions#D-0635)):
+
+```tsx
+import { TemplateSelector } from '@puck-remote/editor/frame';
+
+// Module scope: a component defined during render remounts on every render.
+function MySwitcher() {
+  return (
+    <TemplateSelector>
+      <TemplateSelector.Template name="home" label="Home" />
+      <TemplateSelector.Template name="about" label="About" />
+      <TemplateSelector.Folder path="blog" label="Blog">
+        <TemplateSelector.Template name="blog/index" label="Default" />
+        <TemplateSelector.Template name="blog/dance" label="Dance" />
+      </TemplateSelector.Folder>
+    </TemplateSelector>
+  );
+}
+
+<PuckEditorFrame templateHref={…} templateSwitcher={MySwitcher} … />
+```
+
+- `Template` takes the template `name`, the one `templateHref` receives (no `.json`).
+- `Folder` takes a `path` that identifies it. Folders can nest.
+- `label` defaults to the last segment of the name or path.
+- Templates and folders can be wrapped in your own components, and you decide the order.
+
+`<TemplateSelector>` reads the current template and `templateHref` from `<PuckEditorFrame>`
+([D-0636](/docs/internal/decisions#D-0636)); pass `current` and `href` to use it elsewhere.
+
+Your switcher also receives `{ current, templates, href }`, where `templates` is the theme's
+templates. `<TemplateSelector.Auto templates={…} />` renders a list of names the default way
+([D-0637](/docs/internal/decisions#D-0637)). For example, to allow only some names:
+
+```tsx
+import { TemplateSelector, type TemplateSwitcherProps } from '@puck-remote/editor/frame';
+
+const ALLOWED = ['home', 'product', 'collection'];
+
+function MySwitcher({ current, templates }: TemplateSwitcherProps) {
+  return (
+    <TemplateSelector>
+      <TemplateSelector.Auto templates={templates.filter((name) => ALLOWED.includes(name) || name === current)} />
+    </TemplateSelector>
+  );
+}
+```
+
+Helpers:
+- `templateNames(manifest)` returns the theme's template names.
+- `templateTree(names)` returns them as `{ templates, folders: [{ path, tree }] }`.
+
+An explicit `headerTitle` replaces the selector, and `templateSwitcher={false}` turns it off
+([D-0624](/docs/internal/decisions#D-0624)).
+
+The selector follows Puck's look: it uses Puck's CSS variables (`--puck-color-*`,
+`--puck-radius-*`, `--puck-font-*`), so it follows your Puck theme
+([D-0642](/docs/internal/decisions#D-0642)). For finer changes, target its `prt-` classes
+(`prt-trigger`, `prt-content`, `prt-row`, `prt-crumbs`…).
+
 ### Your own layout
 
 Pass children to replace the native layout. `<PuckEditorFrame>` still provides Puck's context, so
@@ -90,8 +182,10 @@ use Puck's components and hooks, and place `<PuckEditorFrame.Canvas />` where th
     editorOrigin: { description: "Defaults to editorUrl's origin; must match payload.origins.editor.", type: 'string' },
     resolveData: { description: "Data for one block, e.g. a server action calling core.resolveBlockData with the template name and params it receives. Needed when blocks declare data.", type: '(block, props, template: { name, params }) => Promise<data>' },
     onPublish: { description: "Puck's native Publish button (your server action, with your session).", type: '(data) => void' },
-    headerTitle: { description: "Header title; defaults to the page path.", type: 'string' },
+    headerTitle: { description: "Header title; replaces the template switcher. Without it and without templateHref: the template name as a path.", type: 'string' },
     headerPath: { description: "Header path.", type: 'string' },
+    templateHref: { description: "URL of the editor on another template (e.g. ?previewPath=). Set it to show the template switcher in the header.", type: '(name: string) => string' },
+    templateSwitcher: { description: "Your own switcher (e.g. a composed <TemplateSelector>), or false for none.", type: 'ComponentType<TemplateSwitcherProps> | false', default: 'TemplateSwitcher' },
     plugins: { description: "Plugins in the rail; framePlugin(name) for the ones whose panel renders in the frame.", type: 'Plugin[]', default: "[framePlugin('blocks'), outlinePlugin()]" },
     overrides: { description: "Puck overrides for this side (headerActions, fields, fieldLabel…). preview is always the frame.", type: 'Partial<Overrides>' },
     options: { description: "JSON options applied on both sides: permissions (also enforced on the actions the frame proposes), categories, locales, flags, extra.", type: 'EditorOptions' },
@@ -110,10 +204,10 @@ is removed. Compare it with the last published version to show unsaved changes.
 
 ## The editor page (Next.js)
 
-The proxy serves `routes.editor` (default `/editor`) at the root of `origins.editor` and answers
+The proxy serves `routes.editor` (default `/theme/editor`, [D-0549](/docs/internal/decisions#D-0549)) at the root of `origins.editor` and answers
 404 for it on every other origin.
 
-```tsx title="app/editor/page.tsx"
+```tsx title="app/theme/editor/page.tsx"
 import { remote } from '@/puck-remote';
 import { EditorPage } from './EditorPage';
 
@@ -126,7 +220,7 @@ export default async function Editor() {
 }
 ```
 
-```tsx title="app/editor/EditorPage.tsx"
+```tsx title="app/theme/editor/EditorPage.tsx"
 'use client';
 import '@puckeditor/core/no-external.css';
 import { PuckRemoteEditor } from '@puck-remote/editor/react';
@@ -195,7 +289,7 @@ export const rpc = { currentUser } satisfies RpcHandlers;
 export type AdminRpc = typeof rpc;
 ```
 
-```tsx title="app/editor/EditorPage.tsx"
+```tsx title="app/theme/editor/EditorPage.tsx"
 import type { AdminRpc } from '@/app/admin/editor/rpc';
 
 function Badge() {

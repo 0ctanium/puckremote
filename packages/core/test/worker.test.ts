@@ -119,7 +119,7 @@ describe('secrets never reach a worker', () => {
       const runtime = workerPoolRenderer({ size: 1, log: quietLog, tap })({ id: "test", bundle, limits: testConfig().isolate })
       const h = await dataDeps({ mockOrigin: api.origin, runtime })
       const { byInstance } = await resolvePageData(
-        { instances: [{ id: 'e', props: { count: 2, city: '' }, meta: h.deps.manifest.blocks['event-list'] }], env: env(), mode: 'public' },
+        { instances: [{ id: 'e', props: { count: 2, city: '' }, meta: h.deps.manifest.blocks['event-list'] }], env: env() },
         h.deps,
       )
       expect(byInstance.get('e')!.events).toMatchObject({ ok: true })

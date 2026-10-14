@@ -31,13 +31,55 @@ export const myCms = () =>
   });
 ```
 
+## Who is asking: `requireRequest`
+
+By default a source never sees the request: every query is anonymous. A source that answers per
+visitor (a CMS with access control, members-only content, drafts for signed-in editors) declares
+`requireRequest: true`. Every query then receives `ctx.request`:
+
+- on public pages and previews, the visitor's request (rebuilt from the page's headers by the
+  Next.js bindings: the headers and the origin, not the path);
+- in the editor, the request your `resolveData` handler forwards (`core.resolveBlockData(…, { request })`),
+  or none;
+- `null` when there is no request: treat it as anonymous.
+
+The source decides who the request belongs to (a session cookie, a token…). Theme code never sees
+the request ([D-0595](/docs/internal/decisions#D-0595)).
+
+```ts
+defineDataSource({
+  name: 'my-cms',
+  requireRequest: true,
+  collections: {
+    posts: defineCollection<Post, true>()({          // `true`: ctx.request is typed
+      fields: { title: { type: 'text' } },
+      find: async (query, ctx) => {
+        const user = ctx.request ? await userOf(ctx.request) : null; // null: anonymous
+        return findVisibleTo(user, query);
+      },
+    }),
+  },
+  globals: {},
+});
+```
+
+A collection or global that reads `ctx.request` in a source without `requireRequest: true` is a
+type error.
+
+<Callout type="warn">
+Results that vary per visitor must not be cached for everyone. With `requireRequest: true`, every
+template running a query of this source is **uncacheable**: `cacheable: false`, and the Next.js
+proxy answers `cache-control: no-store` ([D-0596](/docs/internal/decisions#D-0596)). Templates
+using only HTTP adapters or no data stay cacheable.
+</Callout>
+
 ## Collection policy
 
 <TypeTable
   type={{
     fields: { description: "Exposed fields. Anything not listed is never selectable, filterable, sortable or returned.", type: 'Record<string, CollectionField>', required: true },
     limits: { description: "Default and maximum page size, and maximum relation depth.", type: '{ default?: number; max?: number; maxDepth?: number }', default: '{ default: 10, max: 100, maxDepth: 0 }' },
-    find: { description: "Run a validated, normalized query.", type: '(query: NormalizedFind, ctx: SourceContext) => Promise<{ docs; totalDocs }>', required: true },
+    find: { description: "Run a validated, normalized query.", type: '(query: NormalizedFind, ctx: SourceContext<R>) => Promise<{ docs; totalDocs }>', required: true },
     findByID: { description: "Optional; falls back to find with id equals.", type: '(id, { select, depth }, ctx) => Promise<RawDoc | null>' },
   }}
 />
@@ -63,7 +105,7 @@ export const myCms = () =>
     'query.page': { description: "1-based page.", type: 'number' },
     'query.select': { description: "Requested fields (always includes id), or null for all exposed fields.", type: 'string[] | null' },
     'query.depth': { description: "Relation population depth, already clamped.", type: 'number' },
-    'ctx.mode': { description: "'draft' for editor requests, 'public' otherwise. Decided by the host; you decide what draft means (e.g. include unpublished documents).", type: "'public' | 'draft'" },
+    'ctx.request': { description: "Only with requireRequest: true. The request the query runs for, or null (anonymous). You decide who it is.", type: 'Request | null' },
     'ctx.locale': { description: "Requested locale.", type: 'string' },
     'ctx.signal': { description: "Aborted when the page's data deadline passes.", type: 'AbortSignal' },
   }}
@@ -80,13 +122,17 @@ An in-memory example (posts, authors, a `site` global) loaded from JSON. Useful 
 ```ts
 import { mockCms } from '@puck-remote/source-mock';
 
-source: mockCms({ dataFile: path.join(process.cwd(), 'data/cms.json') }),
+source: mockCms({
+  dataFile: path.join(process.cwd(), 'data/cms.json'),
+  canReadDrafts: (request) => !!sessionOf(request), // drafts for signed-in admins only
+}),
 ```
 
 <TypeTable
   type={{
     dataFile: { description: "JSON file with { collections, globals }.", type: 'string' },
     data: { description: "The same data inline (tests).", type: 'MockData' },
+    canReadDrafts: { description: "Which requests may read draft docs (_status: 'draft'), e.g. your admin-session check. Given, the source declares requireRequest. Without it, drafts are never returned.", type: '(request: Request) => boolean | Promise<boolean>' },
   }}
 />
 

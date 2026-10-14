@@ -62,6 +62,7 @@ export function ctx(overrides: Partial<CtxInput> = {}): CtxInput {
 // ---------------------------------------------------------------------------
 import { startMockApi } from 'mock-api'
 import { fsArtifactStore } from '@puck-remote/artifacts-fs'
+import { ThemeConflictError } from '@puck-remote/sdk/host'
 import { HttpSource, type Resolver } from '../src/server/query/http-source.ts'
 import { mockCms } from '@puck-remote/source-mock'
 import { HostSource } from '../src/server/query/host-source.ts'
@@ -113,7 +114,10 @@ export function recordingSession(s: RenderSession, rec: Recorder): RenderSession
   return s
 }
 
-export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; resolver?: Resolver; rec?: Recorder; runtime?: RenderRuntime }) {
+/** A request the test sources built with `canReadDrafts: (r) => r.headers.get('authorization') === 'editor'` let read drafts. */
+export const editorRequest = () => new Request('http://admin.test/', { headers: { authorization: 'editor' } })
+
+export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; resolver?: Resolver; rec?: Recorder; runtime?: RenderRuntime; canReadDrafts?: (request: Request) => boolean }) {
   const { manifest, bundle } = await buildExample()
   const m = structuredClone(manifest)
   m.adapters.events.origin = opts.mockOrigin // test seam: mock API runs on a random port
@@ -123,7 +127,7 @@ export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; 
   let session: Promise<RenderSession> | null = null
   const http = new HttpSource({ config: config.http, secrets: config.secrets, resolver: opts.resolver })
   // A fresh source per harness so content edits in one test don't leak into another.
-  const cms = mockCms({ dataFile: path.join(REPO_ROOT, 'examples', 'app', 'data', 'cms.json') })
+  const cms = mockCms({ dataFile: path.join(REPO_ROOT, 'examples', 'app', 'data', 'cms.json'), canReadDrafts: opts.canReadDrafts })
   const deps = {
     manifest: m,
     config,
@@ -155,12 +159,55 @@ export const env = (query: Record<string, string> = {}) => ({
 // ---------------------------------------------------------------------------
 // Full-host harness (an artifact with pages in a temp dir)
 // ---------------------------------------------------------------------------
-import { publish } from '@puck-remote/cli'
-import { cp, mkdtemp, mkdir, readFile as readF, writeFile } from 'node:fs/promises'
+import { cp, mkdtemp, mkdir, readdir, readFile as readF, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { createHost } from '../src/server/host.ts'
 
 const sha = (b: string | Uint8Array) => createHash('sha256').update(b).digest('hex')
+
+type Store = import('@puck-remote/sdk/host').ArtifactStore
+const toStore = (t: Store | string): Store => (typeof t === 'string' ? fsArtifactStore({ dir: t }) : t)
+
+async function listDist(dir: string, base = dir): Promise<string[]> {
+  const out: string[] = []
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name)
+    if (e.isDirectory()) out.push(...(await listDist(p, base)))
+    else out.push(path.relative(base, p).split(path.sep).join('/'))
+  }
+  return out
+}
+
+/**
+ * Write dist/ into a theme, like `puck-remote push`: the main theme by default (created if
+ * missing), a new theme of another `role`, or an existing `theme`. Returns the theme id, its new
+ * hash and the version key (`<theme>-<hash>`) the loader uses.
+ */
+export async function publish(opts: {
+  distDir: string
+  artifacts: Store | string
+  role?: 'main' | 'unpublished' | 'development'
+  theme?: string
+  quiet?: boolean
+}): Promise<{ id: string; theme: string; hash: string }> {
+  const store = toStore(opts.artifacts)
+  const files: Record<string, Uint8Array> = {}
+  for (const rel of await listDist(opts.distDir)) files[rel] = new Uint8Array(await readF(path.join(opts.distDir, rel)))
+  const role = opts.role ?? 'main'
+  const { themes } = await store.readThemes()
+  const existing = opts.theme ? themes.find((t) => t.id === opts.theme) : role === 'main' ? themes.find((t) => t.role === 'main') : undefined
+  const theme = existing?.id ?? createHash('sha256').update(`${role}${themes.length}${Math.random()}`).digest('hex').slice(0, 12)
+  await store.deleteFiles(theme)
+  await store.writeFiles(theme, { put: files })
+  const hash = sha(files['manifest.json'])
+  const at = new Date().toISOString()
+  const { version, themes: now } = await store.readThemes()
+  const next = existing
+    ? now.map((t) => (t.id === theme ? { ...t, hash, updatedAt: at } : t))
+    : [...now, { id: theme, name: role === 'main' ? 'Main' : `Theme ${now.length + 1}`, role, hash, createdAt: at, updatedAt: at }]
+  await store.writeThemes(next, { expect: version })
+  return { id: `${theme}-${hash}`, theme, hash }
+}
 
 /** Copy a built theme and replace its templates (templates/<name>.json, listed in manifest.files). */
 export async function withPages(distDir: string, pages: Record<string, unknown>): Promise<string> {
@@ -201,31 +248,37 @@ export async function testHost(opts: { theme: 'example' | 'evil'; pages: Record<
   return { host, dir, artifactsDir, close: async () => { host.store.close(); await host.http.close() } }
 }
 
-/** An in-memory ArtifactStore with counter ids ("a1", "a2"…): the core must not assume hashes. */
+/** An in-memory ArtifactStore (the core must not depend on the filesystem layout). */
 export function counterStore(): import('@puck-remote/sdk/host').ArtifactStore {
-  const artifacts = new Map<string, Record<string, Uint8Array>>()
-  let pointer: string | null = null
+  const files = new Map<string, Map<string, Uint8Array>>()
+  let themes: import('@puck-remote/sdk/host').Theme[] = []
+  let version = 0
   const safe = (p: string) => !!p && !p.startsWith('/') && !p.includes('\\') && !p.includes('\0') && !p.split('/').some((s) => s === '..' || s === '.' || s === '')
   return {
-    async readPointer() {
-      return pointer
+    async readThemes() {
+      return { version: String(version), themes: structuredClone(themes) }
     },
-    async writePointer(id) {
-      if (!artifacts.has(id)) throw new Error(`no artifact ${id}`)
-      pointer = id
+    async writeThemes(next, opts) {
+      if (opts.expect !== String(version)) throw new ThemeConflictError()
+      themes = structuredClone(next)
+      version++
     },
-    async list() {
-      return [...artifacts.keys()]
-    },
-    async readFile(id, p) {
+    async readFile(theme, p) {
       if (!safe(p)) return null
-      return artifacts.get(id)?.[p] ?? null
+      return files.get(theme)?.get(p) ?? null
     },
-    async writeArtifact(files) {
-      for (const p of Object.keys(files)) if (!safe(p)) throw new Error(`unsafe path ${p}`)
-      const id = `a${artifacts.size + 1}`
-      artifacts.set(id, { ...files })
-      return id
+    async writeFiles(theme, changes) {
+      for (const p of [...Object.keys(changes.put ?? {}), ...(changes.delete ?? [])]) if (!safe(p)) throw new Error(`unsafe path ${p}`)
+      const f = files.get(theme) ?? new Map<string, Uint8Array>()
+      files.set(theme, f)
+      for (const [p, b] of Object.entries(changes.put ?? {})) f.set(p, b)
+      for (const p of changes.delete ?? []) f.delete(p)
+    },
+    async copyFiles(from, to) {
+      files.set(to, new Map(files.get(from) ?? []))
+    },
+    async deleteFiles(theme) {
+      files.delete(theme)
     },
   }
 }

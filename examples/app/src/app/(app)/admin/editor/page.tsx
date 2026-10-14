@@ -1,3 +1,4 @@
+import { isThemeId } from "@puck-remote/core";
 import { normalizeSlug } from "@/template-name.ts";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/auth.ts";
@@ -11,12 +12,28 @@ const EDITOR_URL =
   `${remote.core.config.origins?.editor}/`;
 
 export default async function AdminPage(props: {
-  params: Promise<{ path?: string[] }>;
+  searchParams: Promise<{ previewPath?: string | string[]; theme?: string | string[] }>;
 }) {
   const { user } = await requireSession();
-  // The same path → template mapping as the public catch-all page.
-  const name = normalizeSlug((await props.params).path);
+  const search = await props.searchParams;
+  // ?previewPath=/blog/post opens the template that page renders (like Shopify's theme editor),
+  // with the same path → template mapping as the public catch-all page; none → home.
+  if (Array.isArray(search.previewPath)) notFound();
+  const name = normalizeSlug(search.previewPath);
   if (!name) notFound();
-  const payload = await remote.loadEditor(name, { params: { slug: name } });
-  return <ClientEditor payload={payload} editorUrl={EDITOR_URL} user={user} />;
+  // ?theme=<id> edits another theme (e.g. a developer's) instead of the main one.
+  const ref = search.theme;
+  if (ref !== undefined && !isThemeId(ref)) notFound();
+  const theme = ref ? await remote.core.themes.get(ref) : await remote.core.themes.main();
+  if (!theme) notFound();
+  const payload = await remote.loadEditor(name, { params: { slug: name }, theme: theme.id });
+  return (
+    <ClientEditor
+      payload={payload}
+      editorUrl={EDITOR_URL}
+      user={user}
+      theme={{ id: theme.id, name: theme.name, role: theme.role }}
+      themeParam={ref ?? null}
+    />
+  );
 }

@@ -9,7 +9,6 @@ import type { Manifest, QuerySpec } from '../manifest-schema.ts'
 import type { Instance } from '../page-tree.ts'
 import type { HttpSource } from './http-source.ts'
 import { hashSpec, QueryError, substitute, type ParamEnv } from './params.ts'
-import type { Mode } from '@puck-remote/sdk/host'
 import type { HostSource } from './host-source.ts'
 
 export type QueryResult = { ok: true; data: unknown } | { ok: false; error: string }
@@ -28,8 +27,8 @@ export interface ResolveDeps {
 export interface ResolveInput {
   instances: Pick<Instance, 'id' | 'props' | 'meta'>[]
   env: Omit<ParamEnv, 'props'>
-  /** Set by the host only: 'draft' for editor requests, 'public' otherwise. */
-  mode: Mode
+  /** The request the page or block data is resolved for, passed to the host source only (never to theme code). None: anonymous. */
+  request?: Request
 }
 
 export interface ResolveStats {
@@ -70,7 +69,7 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
     for (const [key, spec] of Object.entries(inst.meta.data)) {
       planned++
       const concrete = substitute(spec, { ...input.env, props: inst.props }) as QuerySpec
-      const hash = hashSpec({ mode: concrete.source === 'host' ? input.mode : 'any', concrete })
+      const hash = hashSpec(concrete)
       const p = plan.get(hash) ?? { hash, spec: concrete, consumers: [] }
       p.consumers.push({ instanceId: inst.id, key })
       plan.set(hash, p)
@@ -96,7 +95,7 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
     runnable.map(async (p) => {
       try {
         executed++
-        const data = await Promise.race([execute(p.spec, input.mode, input.env.template.locale, deps, deadline), overDeadline])
+        const data = await Promise.race([execute(p.spec, input.request, input.env.template.locale, deps, deadline), overDeadline])
         const bytes = Buffer.byteLength(JSON.stringify(data) ?? '')
         outcomes.set(p.hash, { result: { ok: true, data }, bytes })
       } catch (e) {
@@ -130,10 +129,10 @@ export async function resolvePageData(input: ResolveInput, deps: ResolveDeps): P
   }
 }
 
-async function execute(spec: QuerySpec, mode: Mode, locale: string, deps: ResolveDeps, signal: AbortSignal): Promise<unknown> {
+async function execute(spec: QuerySpec, request: Request | undefined, locale: string, deps: ResolveDeps, signal: AbortSignal): Promise<unknown> {
   switch (spec.source) {
     case 'host': {
-      const ctx = { mode, locale, signal }
+      const ctx = { request, locale, signal }
       if (spec.op === 'find') return deps.source.find(spec.collection, spec.args as Record<string, unknown>, ctx)
       if (spec.op === 'findByID') return deps.source.findByID(spec.collection, spec.id, spec.args as Record<string, unknown>, ctx)
       return deps.source.global(spec.slug, ctx)

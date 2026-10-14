@@ -1,16 +1,32 @@
 ---
 title: Programmatic API
-description: Use build, publish, pull and activate from Node, with any artifact store.
+description: Use build, package, push, publish, pull, dev and the theme commands from Node.
 ---
 
 ```ts
-import { activate, build, publish, pull } from '@puck-remote/cli';
+import { build, loadCliConfig, publish, pull, push } from '@puck-remote/cli';
 
-await pull({ cwd: 'my-theme', artifacts: myS3Store });
-await build({ cwd: 'my-theme', outDir: 'dist', quiet: true });
-const { id } = await publish({ distDir: 'my-theme/dist', artifacts: myS3Store }); // any ArtifactStore
-await activate(myS3Store, id);
+const config = await loadCliConfig({ cwd: 'my-theme' }); // puck-remote.cli.ts, or {}
+const api = { url: config.url!, headers: config.headers, fetch: config.fetch };
+
+await pull({ cwd: 'my-theme', api });
+const { outDir } = await build({ cwd: 'my-theme', outDir: 'dist', quiet: true });
+const { theme } = await push({ api, distDir: outDir, unpublished: true, name: 'Release 42' });
+await publish(api, theme.id); // now the main theme
 ```
+
+Every API call takes an `ApiTarget`:
+
+<TypeTable
+  type={{
+    url: { description: "Base URL of the host's artifacts API.", type: 'string', required: true },
+    headers: { description: "Added to every request; a function is called per request.", type: 'Record<string, string> | (() => Record<string, string> | Promise<…>)' },
+    fetch: { description: "Sends each request (headers already added).", type: '(request: Request) => Promise<Response>', default: 'global fetch' },
+  }}
+/>
+
+API errors throw `ApiError` with the HTTP `status` and a message such as
+`GET /: 401 unauthorized` (paths relative to `url`).
 
 ## `build(options)`
 
@@ -26,36 +42,93 @@ Returns `{ manifest, outDir }`. Throws `BuildError` with a path-prefixed message
 `BROWSER_EXTERNALS` lists the imports `bundle.browser.js` and `bundle.islands.js` leave to the page
 (`BROWSER_MODULES_GLOBAL` names the global they read them from).
 
-## `publish(options)`
+## `packDist(distDir)` and `writePackage(options)`
+
+`packDist` returns the package bytes (`.tar.gz`) of a build output. `writePackage({ distDir, cwd,
+file?, quiet? })` writes them to `file` (default `<cwd>/<package name>-<bundle hash>.tar.gz`) and
+returns `{ file, bytes }`.
+
+## `push(options)`
 
 <TypeTable
   type={{
-    distDir: { description: "A build output folder.", type: 'string', required: true },
-    artifacts: { description: "An ArtifactStore, or a directory path (file-system store).", type: 'ArtifactStore | string', required: true },
+    api: { description: "The host's artifacts API.", type: 'ApiTarget', required: true },
+    distDir: { description: "A build output folder: only the files that differ from the theme's are uploaded…", type: 'string' },
+    file: { description: "…or an existing package, uploaded whole.", type: 'string' },
+    theme: { description: "Update this theme (id or name).", type: 'string' },
+    live: { description: "Update the main theme (created when missing).", type: 'boolean' },
+    unpublished: { description: "Create an unpublished theme.", type: 'boolean' },
+    name: { description: "Name of a theme this push creates.", type: 'string' },
+    packageName: { description: "Default names: '<packageName>' (main) or '<packageName> (<6 hex>)'.", type: 'string', default: "'Theme'" },
     quiet: { description: "No console output.", type: 'boolean', default: 'false' },
   }}
 />
 
-Returns `{ id }`, the id the store gave the artifact, which is now current.
+Returns `{ theme, previewUrl?, sent, removed }` (the files uploaded, `manifest.json` included, and
+the files the theme no longer has). Without `theme`, `live` or `unpublished`, it targets the
+main theme on a single-theme site and throws on a site with several themes.
+
+## Theme commands
+
+| Function | Returns |
+|---|---|
+| `publish(api, ref)` | `{ theme }`, now main |
+| `listThemes(api, { role? })` | `Theme[]` |
+| `renameTheme(api, ref, name)` | `{ theme }` |
+| `deleteTheme(api, ref)` | the deleted `Theme` |
+| `duplicateTheme(api, ref, { name? })` | `{ theme, previewUrl? }` |
+| `share({ api, distDir \| file })` | `{ theme, previewUrl?, sent, removed }` (a new `Share (…)` unpublished theme) |
+
+`ref` is a theme id, or a name that exactly one theme has (`resolveTheme(themes, ref)`).
 
 ## `pull(options)`
 
 <TypeTable
   type={{
-    cwd: { description: "Theme folder; pages go to <cwd>/pages.", type: 'string', required: true },
-    artifacts: { description: "An ArtifactStore, or a directory path.", type: 'ArtifactStore | string', required: true },
-    artifact: { description: "An artifact id.", type: 'string', default: 'the current artifact' },
+    cwd: { description: "Theme folder; templates go to <cwd>/templates.", type: 'string', required: true },
+    api: { description: "The host's artifacts API.", type: 'ApiTarget', required: true },
+    theme: { description: "Theme to pull from (id or name).", type: 'string', default: 'the main theme' },
     quiet: { description: "No console output.", type: 'boolean', default: 'false' },
   }}
 />
 
-Returns `{ id, pages }` (the files written). Throws when nothing was published.
+Returns `{ theme, templates }` (the theme id and the files written).
 
-## `activate(artifacts, id)`
+## `dev(options)`
 
 <TypeTable
   type={{
-    artifacts: { description: "An ArtifactStore, or a directory path.", type: 'ArtifactStore | string', required: true },
-    id: { description: "An existing artifact id.", type: 'string', required: true },
+    cwd: { description: "Theme folder (watched).", type: 'string', required: true },
+    api: { description: "The host's artifacts API.", type: 'ApiTarget', required: true },
+    theme: { description: "Develop on this theme instead of the device's development theme.", type: 'string' },
+    outDir: { description: "Build output folder.", type: 'string', default: "'dist'" },
+    debounceMs: { description: "Delay after the last change before a push.", type: 'number', default: '300' },
+    devThemesFile: { description: "Where the device's development theme id is kept.", type: 'string', default: 'devThemesFile()' },
+    hostname: { description: "Device name in a new development theme's name.", type: 'string', default: 'os.hostname()' },
+    reload: { description: "Live reload server: false for none, or its port.", type: 'false | { port?: number }', default: '{ port: 9293 }' },
+    log: { description: "Where messages go.", type: '{ log, error }', default: 'console' },
   }}
 />
+
+Resolves after the first push with `{ theme: { id, name }, previewUrl?, reloadUrl?, pushes(), close() }`
+(`close()` returns a promise); rejects
+when the first push fails for another reason than a build error (for example on a single-theme
+site). `deleteDevTheme(api, { devThemesFile? })` deletes the device's development theme and forgets
+it.
+
+Helpers: `generateThemeName(context, hostname?)` (`Development (a3f9c1-macbook)`, at most 50
+characters), `devThemesFile()`, `getDevTheme(url)`, `setDevTheme(url, id | null)`, `apiKey(url)`.
+
+## `loadCliConfig({ cwd, file? })`, `defineCliConfig`, `startReloadServer({ port? })`
+
+`loadCliConfig` imports the theme folder's [config file](/docs/cli/configuration) (or `file`) and
+returns it, `{}` when there is none. `defineCliConfig` (also from `@puck-remote/cli/config`) types
+it. `startReloadServer` is `dev`'s live reload server: `{ url, port, reload({ theme, hash }),
+clients(), close() }`.
+
+## `createClient(api)`
+
+The raw API client: `listThemes`, `getTheme`, `createTheme({ name, role })`, `renameTheme`,
+`pushFiles(id, package, { expect? })`, `readFile(id, path)`, `publishTheme`, `duplicateTheme`,
+`deleteTheme`. `pushDist(client, theme, distDir, { expect? })` does a partial push (it is what `push`
+and `dev` use), and `diffManifests(local, remote)` says which files it would send.

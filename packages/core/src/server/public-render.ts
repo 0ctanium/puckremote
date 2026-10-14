@@ -1,10 +1,12 @@
 /**
- * Public render pipeline (D3): load a template from the current artifact → rewrite unknown blocks → resolve ALL data for the page
+ * Public render pipeline (D3): load a template from the main theme (or a previewed one) → rewrite unknown blocks → resolve ALL data for the page
  * (host walker, dedupe, budget) → render root + every block in ONE fresh isolate context →
  * hand Puck's RSC <Render> a map of pre-rendered HTML. Puck components then only parse HTML.
  */
 import type { Host } from './host.ts'
-import type { RenderSession } from './runtime/types.ts'
+import type { ThemeRole } from '@puck-remote/sdk/host'
+import type { LoadedArtifact } from './artifact-loader.ts'
+import type { RenderRuntime, RenderSession } from './runtime/types.ts'
 import type { Manifest } from './manifest-schema.ts'
 import { collectInstances, renderProps, restoreMissing, rewriteMissing, ROOT_ID, type Instance, type TemplateData } from './page-tree.ts'
 import { checkParams, readTemplate, stripResolved } from './templates.ts'
@@ -29,14 +31,26 @@ export interface TemplateOptions {
   query?: Record<string, string>
   /** Overrides the site locale (e.g. from i18n routing). */
   locale?: string
+  /**
+   * Render this theme (id) instead of the main one (a preview). Unknown theme: null, like an
+   * unknown template. Framework bindings set it from the preview cookie.
+   */
+  theme?: string
+  /** A `puck-remote dev` live reload server (loopback origin) the preview page listens to. Ignored without `theme`. */
+  reload?: string
+  /**
+   * The request the page renders for, forwarded to the data source (`SourceContext.request`), which
+   * decides who it is. None: anonymous queries. Never reaches theme code.
+   */
+  request?: Request
 }
 
 export interface PreparedTemplate {
   /** CSP nonce for the template's <script> tags; set by framework bindings when they enforce a CSP. */
   scriptNonce?: string
-  /** The artifact the template and its blocks come from. */
-  artifact: string
-  /** The artifact manifest the template was rendered with (to build the matching Puck config). */
+  /** The theme (and its version) the template and its blocks come from. */
+  theme: { id: string; hash: string }
+  /** The theme manifest the template was rendered with (to build the matching Puck config). */
   manifest: Manifest
   template: string
   params: Record<string, string>
@@ -45,17 +59,23 @@ export interface PreparedTemplate {
   /** The theme's islands bundle, when this template has islands. */
   islandsUrl?: string
   head: ReturnType<typeof mergeEffects>
+  /** Set when the template was rendered from `TemplateOptions.theme` (a preview): never cache it. */
+  preview?: { theme: { id: string; name: string; role: ThemeRole }; reload?: string }
   cacheable: boolean
   uncacheableBlocks: string[]
   stats: { data: ResolveStats; renderMs: number; blocks: number; failures: number; contextMs: number }
 }
 
-export async function prepareTemplate(host: Host, name: string, opts: TemplateOptions = {}): Promise<PreparedTemplate | null> {
+export async function prepareTemplate(
+  host: Host,
+  name: string,
+  opts: TemplateOptions = {},
+  artifact: LoadedArtifact<RenderRuntime> = host.store.get(),
+): Promise<PreparedTemplate | null> {
   const params = checkParams(opts.params)
   const query = opts.query ?? {}
-  const artifact = host.store.get()
-  const { manifest, runtime: runner, id } = artifact
-  const template = await readTemplate(host.config.artifacts, id, manifest, name)
+  const { manifest, runtime: runner } = artifact
+  const template = await readTemplate(host.config.artifacts, artifact.theme, manifest, name)
   if (!template) return null
 
   const tCtx = performance.now()
@@ -67,11 +87,15 @@ export async function prepareTemplate(host: Host, name: string, opts: TemplateOp
     const contextMs = performance.now() - tCtx
     const data = rewriteMissing(stripResolved(template), manifest)
     const instances = collectInstances(data, manifest)
-    const uncacheableBlocks = [...new Set(instances.filter((i) => i.meta?.usesRequestParams).map((i) => i.name))]
+    const queryBlocks = [...new Set(instances.filter((i) => i.meta?.usesRequestParams).map((i) => i.name))]
+    // A source that reads the request may answer per visitor: its queries make the page uncacheable.
+    const personal = host.source.source.requireRequest === true
+    const requestBlocks = personal ? [...new Set(instances.filter((i) => Object.values(i.meta?.data ?? {}).some((s) => s.source === 'host')).map((i) => i.name))] : []
+    const uncacheableBlocks = [...new Set([...queryBlocks, ...requestBlocks])]
     const locale = opts.locale ?? host.config.site.locale
-    const env = { template: { name, locale }, params, site: host.config.site, query: uncacheableBlocks.length ? query : {} }
+    const env = { template: { name, locale }, params, site: host.config.site, query: queryBlocks.length ? query : {} }
     const { byInstance, stats } = await resolvePageData(
-      { instances, env, mode: 'public' },
+      { instances, env, request: opts.request },
       { manifest, config: host.config, source: host.source, http: host.http, session: getSession },
     )
 
@@ -100,9 +124,10 @@ export async function prepareTemplate(host: Host, name: string, opts: TemplateOp
       } else effects.push(r.effects)
       rendered[inst.id] = { ok: r.ok, html: r.ok ? r.html : '', nonce: r.nonce, islands: r.ok ? r.islands : [], error: r.ok ? undefined : r.kind }
     }
-    if (uncacheableBlocks.length) console.info(`[cache] template ${name} is uncacheable: uses request params via ${uncacheableBlocks.join(', ')}`)
+    if (queryBlocks.length) console.info(`[cache] template ${name} is uncacheable: uses request params via ${queryBlocks.join(', ')}`)
+    if (requestBlocks.length) console.info(`[cache] template ${name} is uncacheable: the data source reads the request (requireRequest) in ${requestBlocks.join(', ')}`)
     return {
-      artifact: id,
+      theme: { id: artifact.theme, hash: artifact.hash },
       manifest,
       template: name,
       params,

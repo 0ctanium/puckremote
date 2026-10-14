@@ -22,11 +22,13 @@ import {
   useMemo,
   useRef,
   useState,
+  type ComponentType,
   type CSSProperties,
   type ReactNode,
   type RefObject,
 } from "react";
 import { buildEditorConfig, MISSING_TYPE, placeholderTheme } from "./config.tsx";
+import { TemplateSelectorProvider, templateNames, TemplateSwitcher, type TemplateSwitcherProps } from "./template-selector.tsx";
 import type { HostFieldFactories } from "./fields.ts";
 import {
   editorToHostSchema,
@@ -47,6 +49,15 @@ export { stripResolved } from "./config.tsx";
 export { colorField, linkField, mediaField } from "./host-fields.tsx";
 export type { HostFieldFactories } from "./fields.ts";
 export type { FrameAction, ItemSelector, RpcHandler, RpcHandlers, TypedRpc } from "./protocol.ts";
+export {
+  TemplateSelector,
+  templateNames,
+  TemplateSwitcher,
+  templateTree,
+  type TemplateSelectorProps,
+  type TemplateSwitcherProps,
+  type TemplateTree,
+} from "./template-selector.tsx";
 
 export interface PuckEditorFrameProps {
   /** URL of the editor page (served on the editor origin). */
@@ -82,9 +93,19 @@ export interface PuckEditorFrameProps {
   plugins?: Plugin[];
   /** Puck's native Publish button. */
   onPublish?: (data: TemplateData) => void;
-  /** Header title (default: the template name as a path) and path. */
+  /**
+   * Header title and path. An explicit headerTitle replaces the template switcher; without one
+   * (and without templateHref) the title is the template name as a path.
+   */
   headerTitle?: string;
   headerPath?: string;
+  /**
+   * URL of the editor on another template (e.g. `?previewPath=/blog/post`). Set it to show the
+   * template switcher in the header instead of the title.
+   */
+  templateHref?: (name: string) => string;
+  /** Your own switcher instead of the default <TemplateSwitcher>, or false for none. */
+  templateSwitcher?: ComponentType<TemplateSwitcherProps> | false;
   /** Your own layout instead of Puck's native one: place <PuckEditorFrame.Canvas /> and Puck's components. */
   children?: ReactNode;
 }
@@ -412,7 +433,7 @@ function Canvas({ title = "Page editor", className, style }: { title?: string; c
     );
   return (
     <iframe
-      key={`${p.payload.artifact}:${p.payload.template}`}
+      key={`${p.payload.theme}:${p.payload.hash}:${p.payload.template}`}
       ref={ctx.iframe}
       src={p.editorUrl}
       title={title}
@@ -498,15 +519,32 @@ export function PuckEditorFrame(props: PuckEditorFrameProps) {
     [editorOrigin, frameReady, framePluginNames],
   );
 
+  const templates = useMemo(() => {
+    const names = templateNames(manifest);
+    return names.includes(payload.template) ? names : [...names, payload.template].sort();
+  }, [manifest, payload.template]);
+  const Switcher = props.templateSwitcher === undefined ? TemplateSwitcher : props.templateSwitcher;
+  const href = props.templateHref;
+  // Puck types headerTitle as a string but renders it as a React child (in its title heading).
+  const headerTitle =
+    props.headerTitle ??
+    (href && Switcher
+      ? ((
+          <TemplateSelectorProvider current={payload.template} href={href}>
+            <Switcher current={payload.template} templates={templates} href={href} />
+          </TemplateSelectorProvider>
+        ) as unknown as string)
+      : `/${payload.template === "home" ? "" : payload.template}`);
+
   return (
     <FrameContext.Provider value={value}>
       <Puck
-        key={`${payload.artifact}:${payload.template}`}
+        key={`${payload.theme}:${payload.hash}:${payload.template}`}
         config={config}
         data={payload.data as unknown as Data}
         onChange={(data) => latest.current.onChange?.(data as unknown as TemplateData)}
         onPublish={(data) => latest.current.onPublish?.(data as unknown as TemplateData)}
-        headerTitle={props.headerTitle ?? `/${payload.template === "home" ? "" : payload.template}`}
+        headerTitle={headerTitle}
         headerPath={props.headerPath}
         permissions={options.permissions}
         overrides={overrides}

@@ -17,7 +17,9 @@ import { stripResolved } from '../src/server/templates.ts'
 import { prepareTemplate } from '../src/server/public-render.ts'
 import { buildRscConfig } from '../src/server/puck-rsc.tsx'
 import { resolvePageData } from '../src/server/query/resolver.ts'
-import { buildExample, startMockApi, testHost, type MockApi } from './helpers.ts'
+import { mockCms } from '@puck-remote/source-mock'
+import { HostSource } from '../src/server/query/host-source.ts'
+import { buildExample, editorRequest, REPO_ROOT, startMockApi, testHost, type MockApi } from './helpers.ts'
 
 let api: MockApi
 let theme: ThemeModule
@@ -90,7 +92,7 @@ describe('16. parity: the editor shows exactly what the public site renders', ()
     const session = await h.host.store.get().runtime.session()
     const instances = collectInstances(data, manifest)
     const { byInstance } = await resolvePageData(
-      { instances, env: { template: { name: 'home', locale: 'en' }, params: {}, site: h.host.config.site, query: {} }, mode: 'public' },
+      { instances, env: { template: { name: 'home', locale: 'en' }, params: {}, site: h.host.config.site, query: {} } },
       { manifest, config: h.host.config, source: h.host.source, http: h.host.http, session: async () => session },
     )
     session.release()
@@ -114,31 +116,36 @@ describe('16. parity: the editor shows exactly what the public site renders', ()
 describe('18. resolveData output never persists', () => {
   it('Puck merges resolveData output into page data (finding); writeTemplate strips it', async () => {
     const h = await testHost({ theme: 'example', mockOrigin: api.origin, pages: {} })
-    const { manifest, id } = h.host.store.get()
-    const deps = { manifest, config: h.host.config, source: h.host.source, http: h.host.http, site: h.host.config.site, session: () => h.host.store.get().runtime.session() }
+    const { manifest } = h.host.store.get()
+    // A source letting the editor's request read drafts (the app's admin-session check in a real app).
+    const source = new HostSource(mockCms({ dataFile: path.join(REPO_ROOT, 'examples', 'app', 'data', 'cms.json'), canReadDrafts: (r) => r.headers.get('authorization') === 'editor' }))
+    const deps = { manifest, config: h.host.config, source, http: h.host.http, site: h.host.config.site, session: () => h.host.store.get().runtime.session() }
     const editorConfig = buildEditorConfig(manifest, theme, {
       ctx: ctx("/cdn/assets/"),
-      resolve: async (block, props) => (await resolveBlock(blockDataSchema.parse({ block, props, template: 'home' }), deps)).data,
+      resolve: async (block, props) => (await resolveBlock(blockDataSchema.parse({ block, props, template: 'home' }), deps, editorRequest())).data,
     })
     // Exactly what the editor holds after resolveData ran for every block (incl. nested slots).
     const resolved = (await resolveAllData(PAGE as any, editorConfig)) as unknown as TemplateData
     const json = JSON.stringify(resolved)
     expect(json).toContain(`"${RESERVED_DATA_PROP}"`) // Puck stores it in props…
     expect(json).toContain('"readOnly"') // …and marks it read-only
-    expect(json).toContain('DRAFT: Unannounced') // editor data is draft-mode data
+    expect(json).toContain('DRAFT: Unannounced') // the editor's request may read drafts
     const nested = (resolved.content[0].props.content as any)[0].props.content[0]
     expect(nested.props[RESERVED_DATA_PROP]).toBeDefined() // resolveAllData reaches slot content
 
-    const { writeTemplate, readTemplate } = await import('../src/server/templates.ts')
-    const w = await writeTemplate(h.host.config.artifacts, id, 'home', resolved)
-    const raw = new TextDecoder().decode((await h.host.config.artifacts.readFile(w.id, 'templates/home.json'))!)
+    const { templateChanges, readTemplate } = await import('../src/server/templates.ts')
+    const { themeOps } = await import('../src/server/themes.ts')
+    const themeId = h.host.store.get().theme
+    // Saving = the template + the manifest, through the themes' write path.
+    await themeOps(h.host.config).writeFiles(themeId, await templateChanges(h.host.config.artifacts, themeId, 'home', resolved))
+    const raw = new TextDecoder().decode((await h.host.config.artifacts.readFile(themeId, 'templates/home.json'))!)
     for (const s of [raw, JSON.stringify(stripResolved(resolved))]) {
       expect(s).not.toContain(RESERVED_DATA_PROP)
       expect(s).not.toContain('readOnly')
       expect(s).not.toContain('DRAFT')
     }
-    const manifestFiles = JSON.parse(new TextDecoder().decode((await h.host.config.artifacts.readFile(w.id, 'manifest.json'))!)).files
-    const stored = await readTemplate(h.host.config.artifacts, w.id, { files: manifestFiles }, 'home')
+    const manifestFiles = JSON.parse(new TextDecoder().decode((await h.host.config.artifacts.readFile(themeId, 'manifest.json'))!)).files
+    const stored = await readTemplate(h.host.config.artifacts, themeId, { files: manifestFiles }, 'home')
     // Everything else survives (Puck also normalises: empty slot arrays, root id/type, zones).
     expect(stored).toEqual(JSON.parse(JSON.stringify(stripResolved(resolved))))
     expect((stored!.content[0].props.content as any)[0].props.content[0].props.heading).toBe('Nested')

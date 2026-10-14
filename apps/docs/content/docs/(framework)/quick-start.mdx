@@ -32,18 +32,6 @@ Packages ship compiled ESM; `pnpm dev` keeps them rebuilding in watch mode.
 </Step>
 <Step>
 
-### Publish the example theme
-
-```bash
-pnpm --filter theme release
-```
-
-This runs `puck-remote build && puck-remote publish` and creates `examples/app/data/artifacts/<id>` and
-`examples/app/data/artifacts/current.json`.
-
-</Step>
-<Step>
-
 ### Start the mock API
 
 ```bash
@@ -66,34 +54,57 @@ pnpm --filter host dev
 | Public site | `http://localhost:3100/` (or `http://site.localhost:3100/`) |
 | Search page (uncacheable) | `http://localhost:3100/search?q=nonce` |
 | Admin login (demo: `admin` / `admin`) | `http://admin.localhost:3100/login` |
-| Admin dashboard (signed-in user, current theme, editor link, Log out) | `http://admin.localhost:3100/` |
-| Admin page (editor frame + Publish) | `http://admin.localhost:3100/editor` (served by `/admin/editor`, requires the login) |
+| Admin dashboard (theme library: Customize, Preview, Publish, Delete) | `http://admin.localhost:3100/` |
+| Admin page (editor frame + Publish) | `http://admin.localhost:3100/editor` (served by `/admin/editor`, requires the login); `?previewPath=/search` opens the template of that page, `&theme=<id>` another theme |
 | Editor (embedded only, served by the same app) | `http://127.0.0.1:3100/` |
 
 One app answers all three origins: `*.localhost` resolves to loopback, so the site and the admin
 pages are two origins, and `127.0.0.1` is another site for the editor. On the editor origin only
 the editor page is reachable, at `/`, and every other path is 404. On the admin hostname, every
-path is served from the app's `/admin` pages (`/editor` → `/admin/editor`). `/admin` and `/editor`
-answer 404 on the public site.
+path is served from the app's `/admin` pages (`/editor` → `/admin/editor`). `/admin` and the editor page
+(`/theme/editor`) answer 404 on the public site.
+
+</Step>
+<Step>
+
+### Publish the example theme
+
+With the host running, publish through its artifacts API. `examples/theme/puck-remote.cli.ts`
+gives the CLI the API's URL and the token the example app accepts (`dev-token` in development):
+
+```bash
+pnpm --filter theme release
+```
+
+This runs `puck-remote push --live`: it builds the theme, uploads it to
+`http://admin.localhost:3100/api/themes` and points the main theme at it (created on the first
+push): `examples/app/data/artifacts/themes.json` and the theme's files in
+`examples/app/data/artifacts/themes/<id>/`. Running it again sends only what changed. Reload the site.
 
 </Step>
 <Step>
 
 ### Change the theme
 
-Pages edited in the admin page live in the published artifacts. Bring them into the theme first:
+Templates edited in the admin page live in the theme's files on the host. Bring them into the theme repo first:
 
 ```bash
 pnpm --filter theme pull
 ```
 
-Edit a block in `examples/theme/blocks` (and the pages in `examples/theme/pages` that use it), then
-run `pnpm --filter theme release` again. The host picks up the new artifact within 2 seconds, with
-no restart. Roll back by activating an older artifact id (see `ls examples/app/data/artifacts`):
+Then work on your device's development theme, without touching the live site (the example enables
+[several themes](/docs/concepts/themes)):
 
 ```bash
-cd examples/theme && ./node_modules/.bin/puck-remote activate <id> --artifacts ../app/data/artifacts
+pnpm --filter theme dev
 ```
+
+It creates `Development (<hash>-<your device>)` on the first run, pushes only the changed files to it
+after every change in `examples/theme` and prints a preview link for `http://localhost:3100`: open it, and the page reloads
+by itself after each push (live reload). The dashboard lists the
+themes, with Customize, Preview, Publish and Delete. When you are done, run `release` again: the
+host switches the main theme at once, with no restart. Themes keep only their current files: to
+roll back, check out an older version of `examples/theme` and run `release` again.
 
 </Step>
 </Steps>
@@ -133,7 +144,7 @@ puck-repository-poc
 | `apps/docs` | This documentation |
 | `examples/theme` | Example theme (the "developer repo"), with its pages |
 | `examples/app/mock/api-server` | External API stand-in |
-| `examples/app/data` | Published theme artifacts (`artifacts/`, git-ignored) and CMS seed data (`cms.json`) |
+| `examples/app/data` | The site's themes and their files (`artifacts/`, git-ignored) and CMS seed data (`cms.json`) |
 
 ## Useful commands
 

@@ -18,7 +18,8 @@ import {
 const ADMIN = "https://admin.example.com";
 const EDITOR = "https://editor.example.net";
 const payload: EditorPayload = {
-  artifact: "a".repeat(64),
+  theme: "0123456789ab",
+  hash: "a".repeat(64),
   template: "home",
   params: {},
   root: { fields: {}, defaultProps: {} },

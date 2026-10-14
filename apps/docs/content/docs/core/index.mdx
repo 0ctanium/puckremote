@@ -4,20 +4,22 @@ description: "@puck-remote/core: load remote theme components (code and template
 icon: Cpu
 ---
 
-`@puck-remote/core` loads and verifies theme artifacts (code and templates), runs blocks in the
-sandbox, resolves their data, renders templates with Puck, reads and writes templates inside
-artifacts, and prepares what the editor needs. It has no framework imports and no authority of its
+`@puck-remote/core` loads the site's themes (code and templates), runs blocks in the sandbox,
+resolves their data, renders templates with Puck, reads and writes templates inside themes, and
+prepares what the editor needs. It has no framework imports and no authority of its
 own ([D-0187](/docs/internal/decisions#D-0187)): routing, auth, publishing workflows and caching
 belong to your app.
 
 ## Templates
 
-Like a Shopify theme, an artifact carries **templates**: named Puck documents
+Like a Shopify theme, a theme carries **templates**: named Puck documents
 (`templates/<name>.json`) with any root props. The core never maps URLs to templates: your app
 decides which template a route renders and which **params** it gets (for example
 `/products/[handle]` → template `product` with `{ handle }`), and builds the page metadata from
 the template's root props ([D-0371](/docs/internal/decisions#D-0371),
-[D-0370](/docs/internal/decisions#D-0370)).
+[D-0370](/docs/internal/decisions#D-0370)). Templates can be nested in directories
+(`templates/blog/post.json` is the template `blog/post`); `templateNameOf(file)` maps a theme file
+path to its template name, or null ([D-0632](/docs/internal/decisions#D-0632)).
 
 ```npm
 npm install @puck-remote/core
@@ -42,33 +44,38 @@ const core = createCore(config);
 ```
 
 Returns one **process-wide runtime per `config.id`** (memoized on `globalThis`), so every route of
-your app shares the same artifact loader and worker pool. The first artifact is loaded lazily on
+your app shares the same theme loader and worker pool. The main theme is loaded lazily on
 first use.
 
 <TypeTable
   type={{
     prepareTemplate: {
-      description: "Resolves the template's data and renders every block of a template of the current artifact in the sandbox. Returns null for an unknown template. Throws TemplateError for invalid params.",
+      description: "Resolves the template's data and renders every block of a template of the main theme (or of opts.theme) in the sandbox. Returns null for an unknown template or theme. Throws TemplateError for invalid params.",
       type: '(name: string, opts?: TemplateOptions) => Promise<PreparedTemplate | null>',
     },
     readTemplate: {
-      description: "A template of the current artifact, or of another one. null when the artifact has no such template.",
-      type: '(name: string, opts?: { artifact?: string }) => Promise<{ artifact: string; data: TemplateData } | null>',
+      description: "A template of the main theme or of another theme, with that theme's hash. null when there is no such template or theme.",
+      type: '(name: string, opts?: { theme?: string }) => Promise<{ theme: string; hash: string; data: TemplateData } | null>',
     },
     writeTemplate: {
-      description: "Validates and cleans the template, writes it into a copy of `base` and returns the new artifact's id. Never moves the pointer. Throws TemplateError on invalid input.",
-      type: '(name: string, data: unknown, opts: { base: string }) => Promise<{ id: string }>',
+      description: "Validates and cleans the template and saves it into the theme: templates/<name>.json and the updated manifest, nothing else. With expect, refused (ThemeError 409) when the theme's hash changed since. Returns the theme's new hash. Throws TemplateError on invalid input.",
+      type: '(name: string, data: unknown, opts: { theme: string; expect?: string }) => Promise<{ hash: string }>',
     },
     editorPayload: {
-      description: "What <PuckEditorFrame> sends to the editor: template, params, merged root fields, manifest, theme URLs, origins. Throws ConfigError without `origins`.",
-      type: '(name: string, opts?: { artifact?: string; params?: Record<string, string> }) => Promise<EditorPayload>',
+      description: "What <PuckEditorFrame> sends to the editor: template, params, merged root fields, manifest, theme URLs, origins. With theme, edits that theme. Throws ConfigError without `origins`, TemplateError for an unknown theme.",
+      type: '(name: string, opts?: { theme?: string; params?: Record<string, string> }) => Promise<EditorPayload>',
     },
     resolveBlockData: {
-      description: "Data for one block in draft mode (the editor's resolveData). Only the block name, its props and the template's params come from the caller. Throws UnknownBlockError.",
-      type: '(name: string, block: string, props: Record<string, unknown>, opts?: { params?: Record<string, string> }) => Promise<{ data; usesRequestParams }>',
+      description: "Data for one block (the editor's resolveData), with the main theme or opts.theme. Only the block name, its props and the template's params come from the caller. opts.request is forwarded to a data source declaring requireRequest (none: anonymous). Throws UnknownBlockError, TemplateError for an unknown theme.",
+      type: '(name: string, block: string, props: Record<string, unknown>, opts?: { params?: Record<string, string>; theme?: string; request?: Request }) => Promise<{ data; usesRequestParams }>',
     },
     handleTheme: { description: "Serves /cdn/assets/**, /cdn/bundle.browser.js and /cdn/bundle.islands.js, versioned by ?v= (GET, HEAD).", type: '(request: Request) => Promise<Response>' },
-    host: { description: "The stateful services (artifact loader, data source, HTTP client). Advanced use.", type: '() => Promise<Host>' },
+    handleArtifactsApi: { description: "The artifacts API under routes.api (themes and their files, for the CLI). authorize is required. See [HTTP API](/docs/http-api#artifacts-api).", type: '(request: Request, opts: { authorize: AuthorizeApi }) => Promise<Response>' },
+    handlePreview: { description: "routes.preview: ?token= starts a preview of a theme (sets the preview cookie), ?exit ends it. 404 without `preview`.", type: '(request: Request) => Response' },
+    createPreviewUrl: { description: "A signed link starting a preview of a theme on origins.site, or null (main theme, single-theme site, no `preview` or `origins.site`).", type: '(theme: { id; role }) => string | null' },
+    previewTheme: { description: "The theme id a preview cookie value selects, or null (invalid, expired, preview disabled).", type: '(cookieValue: string | null | undefined) => string | null' },
+    themes: { description: "List and change the site's themes: list, get, main, create, rename, writeFiles, publish, delete, duplicate, prune. See [Themes](/docs/concepts/themes#in-code).", type: 'ThemeOps' },
+    host: { description: "The stateful services (theme loader, preview runtimes, data source, HTTP client). Advanced use.", type: '() => Promise<Host>' },
     config: { description: "The resolved configuration, defaults applied.", type: 'HostConfig' },
   }}
 />
@@ -80,6 +87,9 @@ first use.
     params: { description: "Page-specific data, read by `$params` refs and `ctx.params`. At most 32 string values of up to 1 KB.", type: 'Record<string, string>' },
     query: { description: "The request's URL search params, read by `$query` refs.", type: 'Record<string, string>' },
     locale: { description: "Overrides `site.locale` (e.g. from i18n routing).", type: 'string' },
+    theme: { description: "Render this theme (id) instead of the main one (a preview). Unknown theme: null, like an unknown template. Bindings set it from the preview cookie.", type: 'string' },
+    reload: { description: "A puck-remote dev live reload server (loopback origin, from the reload cookie). Ignored without theme or when not loopback.", type: 'string' },
+    request: { description: "The request the page renders for, forwarded to a data source declaring requireRequest (none: anonymous). Never reaches theme code. Bindings pass it.", type: 'Request' },
   }}
 />
 
@@ -89,12 +99,13 @@ first use.
   type={{
     template: { description: "The template's name.", type: 'string' },
     params: { description: "The params it was rendered with.", type: 'Record<string, string>' },
-    artifact: { description: "Id of the artifact the template and its blocks come from.", type: 'string' },
-    manifest: { description: "Manifest of that artifact.", type: 'Manifest' },
+    theme: { description: "The theme (and its version) the template and its blocks come from.", type: '{ id: string; hash: string }' },
+    manifest: { description: "Manifest of that theme version.", type: 'Manifest' },
     data: { description: "Template data as rendered (unknown blocks marked as missing). Build your metadata from `data.root.props`.", type: 'TemplateData' },
     rendered: { description: "Pre-rendered HTML per block instance.", type: 'Record<string, { ok: boolean; html: string; nonce: string; error?: string }>' },
     head: { description: "Stylesheets and scripts requested by blocks, deduped.", type: '{ styles; scripts }' },
-    cacheable: { description: "false when a block reads URL query parameters.", type: 'boolean' },
+    preview: { description: "Set when rendered from TemplateOptions.theme (a preview). Show a preview banner with it ([D-0456](/docs/internal/decisions#D-0456)). With reload, <PuckRemoteTemplate> adds a nonced live reload script.", type: '{ theme: { id; name; role }; reload?: string }' },
+    cacheable: { description: "false when a block reads URL query parameters, when a block runs a query of a source declaring requireRequest, or for a preview.", type: 'boolean' },
     uncacheableBlocks: { description: "Which blocks made the template uncacheable.", type: 'string[]' },
     scriptNonce: { description: "CSP nonce for theme scripts, set by bindings.", type: 'string' },
     stats: { description: "Timings, query counts, failures.", type: 'object' },
@@ -105,11 +116,12 @@ first use.
 
 <TypeTable
   type={{
-    artifact: { description: "The artifact being edited (use it as writeTemplate's base).", type: 'string' },
+    theme: { description: "The theme being edited.", type: 'string' },
+    hash: { description: "Its version when the editor opened (pass it to writeTemplate as expect).", type: 'string' },
     template: { description: "The template's name.", type: 'string' },
     params: { description: "The params the app passed (the editor resolves data with them).", type: 'Record<string, string>' },
     root: { description: "Root fields and defaults: the app's (`config.root`) first, then the theme's.", type: '{ fields; defaultProps }' },
-    manifest: { description: "The artifact's manifest (JSON).", type: 'Manifest' },
+    manifest: { description: "The theme's manifest (JSON).", type: 'Manifest' },
     data: { description: "The template, or an empty one with the root defaults.", type: 'TemplateData' },
     bundleUrl: { description: "Absolute URL of bundle.browser.js on the first host origin, with ?v=.", type: 'string' },
     assetBase: { description: "Absolute URL prefix of the assets.", type: 'string' },
@@ -123,5 +135,6 @@ first use.
 | Error | When | Answer |
 |---|---|---|
 | `ConfigError` | Invalid config (including `root.fields`), or `editorPayload` without `origins` | Fix the config |
-| `TemplateError` | `writeTemplate` with invalid data, name or base, a template over 2 MB, or invalid params | 400 |
-| `UnknownBlockError` | `resolveBlockData` for a block the artifact doesn't have | 404 |
+| `TemplateError` | `writeTemplate` with invalid data or name, a theme without files, a template over 2 MB, or invalid params | 400 |
+| `ThemeError` | A refused theme operation (`core.themes`, `writeTemplate` with a stale `expect`), with its `status` | 400, 404 or 409 |
+| `UnknownBlockError` | `resolveBlockData` for a block the theme doesn't have | 404 |

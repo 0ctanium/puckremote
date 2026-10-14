@@ -10,7 +10,7 @@
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
     "build": "pnpm -r --filter \"./packages/*\" build",
     "dev": "pnpm -r --parallel --filter \"./packages/*\" --filter host dev",
-    "typecheck": "pnpm -r --filter \"./packages/*\" --filter theme --filter host typecheck",
+    "typecheck": "pnpm -r --filter \"./packages/*\" --filter theme --filter host --filter payload-example typecheck",
     "test": "pnpm build && pnpm -r --workspace-concurrency=1 test",
     "lint:pkg": "pnpm -r --filter \"./packages/*\" lint:pkg",
     "changeset": "changeset",

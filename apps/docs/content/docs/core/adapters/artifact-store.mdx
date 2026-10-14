@@ -1,7 +1,12 @@
 ---
 title: Artifact store
-description: Where theme artifacts (code and pages) and the current-artifact pointer live.
+description: Where the site's themes live - the theme list and each theme's current files (code and templates).
 ---
+
+The artifact store keeps the site's [themes](/docs/concepts/themes): the theme list, and each
+theme's **current files** (`manifest.json`, the bundles, `assets/**`, `templates/**`), like a Shopify
+store keeps its themes' files ([D-0506](/docs/internal/decisions#D-0506)). "Artifact" names a
+theme's built files; there is no history of older versions.
 
 ## `@puck-remote/artifacts-fs`
 
@@ -17,51 +22,71 @@ import { fsArtifactStore } from '@puck-remote/artifacts-fs';
 artifacts: fsArtifactStore({ dir: path.join(process.cwd(), 'artifacts') }),
 ```
 
-<TypeTable type={{ dir: { description: "Directory holding one folder per artifact and current.json.", type: 'string', required: true } }} />
+<TypeTable type={{ dir: { description: "Directory holding themes.json and one folder per theme.", type: 'string', required: true } }} />
 
 ```files
 artifacts
-├── current.json
-├── 1d361ac2d6ec…
-│   ├── manifest.json
-│   ├── bundle.js
-│   ├── bundle.browser.js
-│   ├── assets
-│   └── pages
-└── e1cf82a1deba…
+├── themes.json
+└── themes
+    ├── 0f3a9c21b7d4
+    │   ├── manifest.json
+    │   ├── bundle.js
+    │   ├── bundle.browser.js
+    │   ├── assets
+    │   └── templates
+    └── a3f9c1e2b4d6
 ```
 
-- **Ids are content hashes** ([D-0206](/docs/internal/decisions#D-0206)): sha256 over the sorted lines
-  `<path>\0<sha256(file)>\n` of every file, in full hex (`artifactHash(files)` computes it). The
-  same files always get the same id; writing them again returns the existing artifact.
-- Artifacts are written to a temporary directory, then renamed: a half-written one is never
-  visible. Existing artifacts are never overwritten.
-- `current.json` (`{"id": "…"}`) is replaced atomically (temp file + rename).
-- `watch` reports pointer changes from a directory watcher, so the host switches within ~100 ms.
-- Reads resolve symlinks and refuse anything outside the artifact directory.
+- One folder per theme, holding only its current files ([D-0513](/docs/internal/decisions#D-0513)).
+  A push writes the files that changed **in place**. Each file is written to a temporary name and
+  renamed, so a reader never sees a half-written file. During a push a reader may see some new and
+  some old files, as with a Shopify theme ([D-0509](/docs/internal/decisions#D-0509)); the theme's
+  `hash` only changes once every file is written.
+- `copyFiles` (duplicating a theme) hard-links the files: large assets are not copied, and since
+  writes replace files by rename, changing one theme never changes the other.
+- The theme list is `themes.json` (`{"themes": [...]}`), replaced atomically (temp file + rename).
+  Its version is the sha256 of the file. Writes take a lock file, `.themes.lock`, so the version
+  check is safe across processes; a lock older than 10 seconds is from a crashed writer and is taken
+  over.
+- `watch` reports changes of `themes.json` from a directory watcher (it creates the directory if
+  needed), so the host switches within ~100 ms when the main theme changes.
+- Reads resolve symlinks and refuse anything outside the theme's folder.
+
+## Themes
+
+A site has **themes**, like a Shopify store ([D-0444](/docs/internal/decisions#D-0444)): named sets of
+files with a role and a `hash` (the sha256 of their `manifest.json`, their version). See
+[Themes](/docs/concepts/themes). The core owns every rule: ids, names, roles, one main theme,
+expiry, which files a theme may hold and their sha256 ([D-0514](/docs/internal/decisions#D-0514)).
+The store keeps the list, replaced atomically, and moves bytes.
 
 ## Writing your own
 
-For serverless or several instances, use a shared store (S3, a database…). Ids are yours to
-choose ([D-0189](/docs/internal/decisions#D-0189)): content hashes, counters, database keys. The core treats
-them as opaque strings and only requires `[A-Za-z0-9._-]{1,128}`, because they appear in URLs.
+For serverless or several instances, use a shared store (S3, a database…), such as
+[`payloadArtifactStore`](/docs/core/adapters/payload#artifact-store-payloadartifactstore) when you use Payload.
 
 ```ts
-import type { ArtifactStore } from '@puck-remote/sdk/host';
+import { ThemeConflictError, type ArtifactStore, type Theme } from '@puck-remote/sdk/host';
 ```
 
 <TypeTable
   type={{
-    readPointer: { description: "Current artifact id, or null if nothing was published.", type: '() => Promise<string | null>', required: true },
-    writePointer: { description: "Atomically switch the current artifact (going live, rollback). Refuse unknown ids.", type: '(id: string) => Promise<void>', required: true },
-    list: { description: "All stored artifact ids.", type: '() => Promise<string[]>', required: true },
-    readFile: { description: "Bytes of a file of an artifact, or null.", type: '(id: string, path: string) => Promise<Uint8Array | null>', required: true },
-    writeArtifact: { description: "Store a complete artifact and return its id; must not become visible until fully written. Stored artifacts never change.", type: '(files: Record<string, Uint8Array>) => Promise<string>', required: true },
-    watch: { description: "Optional change feed for the pointer. Without it the host polls readPointer every artifactPollMs.", type: '(onChange: () => void) => () => void' },
+    readThemes: { description: "The theme list and its version (any string; an empty list before the first write).", type: '() => Promise<{ version: string; themes: Theme[] }>', required: true },
+    writeThemes: { description: "Replace the list atomically, only if its version is still `expect`; otherwise throw ThemeConflictError. The core has validated the list.", type: '(themes: Theme[], opts: { expect: string }) => Promise<void>', required: true },
+    readFile: { description: "A file of a theme, or null.", type: '(theme: string, path: string) => Promise<Uint8Array | null>', required: true },
+    writeFiles: { description: "Write (or replace) and remove files of a theme. Each written file must replace the old one atomically; the set of changes need not be atomic.", type: '(theme: string, changes: { put?: Record<string, Uint8Array>; delete?: string[] }) => Promise<void>', required: true },
+    copyFiles: { description: "Copy every file of a theme to another (duplicate).", type: '(from: string, to: string) => Promise<void>', required: true },
+    deleteFiles: { description: "Remove every file of a theme (deleted theme).", type: '(theme: string) => Promise<void>', required: true },
+    watch: { description: "Optional change feed for the theme list. Without it the host polls readThemes every artifactPollMs.", type: '(onChange: () => void) => () => void' },
   }}
 />
 
-The store only moves bytes: the host validates the manifest and verifies every file's hash
-(pages included), and keeps serving the previous artifact if anything is wrong. Paths are
-relative POSIX paths already validated by the host; still refuse escapes. Check your store with
+`writeThemes` is a compare-and-swap: make the version check and the write atomic together (a
+conditional write, a transaction, or a lock). On mismatch, throw `ThemeConflictError` (its `code`
+is `'THEME_CONFLICT'`); the core reads again and retries.
+
+The store only moves bytes. The core writes a theme's changed files first, `manifest.json` last,
+then removals, and only then updates the theme's `hash` in the list
+([D-0514](/docs/internal/decisions#D-0514)). Theme ids are 12 lowercase hex characters; paths are
+relative POSIX paths already validated by the core; still refuse escapes. Check your store with
 [`artifactStoreContract`](/docs/core/adapters/testing).

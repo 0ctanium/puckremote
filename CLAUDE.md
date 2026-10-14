@@ -45,6 +45,7 @@ approved in the session, and a session cannot end with code changes lacking docs
 | Publish example theme | `pnpm --filter theme release` |
 | Mock API (4010) | `pnpm --filter mock-api start` |
 | Host app (3100) | `pnpm --filter host dev` (site `localhost:3100`, admin `admin.localhost:3100/editor`, editor `127.0.0.1:3100/`) |
+| Payload example (3300) | `pnpm --filter payload-example seed`, then `dev` (site `localhost:3300`, Payload admin `admin.localhost:3300/admin`); push the theme with `pnpm --filter theme release:payload` |
 | Docs (3200) | `pnpm docs:dev`, `pnpm docs:build` |
 | Decisions | `pnpm adr new | decision | review | search | list | show | archive | check` |
 | Docs/ADR check | `node scripts/check-docs-adr.mjs` |

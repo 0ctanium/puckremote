@@ -3,11 +3,13 @@
  * prepareTemplate (isolate) → Puck RSC <Render> → HTML.
  */
 import { Render } from '@puckeditor/core/rsc'
+import { mockCms } from '@puck-remote/source-mock'
+import path from 'node:path'
 import { renderToString } from 'react-dom/server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { prepareTemplate } from '../src/server/public-render.ts'
 import { buildRscConfig } from '../src/server/puck-rsc.tsx'
-import { startMockApi, testHost, type MockApi } from './helpers.ts'
+import { REPO_ROOT, startMockApi, testHost, type MockApi } from './helpers.ts'
 
 let api: MockApi
 beforeAll(async () => {
@@ -169,5 +171,24 @@ describe('cacheability', () => {
     expect(html).not.toContain('Declarative data')
     expect((await renderPublic(h, 'home', { q: 'x' })).page.cacheable).toBe(true)
     await h.close()
+  })
+
+  it('with a requireRequest source, templates running host queries are uncacheable', async () => {
+    const pages = {
+      posts: { root: { props: {} }, content: [item('latest-posts', 'l1')] },
+      home: { root: { props: {} }, content: [item('card', 'c1')] },
+    }
+    const source = mockCms({ dataFile: path.join(REPO_ROOT, 'examples', 'app', 'data', 'cms.json'), canReadDrafts: () => false })
+    const h = await testHost({ theme: 'example', mockOrigin: api.origin, pages, config: { source } })
+    const { page } = await renderPublic(h, 'posts', {})
+    expect(page.cacheable).toBe(false)
+    // The example theme's root reads the `site` global: every template runs a host query.
+    expect(page.uncacheableBlocks).toEqual(['root', 'latest-posts'])
+    expect((await renderPublic(h, 'home', {})).page.uncacheableBlocks).toEqual(['root'])
+    await h.close()
+    // The same template stays cacheable when the source never reads the request.
+    const plain = await testHost({ theme: 'example', mockOrigin: api.origin, pages })
+    expect((await renderPublic(plain, 'posts', {})).page.cacheable).toBe(true)
+    await plain.close()
   })
 })

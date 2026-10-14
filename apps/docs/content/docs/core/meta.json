@@ -10,6 +10,7 @@
     "adapters/index",
     "adapters/artifact-store",
     "adapters/data-source",
+    "adapters/payload",
     "adapters/renderer",
     "adapters/testing"
   ]

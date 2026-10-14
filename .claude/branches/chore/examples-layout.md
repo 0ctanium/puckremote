@@ -33,7 +33,7 @@ Renaming packages; fixing the owner's in-progress admin layout (it still answers
 | D-0275 | Package names host and mock-api stay | user | accepted |
 | D-0276 | pnpm-workspace: mock/* replaced by examples/app/mock/*; mock-api stays its own package | user-approved-plan | accepted |
 | D-0277 | PUCK_REMOTE_ROOT keeps its name; default is the app dir (cwd); data at <root>/data/artifacts and <root>/data/cms.json | user-approved-plan | accepted |
-| D-0278 | Example theme scripts publish/release/pull use --artifacts ../app/data/artifacts | user-approved-plan | accepted |
+| D-0278 | Example theme scripts publish/release/pull use --artifacts ../app/data/artifacts | user-approved-plan | superseded by D-0430 |
 | D-0279 | git mv tracked files; .gitignore examples/app/data/artifacts/* (+ .gitkeep); local artifacts moved with mv; empty old folders removed | user-approved-plan | accepted |
 | D-0280 | Code and test references updated: core tests, no-dev-code app roots, bench, check-docs-adr code roots, local launch.json | user-approved-plan | accepted |
 | D-0281 | Docs and CLAUDE.md/README updated to the new paths; generic adapter snippets unchanged | user-approved-plan | accepted |

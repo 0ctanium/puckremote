@@ -23,7 +23,7 @@ See [Core › Adapters](/docs/core/adapters) for each contract and the built-in 
 
 <TypeTable
   type={{
-    artifacts: { description: "Where theme artifacts (code and templates) and the current-artifact pointer live.", type: 'ArtifactStore', required: true },
+    artifacts: { description: "Where theme artifacts (code and templates) and the theme list live.", type: 'ArtifactStore', required: true },
     source: { description: "Answers the find / findByID / global queries of blocks.", type: 'DataSource', required: true },
     renderer: { description: "Where theme code runs.", type: 'RendererFactory', default: 'workerPoolRenderer()' },
   }}
@@ -38,9 +38,12 @@ See [Core › Adapters](/docs/core/adapters) for each contract and the built-in 
       type: 'string[]',
     },
     'origins.editor': { description: "Origin of your editor page (<PuckRemoteEditor>). Must not be a host origin; use another site in production.", type: 'string' },
+    'origins.site': { description: "Canonical public origin of the site. Preview links of non-main themes open there; without it no preview links are made.", type: 'string' },
     'routes.theme': { description: "Prefix of the theme route (assets and bundles, versioned by ?v=); asset URLs given to blocks follow it.", type: 'string', default: "'/cdn'" },
-    'routes.editor': { description: "The app's editor page; the Next proxy serves it at the root of origins.editor (every other path there is 404) and hides it elsewhere.", type: 'string', default: "'/editor'" },
+    'routes.editor': { description: "The app's editor page; the Next proxy serves it at the root of origins.editor (every other path there is 404) and hides it elsewhere.", type: 'string', default: "'/theme/editor'" },
     'routes.admin': { description: "Prefix of the app's admin pages; the Next proxy serves them at the root of origins.host (/x → /admin/x; old /admin/x links redirect to /x) and answers 404 for them elsewhere.", type: 'string', default: "'/admin'" },
+    'routes.api': { description: "Prefix of the artifacts API route (what the CLI publishes through; the CLI url is this route itself). The Next proxy lets it through on origins.host only (not under routes.admin) and answers 404 for it elsewhere.", type: 'string', default: "'/api/themes'" },
+    'routes.preview': { description: "Path of the preview route on the public site (sets or clears the preview cookie).", type: 'string', default: "'/theme/preview'" },
     id: { description: "Distinguishes runtimes when one process hosts several sites.", type: 'string', default: "'default'" },
   }}
 />
@@ -84,7 +87,7 @@ export default defineConfig({
 />
 
 The editor shows your fields first, then the theme's own root fields. A theme cannot override
-yours: on a name collision your field is used and a warning is logged once per artifact
+yours: on a name collision your field is used and a warning is logged once per theme version
 ([D-0373](/docs/internal/decisions#D-0373)). The theme's root component receives your props too;
 it types them with `Register.rootProps` (see [Root props from the app](/docs/sdk/blocks#root-props-from-the-app)).
 
@@ -92,7 +95,48 @@ it types them with `Register.rootProps` (see [Root props from the app](/docs/sdk
 
 <TypeTable
   type={{
-    artifactPollMs: { description: "How often to check the current-artifact pointer when the artifact store has no change feed.", type: 'number', default: '2000' },
+    artifactPollMs: { description: "How often to check the theme list when the artifact store has no change feed.", type: 'number', default: '2000' },
+    'previewRuntimes.max': { description: "Sandboxes kept for non-main theme versions (previewed themes, the editor on another theme), besides the main one. The least recently used is disposed first.", type: 'number', default: '3' },
+    'previewRuntimes.idleMs': { description: "A preview sandbox is disposed after this long without a request.", type: 'number', default: '600000' },
+  }}
+/>
+
+## Themes (`themes`)
+
+One theme, or several like a Shopify store ([D-0459](/docs/internal/decisions#D-0459)). See
+[Themes](/docs/concepts/themes).
+
+<TypeTable
+  type={{
+    'themes.multiple': { description: "false: the site has only a main theme (no unpublished or development themes, no previews, no dev). true: a theme library.", type: 'boolean', default: 'false' },
+    'themes.devExpiryDays': { description: "Development themes not updated for this many days are deleted (when themes are listed or created through the API, or by core.themes.prune()).", type: 'number', default: '7' },
+  }}
+/>
+
+## Preview (`preview`)
+
+Lets people see a non-main theme (for example a developer's development theme) on the public site, through a
+signed link ([D-0415](/docs/internal/decisions#D-0415)). Without `preview`, or with a single theme, previews are off.
+
+<TypeTable
+  type={{
+    'preview.secret': { description: "HMAC key signing preview links. Keep it secret; changing it ends every preview.", type: 'string', required: true },
+    'preview.ttlSeconds': { description: "Lifetime of a preview link and of its cookie.", type: 'number', default: '3600' },
+  }}
+/>
+
+See [Local theme development](/docs/guides/theme-dev).
+
+## Artifacts API limits (`api`)
+
+Uploads through the [artifacts API](/docs/http-api#artifacts-api) are refused with `413` beyond these
+([D-0425](/docs/internal/decisions#D-0425)).
+
+<TypeTable
+  type={{
+    'api.maxPackageBytes': { description: "Size of an uploaded package (compressed).", type: 'number', default: '52428800 (50 MB)' },
+    'api.maxUnpackedBytes': { description: "Total size of its files once unpacked.", type: 'number', default: '209715200 (200 MB)' },
+    'api.maxFiles': { description: "Files in a package.", type: 'number', default: '5000' },
   }}
 />
 
@@ -171,7 +215,9 @@ See [Security headers](/docs/security-headers) for the resulting policies.
 The engine refuses a config where:
 
 - `origins.host` is empty;
-- `origins.editor` is also a host origin.
+- `origins.editor` is also a host origin;
+- `preview.secret` is empty.
 
 There is no `auth` option: the core has no authority of its own. Your app authenticates its admin
-pages, RPC handlers and publishing actions with its own session.
+pages, RPC handlers and publishing actions with its own session, and the artifacts API with the
+`authorize` function it gives `createArtifactsHandler`.

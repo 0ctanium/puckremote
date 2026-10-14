@@ -12,10 +12,10 @@ npm install @puck-remote/core @puck-remote/editor
 
 | You need | Use |
 |---|---|
-| Public page | Pick the template for the route, `core.prepareTemplate(name, { params, query, locale })`, then render `<PuckRemoteTemplate template />` (RSC-safe) |
+| Public page | Pick the template for the route, `core.prepareTemplate(name, { params, query, locale, request })`, then render `<PuckRemoteTemplate template />` (RSC-safe) |
 | Page metadata | Build it from `template.data.root.props` |
 | Admin page | `core.editorPayload(name, { params })` then render `<PuckEditorFrame payload … />` (client) |
-| Editor data RPC | `core.resolveBlockData(name, block, props, { params })` in your own authenticated route |
+| Editor data RPC | `core.resolveBlockData(name, block, props, { params, request })` in your own authenticated route (`request`: only if the data source should see who edits) |
 | Saving templates | `core.writeTemplate(name, data, { base })`, then `config.artifacts.writePointer(id)` to go live |
 | Theme files | `core.handleTheme(request)` |
 | Middleware | `@puck-remote/core/edge`: `securityHeaders`, `cspNonce`, `requestOrigin`, `templateCacheability` |

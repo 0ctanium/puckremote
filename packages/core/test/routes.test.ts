@@ -3,7 +3,6 @@
  * writeTemplate / editorPayload / resolveBlockData), exercised exactly as any framework binding
  * calls them.
  */
-import { publish } from "@puck-remote/cli";
 import { mockCms } from "@puck-remote/source-mock";
 import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
@@ -19,13 +18,14 @@ import {
   type PuckRemoteCore,
 } from "../src/index.ts";
 import { inProcessRenderer } from "../src/server/runtime/in-process.ts";
-import { fileResponse, INDEX_REFRESH_MS, ThemeFiles } from "../src/server/static-files.ts";
-import type { ArtifactStore } from "@puck-remote/sdk/host";
+import { fileResponse, ThemeFiles } from "../src/server/static-files.ts";
 import { createHash } from "node:crypto";
-import { buildExample, counterStore, REPO_ROOT, withPages } from "./helpers.ts";
+import { buildExample, counterStore, publish, REPO_ROOT, withPages } from "./helpers.ts";
 
 let core: PuckRemoteCore;
 let dir: string;
+/** The main theme's id, and its current hash (templates written below change it). */
+let main: string;
 let first: string;
 const req = (p: string, init?: RequestInit) =>
   new Request(`http://host.test${p}`, init);
@@ -34,13 +34,11 @@ const ORIGINS = { host: ["http://admin.test"], editor: "http://editor.test" };
 beforeAll(async () => {
   vi.spyOn(console, "info").mockImplementation(() => {});
   dir = await mkdtemp(path.join(os.tmpdir(), "puck-remote-routes-"));
-  first = (
-    await publish({
-      distDir: (await buildExample()).outDir,
-      artifacts: path.join(dir, "artifacts"),
-      quiet: true,
-    })
-  ).id;
+  ({ theme: main, hash: first } = await publish({
+    distDir: (await buildExample()).outDir,
+    artifacts: path.join(dir, "artifacts"),
+    quiet: true,
+  }));
   core = createCore({
     id: `routes-${process.pid}`,
     artifacts: fsArtifactStore({ dir: path.join(dir, "artifacts") }),
@@ -100,9 +98,9 @@ describe("createCore", () => {
     ).toBe(405);
   });
 
-  it("prepareTemplate renders templates of the current artifact; unknown templates are null", async () => {
+  it("prepareTemplate renders templates of the main theme; unknown templates are null", async () => {
     const page = await core.prepareTemplate("home");
-    expect(page?.artifact).toBe(first);
+    expect(page?.theme).toEqual({ id: main, hash: first });
     expect(
       page?.head.styles.some((s) =>
         /^\/_remote\/theme\/assets\/theme\.css\?v=[0-9a-f]{12}$/.test(s),
@@ -112,21 +110,17 @@ describe("createCore", () => {
   });
 });
 
-describe("templates live in the artifact", () => {
-  it("readTemplate reads the current artifact or a given one", async () => {
+describe("templates live in the theme", () => {
+  it("readTemplate reads the main theme or a given one", async () => {
     const r = await core.readTemplate("home");
-    expect(r?.artifact).toBe(first);
+    expect(r).toMatchObject({ theme: main, hash: first });
     expect(r?.data.content.length).toBeGreaterThan(0);
-    expect((await core.readTemplate("home", { artifact: first }))?.artifact).toBe(
-      first,
-    );
+    expect((await core.readTemplate("home", { theme: main }))?.hash).toBe(first);
     expect(await core.readTemplate("nope")).toBeNull();
-    expect(
-      await core.readTemplate("home", { artifact: "f".repeat(64) }),
-    ).toBeNull();
+    expect(await core.readTemplate("home", { theme: "ffffffffffff" })).toBeNull();
   });
 
-  it("writeTemplate produces a new artifact (same code, new template) and never moves the pointer", async () => {
+  it("writeTemplate writes the template and manifest into the theme (other files untouched) and returns its new hash", async () => {
     const page = {
       root: { props: { title: "New" } },
       content: [
@@ -137,36 +131,23 @@ describe("templates live in the artifact", () => {
         },
       ],
     };
-    const { id } = await core.writeTemplate("about/team", page, { base: first });
-    expect(id).not.toBe(first);
-    const { artifacts } = core.config;
-    expect(await artifacts.readPointer()).toBe(first);
-    // Code files are identical; the manifest lists the new page.
-    const art = (rel: string) =>
-      readFile(path.join(dir, "artifacts", id, rel), "utf8");
-    const base = (rel: string) =>
-      readFile(path.join(dir, "artifacts", first, rel), "utf8");
-    expect(await art("bundle.js")).toBe(await base("bundle.js"));
-    expect(await art("templates/home.json")).toBe(await base("templates/home.json"));
-    expect(Object.keys(JSON.parse(await art("manifest.json")).files)).toContain(
-      "templates/about/team.json",
-    );
+    const file = (rel: string) => readFile(path.join(dir, "artifacts", "themes", main, rel), "utf8");
+    const bundleBefore = await file("bundle.js");
+    const { hash } = await core.writeTemplate("about/team", page, { theme: main, expect: first });
+    expect(hash).not.toBe(first);
+    expect((await core.themes.get(main))?.hash).toBe(hash);
+    expect(await file("bundle.js")).toBe(bundleBefore);
+    expect(Object.keys(JSON.parse(await file("manifest.json")).files)).toContain("templates/about/team.json");
     // Resolved data is stripped before storage.
-    const stored = await art("templates/about/team.json");
+    const stored = await file("templates/about/team.json");
     expect(stored).not.toContain("__data");
     expect(stored).not.toContain("readOnly");
-    expect(
-      (await core.readTemplate("about/team", { artifact: id }))?.data.content[0]
-        .props.title,
-    ).toBe("Written");
-    expect(await core.readTemplate("about/team")).toBeNull(); // not current until the pointer moves
-
-    // Going live is the caller's decision.
-    await artifacts.writePointer(id);
-    expect((await (await core.host()).store.reload()).ok).toBe(true);
-    expect((await core.prepareTemplate("about/team"))?.artifact).toBe(id);
-    await artifacts.writePointer(first);
-    await (await core.host()).store.reload();
+    expect((await core.readTemplate("about/team"))?.data.content[0].props.title).toBe("Written");
+    // The main theme reloads by itself.
+    expect((await core.prepareTemplate("about/team"))?.theme.hash).toBe(hash);
+    // A save on an old version is refused.
+    await expect(core.writeTemplate("about/team", page, { theme: main, expect: first })).rejects.toMatchObject({ status: 409 });
+    first = hash;
   });
 
   it("writeTemplate restores unknown blocks shown as placeholders, and rejects invalid input", async () => {
@@ -183,56 +164,28 @@ describe("templates live in the artifact", () => {
         },
       ],
     };
-    const { id } = await core.writeTemplate("legacy", page, { base: first });
-    const stored = JSON.parse(
-      await readFile(
-        path.join(dir, "artifacts", id, "templates", "legacy.json"),
-        "utf8",
-      ),
-    );
+    ({ hash: first } = await core.writeTemplate("legacy", page, { theme: main }));
+    const stored = JSON.parse(await readFile(path.join(dir, "artifacts", "themes", main, "templates", "legacy.json"), "utf8"));
     expect(stored.content[0]).toEqual({
       type: "old-banner",
       props: { id: "m1", text: "kept" },
     });
 
-    await expect(
-      core.writeTemplate("home", { nope: true }, { base: first }),
-    ).rejects.toThrow(TemplateError);
-    await expect(
-      core.writeTemplate(
-        "../x",
-        { root: { props: {} }, content: [] },
-        { base: first },
-      ),
-    ).rejects.toThrow(TemplateError);
-    await expect(
-      core.writeTemplate(
-        "home",
-        { root: { props: {} }, content: [] },
-        { base: "../x" },
-      ),
-    ).rejects.toThrow(TemplateError);
-    await expect(
-      core.writeTemplate(
-        "home",
-        { root: { props: {} }, content: [] },
-        { base: "f".repeat(64) },
-      ),
-    ).rejects.toThrow(TemplateError);
+    await expect(core.writeTemplate("home", { nope: true }, { theme: main })).rejects.toThrow(TemplateError);
+    await expect(core.writeTemplate("../x", { root: { props: {} }, content: [] }, { theme: main })).rejects.toThrow(TemplateError);
+    await expect(core.writeTemplate("home", { root: { props: {} }, content: [] }, { theme: "ffffffffffff" })).rejects.toThrow(TemplateError);
     const huge = {
       root: { props: { blob: "x".repeat(2 * 1024 * 1024) } },
       content: [],
     };
-    await expect(core.writeTemplate("home", huge, { base: first })).rejects.toThrow(
-      /larger than/,
-    );
+    await expect(core.writeTemplate("home", huge, { theme: main })).rejects.toThrow(/larger than/);
   });
 });
 
 describe("editor entry points", () => {
   it("editorPayload: template, manifest, absolute theme URLs on the admin origin, origins", async () => {
     const p = await core.editorPayload("home");
-    expect(p.artifact).toBe(first);
+    expect(p).toMatchObject({ theme: main, hash: first });
     expect(p.bundleUrl).toBe(
       `http://admin.test/_remote/theme/bundle.browser.js?v=${p.manifest.files["bundle.browser.js"].slice(0, 12)}`,
     );
@@ -254,7 +207,7 @@ describe("editor entry points", () => {
     (await bare.host()).store.close();
   });
 
-  it("resolveBlockData runs the manifest spec in draft mode; only block + props come from the caller", async () => {
+  it("resolveBlockData runs the manifest spec; only block + props come from the caller", async () => {
     const r = await core.resolveBlockData("home", "latest-posts", {
       count: 1,
       spec: { source: "http", origin: "https://evil.test" },
@@ -264,6 +217,23 @@ describe("editor entry points", () => {
     await expect(core.resolveBlockData("home", "nope", {})).rejects.toThrow(
       UnknownBlockError,
     );
+  });
+
+  it("resolveBlockData forwards the request to a requireRequest source (none: anonymous)", async () => {
+    const withDrafts = createCore({
+      id: `routes-request-${process.pid}`,
+      artifacts: core.config.artifacts,
+      source: mockCms({
+        dataFile: path.join(REPO_ROOT, "examples", "app", "data", "cms.json"),
+        canReadDrafts: (r) => r.headers.get("authorization") === "editor",
+      }),
+    });
+    const editor = new Request("http://admin.test/", { headers: { authorization: "editor" } });
+    const titles = async (request?: Request) =>
+      JSON.stringify(await withDrafts.resolveBlockData("home", "latest-posts", { count: 12 }, { request }));
+    expect(await titles(editor)).toContain("DRAFT");
+    expect(await titles()).not.toContain("DRAFT");
+    (await withDrafts.host()).store.close();
   });
 });
 
@@ -323,58 +293,31 @@ describe("origins config", () => {
 
 describe("theme file versions (?v=)", () => {
   const sha = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
-  /** The example artifact with another theme.css (manifest hash updated). */
-  async function variant(store: ArtifactStore, base: string, css: string) {
-    const manifest = JSON.parse(new TextDecoder().decode((await store.readFile(base, "manifest.json"))!));
-    const files: Record<string, Uint8Array> = {};
-    for (const rel of Object.keys(manifest.files)) files[rel] = (await store.readFile(base, rel))!;
-    files["assets/theme.css"] = new TextEncoder().encode(css);
-    manifest.files["assets/theme.css"] = sha(css);
-    files["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest));
-    return { id: await store.writeArtifact(files), v: sha(css).slice(0, 12) };
-  }
 
-  it("serves current and older versions immutably, anything else as the current file with an etag", async () => {
+  it("immutable for a matching v, otherwise the main file with an etag; the index follows the theme list", async () => {
     const store = fsArtifactStore({ dir: path.join(dir, "versions") });
-    const { id: a } = await publish({ distDir: (await buildExample()).outDir, artifacts: store, quiet: true });
-    await store.writePointer(a);
-    const old = await variant(store, a, "body{color:red}");
-    const cur = await variant(store, a, "body{color:blue}");
-    await store.writePointer(cur.id);
-    let now = 0;
-    const tf = new ThemeFiles(store, () => now);
-    const text = async (p: string, v: string | null) => {
-      const r = await tf.get(p, v);
-      return r && { css: new TextDecoder().decode(r.file.body), immutable: r.immutable };
-    };
-    expect(await text("assets/theme.css", cur.v)).toEqual({ css: "body{color:blue}", immutable: true });
-    expect(tf.refreshes).toBe(0); // the current artifact never needs the index
-    // A page rendered before the publish still gets its own version (D-0264).
-    expect(await text("assets/theme.css", old.v)).toEqual({ css: "body{color:red}", immutable: true });
-    expect(tf.refreshes).toBe(1);
-    // No v (e.g. a relative url() in CSS) or an unknown one: the current file, revalidated.
-    expect(await text("assets/theme.css", null)).toEqual({ css: "body{color:blue}", immutable: false });
-    expect(await text("assets/theme.css", "0".repeat(12))).toEqual({ css: "body{color:blue}", immutable: false });
-    expect(await text("assets/theme.css", "not-a-version")).toEqual({ css: "body{color:blue}", immutable: false });
-    expect(await tf.get("assets/missing.css", cur.v)).toBeNull();
-    // Random versions can't make it rescan the store more than once per INDEX_REFRESH_MS.
+    await publish({ distDir: (await buildExample()).outDir, artifacts: store, quiet: true });
+    const tf = new ThemeFiles(store);
+    const css = (await tf.get("assets/theme.css", null))!;
+    const v = css.file.sha256.slice(0, 12);
+    expect((await tf.get("assets/theme.css", v))?.immutable).toBe(true);
+    for (const bad of [null, "0".repeat(12), "not-a-version"]) expect((await tf.get("assets/theme.css", bad))?.immutable).toBe(false);
+    expect(await tf.get("assets/missing.css", v)).toBeNull();
+    // Unknown versions never rescan: the index is rebuilt only when the theme list changes.
     for (let i = 0; i < 50; i++) await tf.get("assets/theme.css", i.toString(16).padStart(12, "f"));
     expect(tf.refreshes).toBe(1);
-    now += INDEX_REFRESH_MS;
-    await tf.get("assets/theme.css", "f".repeat(12));
-    expect(tf.refreshes).toBe(2);
 
     const res = fileResponse(await tf.get("assets/theme.css", null), new Request("http://h.test/"));
     expect(res.headers.get("cache-control")).toBe("no-cache");
     const etag = res.headers.get("etag")!;
-    expect(etag).toBe(`"${sha("body{color:blue}")}"`);
+    expect(etag).toBe(`"${sha(css.file.body)}"`);
     const again = fileResponse(await tf.get("assets/theme.css", null), new Request("http://h.test/", { headers: { "if-none-match": etag } }));
     expect(again.status).toBe(304);
   });
 });
 
-describe("any ArtifactStore: ids are opaque", () => {
-  it("renders, reads and writes templates with a counter-id store", async () => {
+describe("any ArtifactStore", () => {
+  it("renders, reads and writes templates with an in-memory store", async () => {
     const store = counterStore();
     const dist = await withPages((await buildExample()).outDir, {
       home: {
@@ -382,12 +325,7 @@ describe("any ArtifactStore: ids are opaque", () => {
         content: [{ type: "card", props: { id: "c", title: "Hi" } }],
       },
     });
-    const { id } = await publish({
-      distDir: dist,
-      artifacts: store,
-      quiet: true,
-    });
-    expect(id).toBe("a1");
+    const { theme, hash } = await publish({ distDir: dist, artifacts: store, quiet: true });
     const c = createCore({
       id: `routes-counter-${process.pid}`,
       artifacts: store,
@@ -395,24 +333,15 @@ describe("any ArtifactStore: ids are opaque", () => {
       renderer: inProcessRenderer(),
       origins: ORIGINS,
     });
-    expect((await c.prepareTemplate("home"))?.artifact).toBe("a1");
-    const w = await c.writeTemplate(
-      "home",
-      { root: { props: { title: "Two" } }, content: [] },
-      { base: "a1" },
-    );
-    expect(w.id).toBe("a2");
-    expect(
-      (await c.readTemplate("home", { artifact: "a2" }))?.data.root.props?.title,
-    ).toBe("Two");
-    // A page save is a new artifact, but unchanged files keep their URLs (D-0262).
-    const before = (await c.prepareTemplate("home"))!.head;
-    await store.writePointer(w.id);
-    await (await c.host()).store.reload();
+    const before = (await c.prepareTemplate("home"))!;
+    expect(before.theme).toEqual({ id: theme, hash });
+    const w = await c.writeTemplate("home", { root: { props: { title: "Two" } }, content: [] }, { theme, expect: hash });
+    expect((await c.readTemplate("home"))?.data.root.props?.title).toBe("Two");
+    // A template save changes two files only: assets and bundles keep their URLs (D-0262).
     const after = (await c.prepareTemplate("home"))!;
-    expect(after.artifact).toBe("a2");
-    expect(after.head.styles).toEqual(before.styles);
-    expect(after.head.scripts).toEqual(before.scripts);
+    expect(after.theme.hash).toBe(w.hash);
+    expect(after.head.styles).toEqual(before.head.styles);
+    expect(after.head.scripts).toEqual(before.head.scripts);
     expect((await c.editorPayload("home")).bundleUrl).toMatch(
       /^http:\/\/admin\.test\/cdn\/bundle\.browser\.js\?v=[0-9a-f]{12}$/,
     );

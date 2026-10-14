@@ -1,17 +1,19 @@
 ---
 title: HTTP API
-description: The theme route served by the core.
+description: The theme route, the artifacts API and the preview route served by the core.
 ---
 
-The core answers one route, `routes.theme` (default `/cdn`). Everything else (admin pages, RPCs,
-publishing) is your app's, so it uses your app's own session ([D-0187](/docs/internal/decisions#D-0187)).
+The core answers three routes: `routes.theme` (default `/cdn`), the artifacts API
+`routes.api` (default `/api/themes`, what the CLI publishes through, [D-0547](/docs/internal/decisions#D-0547)) and the preview route
+`routes.preview` (default `/theme/preview`, [D-0548](/docs/internal/decisions#D-0548)). Everything else (admin pages, RPCs, saving from
+the editor) is your app's, so it uses your app's own session ([D-0187](/docs/internal/decisions#D-0187)).
 
 ## Theme route
 
 | Method & path | Response |
 |---|---|
-| `GET\|HEAD /cdn/assets/**?v=<v>` | The file whose manifest sha256 starts with `v`, from the current or an older artifact, hash-valid; `immutable` |
-| `GET\|HEAD /cdn/assets/**` (no or unknown `v`) | The current artifact's file; `no-cache` with an `etag`, `304` on `If-None-Match` |
+| `GET\|HEAD /cdn/assets/**?v=<v>` | The file whose manifest sha256 starts with `v`, from the main theme or any theme listing that version; `immutable` when the bytes match `v` |
+| `GET\|HEAD /cdn/assets/**` (no, unknown or mismatching `v`) | The main theme's file; `no-cache` with an `etag`, `304` on `If-None-Match` |
 | `GET\|HEAD /cdn/bundle.browser.js?v=<v>` | The theme's browser bundle (ESM, for the editor), same rules |
 | `GET\|HEAD /cdn/bundle.islands.js?v=<v>` | The theme's islands bundle (ESM, loaded by public pages with islands), same rules |
 
@@ -22,6 +24,101 @@ path ([D-0270](/docs/internal/decisions#D-0270)).
 With `origins` configured, served files carry `access-control-allow-origin: <editor origin>` and
 `cross-origin-resource-policy: cross-origin`, so the editor can import the bundle and show assets
 in its canvas.
+
+## Artifacts API
+
+Mounted by your app on host origins with `createArtifactsHandler({ authorize })`
+([D-0420](/docs/internal/decisions#D-0420)). The CLI uses it for every command except `build` and
+`package`, whatever artifact store your app uses. Paths are relative to the route ([D-0552](/docs/internal/decisions#D-0552)): the
+table shows them under the default `/api/themes`, and the CLI's `url` is the route itself
+([D-0550](/docs/internal/decisions#D-0550)). Mount it at `app/api/themes/[[...path]]/route.ts`, not as a catch-all of `/api`. Responses are JSON (except file downloads) with
+`cache-control: no-store`.
+
+| Method & path | Body | Response |
+|---|---|---|
+| `GET /api/themes` | | `{ themes, multiple }` (expired development themes are deleted first) |
+| `POST /api/themes` | `{ name, role }` | `201 { theme }`: a theme without files (`hash: null`) |
+| `GET /api/themes/<id>` | | `{ theme, previewUrl? }` |
+| `PATCH /api/themes/<id>` | `{ name }` | `{ theme, previewUrl? }` |
+| `DELETE /api/themes/<id>` | | `{ ok: true }`; the theme and its files are deleted; refused for the main theme |
+| `POST /api/themes/<id>/publish` | | `{ theme }`: it is now main, the previous main theme is unpublished; refused without files |
+| `POST /api/themes/<id>/duplicate` | `{ name? }` | `201 { theme, previewUrl? }` (unpublished, files copied, `Copy of <name>` by default) |
+| `POST /api/themes/<id>/files?expect=<hash>` | a package (`.tar.gz`): `manifest.json` and the changed files, or every file | `{ theme, previewUrl? }`; `409` when the theme's hash is no longer `expect` (optional) |
+| `GET /api/themes/<id>/files/<path>` | | the file's bytes (`application/octet-stream`) |
+
+`theme` is a [Theme](/docs/concepts/themes) ([D-0520](/docs/internal/decisions#D-0520), [D-0552](/docs/internal/decisions#D-0552)).
+`previewUrl` is a [preview link](#preview-route), set for non-main themes with files when `preview`
+and `origins.site` are configured and the site has several themes. With a single theme
+(`themes.multiple: false`), only creating the main theme is allowed; everything else that would add
+a theme answers `409`.
+
+### Authorization
+
+Every request goes through your `authorize(request, action)` before anything runs, and before a
+package body is read. Theme bodies are small JSON (at most 4 KB) and are read first, so `action`
+carries the requested name and role. There is no default: without `authorize` the API answers
+`500`, and `false` answers `401` ([D-0471](/docs/internal/decisions#D-0471)). `action` says what the
+request wants, so you can scope tokens, for example letting developers manage `development` themes
+only:
+
+<TypeTable
+  type={{
+    kind: { description: "read (GET /api/themes/<id>, GET /api/themes/<id>/files/<path>), list (GET /api/themes), createTheme (POST /api/themes, duplicate), updateTheme (PATCH, POST /api/themes/<id>/files), publishTheme, deleteTheme.", type: "'read' | 'list' | 'createTheme' | 'updateTheme' | 'publishTheme' | 'deleteTheme'" },
+    theme: { description: "The theme concerned: the requested name and role for createTheme; the stored theme otherwise (undefined when it does not exist).", type: "{ id?: string; name: string; role: ThemeRole }" },
+  }}
+/>
+
+```ts
+authorize: async (request, action) => {
+  const user = await userOfToken(request.headers.get('authorization'));
+  if (!user) return false;
+  if (user.isAdmin) return true;
+  // Developers: reads, and pushes to development themes.
+  return ['read', 'list'].includes(action.kind) || action.theme?.role === 'development';
+},
+```
+
+### Pushing files
+
+`POST /api/themes/<id>/files` takes the theme's **new** `manifest.json` and the files that changed;
+`puck-remote push` and `dev` compute the difference ([D-0522](/docs/internal/decisions#D-0522)). Before
+anything is written ([D-0514](/docs/internal/decisions#D-0514)):
+
+- `manifest.json` must be valid and list `bundle.js`;
+- every file the manifest lists must be in the package with that sha256, or already in the theme
+  with the same sha256 (per its current manifest);
+- the package must contain nothing the manifest doesn't list, and only regular files (no links).
+
+The changed files are then written, `manifest.json` last, files the new manifest no longer lists
+are removed, and the theme's `hash` becomes the sha256 of the new manifest. Limits come from
+[`api`](/docs/configuration#artifacts-api-limits-api).
+
+### Errors
+
+Errors are `{ "error": "<message>" }`:
+
+| Status | When | Example message |
+|---|---|---|
+| `400` | Invalid package, manifest, hash, name or body; deleting the main theme | `upload: hash mismatch for bundle.js`, `upload: extra.js is not listed in manifest.files`, `upload: assets/x.css is neither uploaded nor unchanged in theme 0f3a…`, `package is not a gzip-compressed tar`, `theme name must be 1 to 50 characters`, `the main theme cannot be deleted` |
+| `401` | `authorize` returned false | `unauthorized` |
+| `404` | Unknown route, file or theme | `not found`, `theme 0f3a… not found` |
+| `405` | Wrong method (with an `allow` header) | `method not allowed` |
+| `409` | `expect` does not match; publishing a theme without files; a second main theme; a single-theme site | `theme 0f3a… changed (expected …, found …)`, `theme 0f3a… has no files yet`, `a main theme already exists: create an unpublished theme and publish it`, `this site has a single theme (themes.multiple is false)` |
+| `413` | Over a limit | `body larger than 52428800 bytes`, `package has more than 5000 files` |
+
+## Preview route
+
+`GET /theme/preview?token=<token>` on the public site checks a preview link's signature and
+expiry, stores the token in the `puck_remote_preview` cookie (`HttpOnly`, `SameSite=Lax`, `Path=/`,
+`Secure` in production, expiring with the token) and redirects to `/`. Pages then render the
+previewed theme, never cached. `?exit` clears the cookies.
+
+`&reload=http://127.0.0.1:<port>` (added by `puck-remote dev`) is kept in a second cookie,
+`puck_remote_reload`, with the same attributes, only when it is `http:` on `127.0.0.1`, `localhost` or
+`[::1]` with an explicit port; anything else is ignored ([D-0493](/docs/internal/decisions#D-0493)).
+Preview pages then listen to that local server and reload after each push, and the proxy allows it
+in their `connect-src`. An invalid or expired link answers `400`
+(`Invalid or expired preview link`); without `preview` in the config, `404`.
 
 ## Calls from your admin page
 

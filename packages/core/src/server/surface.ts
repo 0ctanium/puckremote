@@ -83,7 +83,18 @@ const directives = (d: Record<string, string[]>) =>
  * `editorOrigin` is the only frame an admin page may embed; `hostOrigins` are the only pages that
  * may embed the editor.
  */
-export function securityHeaders(surface: Surface, opts: { nonce: string; dev?: boolean; policy?: SecurityPolicy; editorOrigin?: string; hostOrigins?: string[] }): Record<string, string> {
+export function securityHeaders(
+  surface: Surface,
+  opts: {
+    nonce: string
+    dev?: boolean
+    policy?: SecurityPolicy
+    editorOrigin?: string
+    hostOrigins?: string[]
+    /** More connect-src origins for this response only (site surface), e.g. a preview's live reload server. */
+    extraConnectSrc?: string[]
+  },
+): Record<string, string> {
   const policy = opts.policy ?? DEFAULT_SECURITY
   const n = `'nonce-${opts.nonce}'`
   const devEval = opts.dev ? ["'unsafe-eval'"] : []
@@ -139,7 +150,7 @@ export function securityHeaders(surface: Surface, opts: { nonce: string; dev?: b
         'style-src': ["'self'", "'unsafe-inline'", ...policy.styleOrigins],
         'img-src': ['*', 'data:', 'blob:'],
         'font-src': ["'self'", 'https:', 'data:'],
-        'connect-src': ["'self'", ...policy.connectSrc, ...(opts.dev ? ['ws:'] : [])],
+        'connect-src': ["'self'", ...policy.connectSrc, ...(opts.extraConnectSrc ?? []), ...(opts.dev ? ['ws:'] : [])],
         'frame-src': policy.frameSrc,
         'object-src': ["'none'"],
         'base-uri': ["'self'"],

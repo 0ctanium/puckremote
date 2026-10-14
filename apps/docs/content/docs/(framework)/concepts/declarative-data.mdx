@@ -42,10 +42,12 @@ Values inside a spec may be references the host substitutes per instance:
 - **Performance**: the host sees every query of the page at once, so it **dedupes** identical
   queries, applies a **budget** and runs them **in parallel**. Query results are not cached by
   the core ([D-0187](/docs/internal/decisions#D-0187)); cache in your data source if you need to.
-- **Cacheability**: the host knows statically which pages read request params, so pages can be
-  cached by your CDN ([D-0205](/docs/internal/decisions#D-0205)).
-- **Draft safety**: `mode` (`public`/`draft`) is set by the host only: `draft` for the editor's
-  data requests, `public` for the site.
+- **Cacheability**: the host knows statically which pages read request params, or run queries of
+  a source that reads the request, so the other pages can be cached by your CDN
+  ([D-0205](/docs/internal/decisions#D-0205), [D-0596](/docs/internal/decisions#D-0596)).
+- **Who is asking**: a source that declares `requireRequest` receives the request each query runs
+  for and decides what that visitor or editor may see (drafts, members-only content). Themes never
+  see it ([data source](/docs/core/adapters/data-source#who-is-asking-requirerequest)).
 
 ## Budget (defaults)
 

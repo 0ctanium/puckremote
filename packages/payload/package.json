@@ -1,0 +1,109 @@
+{
+  "name": "@puck-remote/payload",
+  "version": "0.1.0",
+  "description": "Payload CMS backend for puck-remote: data source, artifact store, auth helpers and admin plugin.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    "./source": {
+      "@puck-remote/source": "./src/source.ts",
+      "types": "./dist/source.d.ts",
+      "default": "./dist/source.js"
+    },
+    "./auth": {
+      "@puck-remote/source": "./src/auth.ts",
+      "types": "./dist/auth.d.ts",
+      "default": "./dist/auth.js"
+    },
+    "./artifacts": {
+      "@puck-remote/source": "./src/artifacts.ts",
+      "types": "./dist/artifacts.d.ts",
+      "default": "./dist/artifacts.js"
+    },
+    "./plugin": {
+      "@puck-remote/source": "./src/plugin.ts",
+      "types": "./dist/plugin.d.ts",
+      "default": "./dist/plugin.js"
+    },
+    "./admin": {
+      "@puck-remote/source": "./src/admin/index.tsx",
+      "types": "./dist/admin.d.ts",
+      "default": "./dist/admin.js"
+    },
+    "./admin/client": {
+      "@puck-remote/source": "./src/admin/client.tsx",
+      "types": "./dist/admin/client.d.ts",
+      "default": "./dist/admin/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "NODE_OPTIONS=--no-node-snapshot vitest run",
+    "lint:pkg": "publint && attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
+  },
+  "dependencies": {
+    "@puck-remote/sdk": "workspace:*"
+  },
+  "peerDependencies": {
+    "@payloadcms/next": "^3.90.2",
+    "@payloadcms/ui": "^3.90.2",
+    "@puck-remote/core": "workspace:^",
+    "@puck-remote/editor": "workspace:^",
+    "@puckeditor/core": "~0.23.0",
+    "next": "^16.0.0",
+    "payload": "^3.90.2",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@payloadcms/db-sqlite": "3.90.2",
+    "@payloadcms/next": "3.90.2",
+    "@payloadcms/ui": "3.90.2",
+    "@puck-remote/core": "workspace:*",
+    "@puck-remote/editor": "workspace:*",
+    "@puckeditor/core": "0.23.0",
+    "@types/node": "26.6.4",
+    "@types/react": "19.3.0",
+    "graphql": "16.14.2",
+    "next": "16.4.0",
+    "payload": "3.90.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependenciesMeta": {
+    "@payloadcms/next": {
+      "optional": true
+    },
+    "@payloadcms/ui": {
+      "optional": true
+    },
+    "@puck-remote/editor": {
+      "optional": true
+    },
+    "@puckeditor/core": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  }
+}

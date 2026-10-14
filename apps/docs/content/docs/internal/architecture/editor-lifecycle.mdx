@@ -4,11 +4,12 @@ description: From opening the admin page to publishing, step by step.
 ---
 
 1. **Admin page** (server, your app): checks your session, picks the template (the example
-   maps the path to the template of the same name), then `remote.loadEditor(name, { params })`
+   reads `?previewPath=/blog/post`, like Shopify's theme editor, and maps that path to its template
+   as the public page does; none opens `home`, [D-0551](/docs/internal/decisions#D-0551)), then `remote.loadEditor(name, { params })`
    (404 outside `origins.host`) → `core.editorPayload(name, { params })`: merges the app's root
-   fields with the theme's (app first, app wins), reads the template from the current artifact (or
-   an empty one with the merged root defaults), `stripResolved` + `rewriteMissing`, and returns
-   the payload: artifact id, template name, params, merged `root`, manifest, data, absolute `bundleUrl` / `assetBase` on the first host
+   fields with the theme's (app first, app wins), reads the template from the main theme, or from
+   `theme`'s when the admin page passes one (the example's `?theme=<id>`) (or an empty one with the merged root defaults), `stripResolved` + `rewriteMissing`, and returns
+   the payload: theme id and `hash` ([D-0519](/docs/internal/decisions#D-0519)), template name, params, merged `root`, manifest, data, absolute `bundleUrl` / `assetBase` on the first host
    origin, `origins`, `site` ([D-0208](/docs/internal/decisions#D-0208)).
 2. **`<PuckEditorFrame>`** (admin page, browser) builds **its own Puck config from the manifest**
    ([D-0335](/docs/internal/decisions#D-0335)): `buildEditorConfig` with `placeholderTheme` (renders
@@ -20,7 +21,18 @@ description: From opening the admin page to publishing, step by step.
    `editorUrl`, the editor origin and `payload.origins.editor` must agree. Only then does it render
    the iframe (`sandbox="allow-scripts allow-same-origin allow-forms allow-popups"`,
    `referrerPolicy="no-referrer"`). An internal `EditorBridge` listens through
-   `hostMessageHandler`.
+   `hostMessageHandler`. With `templateHref`, the header title is the template switcher, listing
+   `templateNames(payload.manifest)` plus the current template. Puck 0.23 types `headerTitle` as a
+   string but renders it as a React child of its title heading, so the switcher is passed there
+   with a cast ([D-0620](/docs/internal/decisions#D-0620)); `template-selector.test.tsx` renders the
+   header to pin it. The selector (`template-selector.tsx`) is a Radix Popover
+   ([D-0633](/docs/internal/decisions#D-0633)). `<PuckEditorFrame>` provides `current` and `href`
+   through context. Each `Template` and `Folder` reads its level (the folder paths above it) from a
+   level context and renders only when that level is the one open, so nodes can be wrapped.
+   Radix mounts the portal's content one render after opening, so the first row is focused in
+   `onOpenAutoFocus`, and level changes in a layout effect. The styles are a single React 19
+   `<style href precedence>`, hoisted and deduped ([D-0642](/docs/internal/decisions#D-0642)). The Payload view runs its `previewPath` option on the server and passes the
+   resulting `templatePaths` map to the client ([D-0632](/docs/internal/decisions#D-0632)).
 3. **Editor page** (your app, on the editor origin, which the proxy serves at `/` with the editor
    CSP): `remote.loadEditorPage()` (404 off `origins.editor`) gives `allowedParents` (`origins.host`)
    to `<PuckRemoteEditor>`. Its effect calls `connectToHost`, which posts `ready` to each allowed
@@ -61,7 +73,7 @@ description: From opening the admin page to publishing, step by step.
      Puck's class-name prefix. On a small admin page, the admin's own tab bar stays.
      `framePlugin` uses `mobilePanelHeight: 'min-content'`, so its empty admin panel takes no
      height and the frame shows the drawer as its own bottom sheet. `ctx.assets.style` URLs under the
-   artifact's `assetBase` are injected into Puck's canvas iframe. Theme scripts don't run in the
+   theme's `assetBase` are injected into Puck's canvas iframe. Theme scripts don't run in the
    editor, and `head.*` is ignored. `useEditor()` exposes `{ rpc, payload, options }` to your
    overrides and plugins.
 6. **Editing** ([D-0331](/docs/internal/decisions#D-0331)):
@@ -76,9 +88,11 @@ description: From opening the admin page to publishing, step by step.
    - ⌘Z / ⇧⌘Z pressed in the frame is sent as `intent`. The admin's header can hide the frame's
      left panel through `ui`.
 7. **Publish** (host UI, the example's plugin): the admin page reads the data from its own Puck and
-   calls its `publish` server action with `{ template, data, base }`. The action refuses when the
-   pointer moved since `base`, then calls `core.writeTemplate` (`cleanTemplate`: zod, `restoreMissing`,
-   `stripResolved`) and `artifacts.writePointer(id)`, then reloads the host's artifact. "Unpublished
+   calls its `publish` server action with `{ template, data, base, theme }` (the theme the editor was
+   opened on). The action calls `core.writeTemplate(name, data, { theme, expect: base })` (`cleanTemplate`: zod,
+   `restoreMissing`, `stripResolved`), which writes the template and the updated manifest into the
+   theme ([D-0517](/docs/internal/decisions#D-0517)) and refuses (409, shown as `conflict`) when the theme's hash moved since `base`; the host reloads by itself
+   when it is the main theme. "Unpublished
    changes" compares `stripResolved(data)` with the last published state.
 
 ## resolveData details
@@ -87,7 +101,9 @@ description: From opening the admin page to publishing, step by step.
 - Keystrokes (`trigger: 'replace'`) are debounced per block (300 ms); superseded calls give up.
 - Failures fall back to `{ ok: false, error: 'loading' }` for each data key.
 - On the server, `core.resolveBlockData` parses `{ slug, block, props }` with a non-strict schema
-  (anything else is dropped), takes the spec from the manifest and runs it in **draft** mode.
+  (anything else is dropped), takes the spec from the manifest and runs it with the request the
+  app's handler forwards (`opts.request`; none: anonymous), which only a `requireRequest` source
+  receives ([D-0595](/docs/internal/decisions#D-0595)).
 
 <Source path="packages/core/src/core.ts" />
 <Source path="packages/core/src/server/editor-rpc.ts" />
@@ -100,4 +116,4 @@ description: From opening the admin page to publishing, step by step.
 <Source path="packages/next/src/proxy.ts" />
 <Source path="examples/app/src/app/(app)/admin/editor/actions.ts" />
 <Source path="examples/app/src/app/(app)/admin/editor/ClientEditor.tsx" />
-<Source path="examples/app/src/app/(puck)/editor/EditorPage.tsx" />
+<Source path="examples/app/src/app/(puck)/theme/editor/EditorPage.tsx" />

@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "plugins": [{ "name": "next" }],
+    "paths": { "@/*": ["./src/*"], "@payload-config": ["./src/payload.config.ts"] },
+    "allowJs": true
+  },
+  "include": ["next-env.d.ts", "src", ".next/types/**/*.ts", "next.config.ts", "puck-remote.config.ts"]
+}
