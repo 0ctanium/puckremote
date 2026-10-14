@@ -1,0 +1,227 @@
+---
+title: Payload
+description: "@puck-remote/payload: a data source over Payload's Local API, an artifact store in Payload's database, Payload users for the artifacts API, and a Payload plugin with the editor in Payload's admin."
+---
+
+`@puck-remote/payload` connects puck-remote to [Payload](https://payloadcms.com) 3
+([D-0054](/docs/internal/decisions#D-0054), [D-0562](/docs/internal/decisions#D-0562)). It has one
+entry point per role:
+
+| Entry point | Exports | For |
+|---|---|---|
+| `@puck-remote/payload/source` | `payloadSource` | `source` in `defineConfig` |
+| `@puck-remote/payload/artifacts` | `payloadArtifactStore` | `artifacts` in `defineConfig` |
+| `@puck-remote/payload/auth` | `payloadAuthorize`, `payloadUser` | The artifacts API's `authorize`, your server actions |
+| `@puck-remote/payload/plugin` | `puckRemotePlugin` | `plugins` in your Payload config |
+| `@puck-remote/payload/admin` | `ThemesView`, `EditorView`, `NavLink` | Payload's import map (added by the plugin) |
+
+```bash
+pnpm add @puck-remote/payload payload
+```
+
+Peer dependencies: `payload ^3.90.2` and `@puck-remote/core`. The plugin's admin views also need
+`@payloadcms/next`, `@payloadcms/ui`, `next`, `react`, `@puck-remote/editor` and `@puckeditor/core`
+(optional peers).
+
+## Data source: `payloadSource`
+
+```ts title="puck-remote.config.ts"
+import { payloadSource } from '@puck-remote/payload/source';
+import { getPayload } from 'payload';
+import config from '@payload-config';
+import type { Config } from './src/payload-types';
+
+source: payloadSource<Config>()({
+  payload: () => getPayload({ config }),
+  collections: {
+    posts: {
+      fields: {
+        title: { type: 'text' },
+        slug: { type: 'text', filter: ['equals', 'in'] },
+        author: { type: 'relation', to: 'authors' },
+      },
+      limits: { default: 10, max: 12, maxDepth: 1 },
+    },
+    authors: { fields: { name: { type: 'text' } } },
+  },
+  globals: { site: { fields: { tagline: { type: 'text' } } } },
+}),
+```
+
+- **Exposure is explicit.** Keys are Payload collection and global slugs. Only the listed fields
+  are selectable, filterable, sortable or returned, with the same
+  [field policy](/docs/core/adapters/data-source#field) as any source. The first query checks
+  them against your Payload config: an unknown collection, global or field, or a relation whose
+  `to` is not an exposed collection or not where the Payload field points, is an error.
+- **Typed.** `Config` is Payload's generated type (`payload generate:types`). Themes registering the
+  source type get typed queries ([Typing host queries](/docs/guides/typing-queries)).
+- **Lazy.** `payload` is called on the first query, so the Payload config may import your
+  puck-remote config without a cycle. A failed start is retried on the next query.
+
+<TypeTable
+  type={{
+    payload: { description: "The Payload instance, resolved on the first query.", type: '() => Payload | Promise<Payload>', required: true },
+    collections: { description: "Exposed collections by slug: { fields, limits? }.", type: 'Record<slug, { fields; limits? }>', required: true },
+    globals: { description: "Exposed globals by slug: { fields }.", type: 'Record<slug, { fields }>' },
+    draft: { description: "Whether a query reads Payload drafts.", type: '({ user, request }) => boolean', default: 'user of config.admin.user' },
+  }}
+/>
+
+### Who is asking
+
+The source declares [`requireRequest`](/docs/core/adapters/data-source#who-is-asking-requirerequest)
+([D-0595](/docs/internal/decisions#D-0595)). For each request it authenticates the Payload user
+once (`payload.auth({ headers })`: session cookie or API key), and every query runs with
+`overrideAccess: false` as that user. Payload's collection and field access rules decide what each
+visitor or editor sees:
+
+| Request | User | Reads |
+|---|---|---|
+| Public page, no session (the admin cookie never reaches the site origin) | anonymous | what `access.read` allows anonymous users, published only |
+| Public page of a logged-in site member (another auth collection) | the member | what the member may read, published only |
+| Editor, previewing as the logged-in admin | the admin | what the admin may read, **drafts included** |
+| Editor, previewing anonymously, or no request | anonymous | published only |
+
+Because results vary per visitor, templates running Payload queries are never marked cacheable
+([D-0596](/docs/internal/decisions#D-0596)).
+
+### Drafts
+
+With [Payload drafts](https://payloadcms.com/docs/versions/drafts) (`versions.drafts`), the source
+passes `draft: true` (the latest version the user may read) only to users of the admin user
+collection (`config.admin.user`), that is, the editor previewing as the logged-in user
+([D-0565](/docs/internal/decisions#D-0565)). Override with `draft`.
+
+Without drafts, only **published** content is returned, whatever your access rules allow: a
+never-published document (kept in the collection with `_status: 'draft'`) stays hidden, and a
+global with drafts that was never published reads as `null`
+([D-0603](/docs/internal/decisions#D-0603)).
+
+### Query mapping
+
+| Normalized query | Payload Local API |
+|---|---|
+| `equals`, `in`, `contains` | same operator |
+| `contains` with a `null` value | clause dropped (matches everything, like an empty search box) |
+| `gt`, `lt` | `greater_than`, `less_than` |
+| `and`, `or` | `and`, `or` |
+| sort | `'field'` or `'-field'` |
+| `select` | `{ field: true }` |
+| `depth`, `limit`, `page` | same, with `pagination: true` |
+| `findByID` | `findByID` with `disableErrors` (missing or forbidden: `null`) |
+
+The locale is passed only when Payload localization is configured. A query whose deadline already
+passed is not started; the Local API cannot cancel a running one. Ids are returned as Payload
+stores them (numbers on SQL databases by default).
+
+## Artifact store: `payloadArtifactStore`
+
+```ts title="puck-remote.config.ts"
+import { payloadArtifactStore } from '@puck-remote/payload/artifacts';
+
+artifacts: payloadArtifactStore({ payload: () => getPayload({ config }) }),
+```
+
+The themes and their files live in Payload's database, so every instance of your app shares them
+with no other service. `puckRemotePlugin` adds the two collections it uses (`artifacts`, default
+true):
+
+| Collection | Holds |
+|---|---|
+| `puck-remote-theme-lists` | Append-only revisions of the theme list: `{ seq, themes }` ([D-0576](/docs/internal/decisions#D-0576)) |
+| `puck-remote-theme-files` | A theme's current files, one row each: `{ theme, path, data (base64), size }` ([D-0577](/docs/internal/decisions#D-0577)) |
+
+- **Compare-and-swap.** The list's version is its `seq`. A write inserts `seq + 1`; `seq` is unique,
+  so of two concurrent writers one gets `ThemeConflictError`. The last 20 revisions are kept.
+- **Files.** Each file is replaced by one row update, so a reader never sees a partial file (a push
+  as a whole is not atomic, as with every store). Bytes are stored as base64 text: about a third
+  larger, and limited to 16 MB per file on MongoDB.
+- **No change feed.** The host polls the theme list every 2 seconds
+  ([D-0578](/docs/internal/decisions#D-0578)), which stays correct with several instances.
+- **No access from outside.** The store runs with `overrideAccess`; both collections deny every
+  REST, GraphQL and admin access and are hidden in the admin
+  ([D-0579](/docs/internal/decisions#D-0579)).
+
+It passes the [contract suite](/docs/core/adapters/testing).
+
+## Auth: `payloadAuthorize`, `payloadUser`
+
+```ts title="app/(puck)/api/themes/[[...path]]/route.ts"
+import { payloadAuthorize } from '@puck-remote/payload/auth';
+
+export const { GET, POST, PATCH, DELETE } = remote.createArtifactsHandler({
+  authorize: payloadAuthorize({ payload: () => getPayload({ config }) }),
+});
+```
+
+<TypeTable
+  type={{
+    payload: { description: "The Payload instance, or a function returning it.", type: 'Payload | (() => Payload | Promise<Payload>)', required: true },
+    can: { description: "Who may do what (ApiAction). Anonymous requests are refused before it runs.", type: '({ user, action, request }) => boolean | Promise<boolean>', default: 'any user of config.admin.user' },
+  }}
+/>
+
+`payloadUser(payload, request)` returns the request's Payload user (session cookie or API key), or
+`null`, for your server actions and admin pages.
+
+The CLI authenticates with a Payload **API key**: enable `auth: { useAPIKey: true }` on the user
+collection, create a key for a user, and send it from `puck-remote.cli.ts`
+([D-0581](/docs/internal/decisions#D-0581)):
+
+```ts title="puck-remote.cli.ts"
+export default defineCliConfig({
+  url: 'https://admin.example.com/api/themes',
+  headers: { authorization: `users API-Key ${process.env.PAYLOAD_API_KEY}` },
+});
+```
+
+## Plugin: `puckRemotePlugin`
+
+```ts title="src/payload.config.ts"
+import { puckRemotePlugin } from '@puck-remote/payload/plugin';
+
+export default buildConfig({
+  // …
+  plugins: [
+    puckRemotePlugin({
+      core: () => import('./puck-remote').then((m) => m.remote.core),
+      editorUrl: 'https://editor.example.net/',
+    }),
+  ],
+});
+```
+
+Then run `payload generate:importmap` to register the admin views.
+
+<TypeTable
+  type={{
+    core: { description: "puck-remote's core, resolved on first use. Lazy: your puck-remote config imports the Payload config (through the data source).", type: '() => PuckRemoteCore | Promise<PuckRemoteCore>', required: true },
+    editorUrl: { description: "The editor page on the editor origin (the frame's src).", type: 'string', required: true },
+    previewAs: { description: "Whose data the editor previews: the logged-in user's (drafts included) or an anonymous visitor's.", type: "'user' | 'anonymous'", default: "'user'" },
+    artifacts: { description: "Add the artifact store's collections.", type: 'boolean', default: 'true' },
+    access: { description: "Who may open the views and call the endpoints.", type: '({ user }) => boolean | Promise<boolean>', default: 'users of config.admin.user' },
+    template: { description: "The template (and params) a site path renders, for ?previewPath=. null: not found.", type: '(previewPath: string) => { name; params? } | null', default: "the path names the template ('/' → 'home', params { slug })" },
+  }}
+/>
+
+It adds, on your host (admin) origin:
+
+| What | Where |
+|---|---|
+| Themes view: the themes by role (current, library, development) with Customize, Preview, Publish, Duplicate, Rename and Delete | `<admin>/puck-remote`, and a **Themes** nav link |
+| Editor view: Puck around `<PuckEditorFrame>`, with Publish (saves the template into the theme; a theme changed since the editor opened is a conflict), the theme and user, a preview link for non-main themes | `<admin>/puck-remote/editor?previewPath=/x&theme=<id>` |
+| Endpoints the views call, authenticated by Payload's session and checked with `access` | `POST <api>/puck-remote/resolve-data`, `/publish`, `/themes/:op` |
+
+With `previewAs: 'user'` the editor's `resolveData` forwards the admin's request, so the data source
+queries as that user and shows their drafts; with `'anonymous'` it forwards none
+([D-0564](/docs/internal/decisions#D-0564)).
+
+The plugin covers the admin origin only. Your app still mounts the editor page (editor origin), the
+public pages, `/api/themes`, the theme files and the preview route with `@puck-remote/next`
+([D-0585](/docs/internal/decisions#D-0585)).
+
+<Source path="packages/payload/src/source.ts" />
+<Source path="packages/payload/src/artifacts.ts" />
+<Source path="packages/payload/src/auth.ts" />
+<Source path="packages/payload/src/plugin.ts" />
+<Source path="packages/payload/src/admin/index.tsx" />

@@ -6,7 +6,9 @@
   "scripts": {
     "build": "puck-remote build",
     "release": "puck-remote push --live",
+    "release:payload": "puck-remote push --live --config puck-remote.payload.cli.ts",
     "dev": "puck-remote dev",
+    "dev:payload": "puck-remote dev --config puck-remote.payload.cli.ts",
     "pull": "puck-remote pull",
     "share": "puck-remote share",
     "typecheck": "tsc -p ."

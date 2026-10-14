@@ -3,7 +3,7 @@ title: Query resolver
 description: Planning, dedupe, budget, execution and caching of a page's queries.
 ---
 
-`resolvePageData({ instances, env, mode }, deps)` returns, per instance, a map of data key →
+`resolvePageData({ instances, env, request? }, deps)` returns, per instance, a map of data key →
 `QueryResult`, plus stats.
 
 ## 1. Plan
@@ -12,7 +12,8 @@ For each instance, in tree order, for each data spec:
 
 - `substitute` param refs (`$prop` → JSON scalars only, `$template`, `$params`, `$site`, `$query` cut to 256
   chars; `$secret` left for the HTTP layer; unknown refs → `invalid-ref`);
-- hash `{ mode (host queries only), concrete spec }` with a stable stringify + sha256;
+- hash the concrete spec with a stable stringify + sha256 (one pass serves one request, so the
+  request is not part of the key);
 - group consumers by hash. **Identical queries run once** ([D-0033](/docs/internal/decisions#D-0033)).
 
 ## 2. Static budget

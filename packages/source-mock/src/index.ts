@@ -55,11 +55,24 @@ function matches(doc: RawDoc, w: NormalizedWhere | null): boolean {
   }
 }
 
-export function mockCms(opts: { dataFile?: string; data?: MockData }) {
+export interface MockCmsOptions {
+  dataFile?: string
+  data?: MockData
+  /**
+   * Who may read draft docs (`_status: 'draft'`), e.g. the app's admin-session check. Given, the
+   * source declares `requireRequest` (it receives each query's request; templates running its
+   * queries are not cacheable). Without it, or without a request, drafts are never returned.
+   */
+  canReadDrafts?: (request: Request) => boolean | Promise<boolean>
+}
+
+export function mockCms(opts: MockCmsOptions) {
   const data: MockData = opts.data ? structuredClone(opts.data) : JSON.parse(readFileSync(opts.dataFile!, 'utf8'))
   const all = (c: string) => data.collections[c] ?? []
-  // Visibility is a storage concern: drafts exist only for the editor (mode set by the host).
-  const visible = (doc: RawDoc, ctx: SourceContext) => ctx.mode === 'draft' || doc._status !== 'draft'
+  const { canReadDrafts } = opts
+  // Visibility is a storage concern: drafts only for requests the app lets read them.
+  const draftsFor = async (ctx: SourceContext<boolean>) => !!canReadDrafts && 'request' in ctx && !!ctx.request && (await canReadDrafts(ctx.request))
+  const visible = (doc: RawDoc, drafts: boolean) => drafts || doc._status !== 'draft'
 
   const populate = (doc: RawDoc, depth: number): RawDoc => {
     if (depth < 1 || typeof doc.author !== 'string') return doc
@@ -67,8 +80,9 @@ export function mockCms(opts: { dataFile?: string; data?: MockData }) {
     return author ? { ...doc, author } : doc
   }
 
-  const findIn = (collection: string) => async (q: NormalizedFind, ctx: SourceContext) => {
-    let docs = all(collection).filter((d) => visible(d, ctx) && matches(d, q.where))
+  const findIn = (collection: string) => async (q: NormalizedFind, ctx: SourceContext<boolean>) => {
+    const drafts = await draftsFor(ctx)
+    let docs = all(collection).filter((d) => visible(d, drafts) && matches(d, q.where))
     if (q.sort) {
       const { field, direction } = q.sort
       const dir = direction === 'desc' ? -1 : 1
@@ -78,15 +92,16 @@ export function mockCms(opts: { dataFile?: string; data?: MockData }) {
     return { docs: page.map((d) => populate(d, q.depth)), totalDocs: docs.length }
   }
 
-  const byId = (collection: string) => async (id: string, q: Pick<NormalizedFind, 'depth'>, ctx: SourceContext) => {
+  const byId = (collection: string) => async (id: string, q: Pick<NormalizedFind, 'depth'>, ctx: SourceContext<boolean>) => {
     const doc = all(collection).find((d) => d.id === id)
-    return doc && visible(doc, ctx) ? populate(doc, q.depth) : null
+    return doc && visible(doc, await draftsFor(ctx)) ? populate(doc, q.depth) : null
   }
 
   return defineDataSource({
     name: 'mock-cms',
+    requireRequest: !!canReadDrafts,
     collections: {
-      posts: defineCollection<Post>()({
+      posts: defineCollection<Post, boolean>()({
         fields: {
           title: { type: 'text' },
           slug: { type: 'text', filter: ['equals', 'in'] },
@@ -99,7 +114,7 @@ export function mockCms(opts: { dataFile?: string; data?: MockData }) {
         find: findIn('posts'),
         findByID: byId('posts'),
       }),
-      authors: defineCollection<Author>()({
+      authors: defineCollection<Author, boolean>()({
         // `email` exists in storage but is not exposed: never selectable or returned.
         fields: { name: { type: 'text' }, bio: { type: 'text', filter: false, sort: false } },
         limits: { default: 10, max: 50 },
@@ -108,7 +123,7 @@ export function mockCms(opts: { dataFile?: string; data?: MockData }) {
       }),
     },
     globals: {
-      site: defineGlobal<Site>()({
+      site: defineGlobal<Site, boolean>()({
         fields: { tagline: { type: 'text' }, footer: { type: 'text' } },
         get: async () => data.globals.site ?? null,
       }),

@@ -28,11 +28,13 @@ sequenceDiagram
 1. **Proxy** (`createProxy`): the `admin` surface on admin origins, `site` elsewhere; generate a
    CSP nonce; set security headers; when the app maps the path to a template (`options.template`), compute
    cacheability from the main theme's manifest and template (no isolate: it only decides a
-   header).
+   header). With a `requireRequest` source, blocks running host queries count as uncacheable
+   ([D-0596](/docs/internal/decisions#D-0596)).
 2. **The app's route** picks the template and its params (the example app maps the path to the
    template of the same name) and calls `remote.loadTemplate(name, { params, searchParams })`:
    search params are reduced to first values, and `prepareTemplate` is memoized per request with
-   React `cache()` (keyed by name, sorted params, query and locale), so the app's
+   React `cache()` (keyed by name, sorted params, query and locale), and forwards the request
+   rebuilt from `headers()` (origin root as URL, [D-0597](/docs/internal/decisions#D-0597)), so the app's
    `generateMetadata` (built from the template's root props) and the page share **one isolate
    pass**.
    On an admin origin it answers 404 first: theme scripts never run next to the admin session.
@@ -46,7 +48,7 @@ sequenceDiagram
    3. `collectInstances`: the host's own depth-first walk of root → content → slots
       ([D-0016](/docs/internal/decisions#D-0016)), giving every instance with its manifest metadata;
    4. **one render session** (a fresh isolate context) serves the whole request;
-   5. `resolvePageData` in `public` mode: plan, dedupe, budget, execute
+   5. `resolvePageData` with the request (only a `requireRequest` source receives it): plan, dedupe, budget, execute
       ([query resolver](/docs/internal/architecture/query-resolver)). `$query` params are only passed if the
       template has a block that uses them; `$params` and `$template` refs read the app's params
       and the template name;

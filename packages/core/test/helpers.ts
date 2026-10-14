@@ -114,7 +114,10 @@ export function recordingSession(s: RenderSession, rec: Recorder): RenderSession
   return s
 }
 
-export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; resolver?: Resolver; rec?: Recorder; runtime?: RenderRuntime }) {
+/** A request the test sources built with `canReadDrafts: (r) => r.headers.get('authorization') === 'editor'` let read drafts. */
+export const editorRequest = () => new Request('http://admin.test/', { headers: { authorization: 'editor' } })
+
+export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; resolver?: Resolver; rec?: Recorder; runtime?: RenderRuntime; canReadDrafts?: (request: Request) => boolean }) {
   const { manifest, bundle } = await buildExample()
   const m = structuredClone(manifest)
   m.adapters.events.origin = opts.mockOrigin // test seam: mock API runs on a random port
@@ -124,7 +127,7 @@ export async function dataDeps(opts: { mockOrigin: string; config?: HostConfig; 
   let session: Promise<RenderSession> | null = null
   const http = new HttpSource({ config: config.http, secrets: config.secrets, resolver: opts.resolver })
   // A fresh source per harness so content edits in one test don't leak into another.
-  const cms = mockCms({ dataFile: path.join(REPO_ROOT, 'examples', 'app', 'data', 'cms.json') })
+  const cms = mockCms({ dataFile: path.join(REPO_ROOT, 'examples', 'app', 'data', 'cms.json'), canReadDrafts: opts.canReadDrafts })
   const deps = {
     manifest: m,
     config,

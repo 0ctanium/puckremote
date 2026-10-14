@@ -1,13 +1,13 @@
 /**
- * Data for one block in draft mode: the editor's resolveData, called by the host app's RPC
- * handler. The caller sends ONLY which block and its props; the query spec always comes from the
+ * Data for one block: the editor's resolveData, called by the host app's RPC handler, with the
+ * request it chooses to forward to the data source (none: anonymous). The caller sends ONLY which block and its props; the query spec always comes from the
  * server-side manifest.
  */
 import { z } from 'zod'
 import type { Manifest } from './manifest-schema.ts'
 import { resolvePageData, type QueryResult, type ResolveDeps } from './query/resolver.ts'
 
-// z.object (not strictObject) silently drops anything else the caller sends: spec, data, query, mode…
+// z.object (not strictObject) silently drops anything else the caller sends: spec, data, query…
 export const blockDataSchema = z.object({
   template: z.string().max(200),
   params: z.record(z.string(), z.string().max(1024)).refine((p) => Object.keys(p).length <= 32, 'more than 32 params').optional(),
@@ -30,6 +30,7 @@ export class UnknownBlockError extends Error {
 export async function resolveBlock(
   input: z.infer<typeof blockDataSchema>,
   deps: Omit<ResolveDeps, 'manifest'> & { manifest: Manifest; site: { name: string; locale: string } },
+  request?: Request,
 ): Promise<BlockDataResult> {
   const { block, props, template, params = {} } = input
   const meta = block === 'root' ? deps.manifest.root : Object.hasOwn(deps.manifest.blocks, block) ? deps.manifest.blocks[block] : null
@@ -39,7 +40,7 @@ export async function resolveBlock(
       instances: [{ id: 'rpc', props: { ...meta.defaultProps, ...props }, meta }],
       // The editor has no request URL params; $query refs resolve to null in previews.
       env: { template: { name: template, locale: deps.site.locale }, params, site: deps.site, query: {} },
-      mode: 'draft',
+      request,
     },
     deps,
   )

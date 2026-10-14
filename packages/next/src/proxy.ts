@@ -67,13 +67,21 @@ export interface ProxyOptions {
    * `no-store` when it uses URL query params). Without it no cache headers are set.
    */
   template?: (pathname: string) => { name: string } | null;
+  /**
+   * Path prefixes another app owns on host origins (e.g. Payload's `['/admin', '/api']`): served
+   * as-is there (not rewritten under `routes.admin`, no redirect) with the admin security headers
+   * and `no-store`; 404 on every other origin. Needs `origins`.
+   */
+  hostRoutes?: string[];
 }
 
 export function createProxy(
   config: Pick<
     PuckRemoteConfig,
     "artifacts" | "origins" | "security" | "routes"
-  >,
+  > &
+    // With a `requireRequest` source, templates running its queries are not cacheable.
+    Partial<Pick<PuckRemoteConfig, "source">>,
   options: ProxyOptions = {},
 ) {
   const admin = (config.origins?.host ?? []).map(normalizeOrigin);
@@ -93,6 +101,7 @@ export function createProxy(
   const apiRoute = trim(config.routes?.api ?? DEFAULT_ROUTES.api);
   const under = (pathname: string, route: string) =>
     pathname === route || pathname.startsWith(route + "/");
+  const hostRoutes = (options.hostRoutes ?? []).map(trim);
   const notFound = (headers: Record<string, string> = {}) =>
     new NextResponse("Not found", {
       status: 404,
@@ -136,6 +145,16 @@ export function createProxy(
       ...(reload ? { extraConnectSrc: [reload] } : {}),
       editorOrigin,
     });
+    if (admin.length && hostRoutes.some((r) => under(pathname, r))) {
+      // Routes another app owns on host origins (e.g. Payload's admin and REST API).
+      if (surface !== "admin") return notFound(headers);
+      const res = NextResponse.next({
+        request: { headers: withNonce(req.headers, nonce, headers) },
+      });
+      for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
+      res.headers.set("cache-control", "no-store");
+      return res;
+    }
     if (surface === "admin" && under(pathname, adminRoute)) {
       // Old links (/admin/x) → /x. Temporary, so browsers don't cache it for good.
       // Built on the addressed origin: behind a proxy, nextUrl may carry the server's own host.

@@ -55,6 +55,12 @@ export interface PuckRemote {
    * With a valid preview cookie, renders the previewed theme (`template.preview` is then set).
    */
   loadTemplate(name: string, opts?: LoadTemplateOptions): Promise<PreparedTemplate>;
+  /**
+   * The current request rebuilt from headers() (server components and server actions have no
+   * Request): the headers and the origin root as URL (`<proto>://<host>/`), not the path. Pass it
+   * as `request` to core.resolveBlockData so the data source sees who is asking.
+   */
+  currentRequest(): Promise<Request>;
   /** The editor payload for an admin page. Calls notFound() outside origins.host. */
   loadEditor(
     name: string,
@@ -102,12 +108,17 @@ function safeDecode(v: string): string | null {
   }
 }
 
-/** The origin the client addressed (server components have no Request). */
-async function currentOrigin(): Promise<string> {
+/** The current request: headers and the addressed origin's root (server components have no Request). */
+async function currentRequest(): Promise<Request> {
   const h = await headers();
   const proto = h.get("x-forwarded-proto") ?? "http";
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost";
-  return requestOrigin(new Request(`${proto}://${host}/`, { headers: h }));
+  return new Request(`${proto}://${host}/`, { headers: h });
+}
+
+/** The origin the client addressed. */
+async function currentOrigin(): Promise<string> {
+  return requestOrigin(await currentRequest());
 }
 
 export function createPuckRemote(config: PuckRemoteConfig): PuckRemote {
@@ -122,6 +133,8 @@ export function createPuckRemote(config: PuckRemoteConfig): PuckRemote {
         locale,
         ...(theme ? { theme } : {}),
         ...(theme && reload ? { reload } : {}),
+        // Forwarded to the data source only when it declares requireRequest.
+        request: await currentRequest(),
       });
     },
   );
@@ -151,6 +164,7 @@ export function createPuckRemote(config: PuckRemoteConfig): PuckRemote {
   return {
     core,
     loadTemplate,
+    currentRequest,
     async loadEditor(name, opts = {}) {
       // Admin pages exist only on host origins (the editor's existence isn't revealed elsewhere).
       if (!isHost(await currentOrigin())) notFound();

@@ -4,17 +4,17 @@
  *  - for declared collections/globals,
  *  - selecting/filtering/sorting declared fields with allowed operators,
  *  - with limit/depth clamped to the collection's limits,
- *  - with the mode chosen by the host ('draft' only for editor requests),
+ *  - with the request the app passed (the source decides who it is; none: anonymous),
  * and results are projected back to declared fields (recursively for populated relations).
  */
-import { ALL_OPERATORS, type AnyDataSource, type CollectionDef, type CollectionField, type Mode, type NormalizedFind, type NormalizedWhere, type RawDoc } from '@puck-remote/sdk/host'
+import { ALL_OPERATORS, type AnyDataSource, type CollectionDef, type CollectionField, type NormalizedFind, type NormalizedWhere, type RawDoc, type SourceContext } from '@puck-remote/sdk/host'
 import { QueryError } from './params.ts'
 
 const DEFAULT_LIMIT = 10
 const DEFAULT_MAX_LIMIT = 100
 
 export interface HostQueryContext {
-  mode: Mode
+  request?: Request
   locale: string
   signal: AbortSignal
 }
@@ -22,12 +22,17 @@ export interface HostQueryContext {
 export class HostSource {
   constructor(readonly source: AnyDataSource) {}
 
-  private collection(name: string): CollectionDef<any> {
+  /** What the plugin receives: the request only when the source declared `requireRequest` (null: anonymous). */
+  private ctx({ request, locale, signal }: HostQueryContext): SourceContext<boolean> {
+    return this.source.requireRequest === true ? { request: request ?? null, locale, signal } : { locale, signal }
+  }
+
+  private collection(name: string): CollectionDef<any, any> {
     if (typeof name !== 'string' || !Object.hasOwn(this.source.collections, name)) throw new QueryError('forbidden', `collection "${name}" is not exposed`)
     return this.source.collections[name]
   }
 
-  private field(c: CollectionDef<any>, collection: string, name: string): CollectionField | null {
+  private field(c: CollectionDef<any, any>, collection: string, name: string): CollectionField | null {
     if (name === 'id') return { type: 'text', filter: ['equals', 'in'] }
     const f = Object.hasOwn(c.fields, name) ? (c.fields as Record<string, CollectionField | undefined>)[name] : undefined
     if (!f) throw new QueryError('forbidden', `field "${collection}.${name}" is not exposed`)
@@ -35,7 +40,7 @@ export class HostSource {
   }
 
 
-  private normalizeWhere(c: CollectionDef<any>, collection: string, w: unknown): NormalizedWhere | null {
+  private normalizeWhere(c: CollectionDef<any, any>, collection: string, w: unknown): NormalizedWhere | null {
     if (w === undefined || w === null) return null
     if (typeof w !== 'object' || Array.isArray(w)) throw new QueryError('invalid-where')
     const parts: NormalizedWhere[] = []
@@ -55,7 +60,7 @@ export class HostSource {
     return parts.length === 1 ? parts[0] : { and: parts }
   }
 
-  private normalizeSelect(c: CollectionDef<any>, collection: string, select: unknown): string[] | null {
+  private normalizeSelect(c: CollectionDef<any, any>, collection: string, select: unknown): string[] | null {
     if (select === undefined || select === null) return null
     if (!Array.isArray(select)) throw new QueryError('invalid-select')
     for (const f of select) if (typeof f !== 'string') throw new QueryError('invalid-select')
@@ -63,7 +68,7 @@ export class HostSource {
     return [...new Set(['id', ...(select as string[])])]
   }
 
-  private clampDepth(c: CollectionDef<any>, depth: unknown): number {
+  private clampDepth(c: CollectionDef<any, any>, depth: unknown): number {
     const d = typeof depth === 'number' && Number.isFinite(depth) ? Math.floor(depth) : 0
     return Math.min(Math.max(d, 0), c.limits?.maxDepth ?? 0)
   }
@@ -105,7 +110,7 @@ export class HostSource {
       select: this.normalizeSelect(c, collection, args.select),
       depth: this.clampDepth(c, args.depth),
     }
-    const res = await c.find(query, ctx)
+    const res = await c.find(query, this.ctx(ctx))
     return {
       docs: res.docs.slice(0, query.limit).map((d) => this.project(collection, d, query.select, query.depth)),
       totalDocs: res.totalDocs,
@@ -118,14 +123,14 @@ export class HostSource {
     if (typeof id !== 'string' || !id) return null
     const select = this.normalizeSelect(c, collection, args.select)
     const depth = this.clampDepth(c, args.depth)
-    const doc = c.findByID ? await c.findByID(id, { select, depth }, ctx) : (await c.find({ where: { field: 'id', op: 'equals', value: id }, sort: null, limit: 1, page: 1, select, depth }, ctx)).docs[0]
+    const doc = c.findByID ? await c.findByID(id, { select, depth }, this.ctx(ctx)) : (await c.find({ where: { field: 'id', op: 'equals', value: id }, sort: null, limit: 1, page: 1, select, depth }, this.ctx(ctx))).docs[0]
     return doc ? this.project(collection, doc, select, depth) : null
   }
 
   async global(slug: string, ctx: HostQueryContext) {
     if (typeof slug !== 'string' || !Object.hasOwn(this.source.globals, slug)) throw new QueryError('forbidden', `global "${slug}" is not exposed`)
     const g = this.source.globals[slug]
-    const doc = await g.get(ctx)
+    const doc = await g.get(this.ctx(ctx))
     if (!doc) return null
     const out: RawDoc = {}
     for (const k of Object.keys(g.fields)) if (Object.hasOwn(doc, k)) out[k] = doc[k]

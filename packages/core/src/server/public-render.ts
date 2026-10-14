@@ -38,6 +38,11 @@ export interface TemplateOptions {
   theme?: string
   /** A `puck-remote dev` live reload server (loopback origin) the preview page listens to. Ignored without `theme`. */
   reload?: string
+  /**
+   * The request the page renders for, forwarded to the data source (`SourceContext.request`), which
+   * decides who it is. None: anonymous queries. Never reaches theme code.
+   */
+  request?: Request
 }
 
 export interface PreparedTemplate {
@@ -82,11 +87,15 @@ export async function prepareTemplate(
     const contextMs = performance.now() - tCtx
     const data = rewriteMissing(stripResolved(template), manifest)
     const instances = collectInstances(data, manifest)
-    const uncacheableBlocks = [...new Set(instances.filter((i) => i.meta?.usesRequestParams).map((i) => i.name))]
+    const queryBlocks = [...new Set(instances.filter((i) => i.meta?.usesRequestParams).map((i) => i.name))]
+    // A source that reads the request may answer per visitor: its queries make the page uncacheable.
+    const personal = host.source.source.requireRequest === true
+    const requestBlocks = personal ? [...new Set(instances.filter((i) => Object.values(i.meta?.data ?? {}).some((s) => s.source === 'host')).map((i) => i.name))] : []
+    const uncacheableBlocks = [...new Set([...queryBlocks, ...requestBlocks])]
     const locale = opts.locale ?? host.config.site.locale
-    const env = { template: { name, locale }, params, site: host.config.site, query: uncacheableBlocks.length ? query : {} }
+    const env = { template: { name, locale }, params, site: host.config.site, query: queryBlocks.length ? query : {} }
     const { byInstance, stats } = await resolvePageData(
-      { instances, env, mode: 'public' },
+      { instances, env, request: opts.request },
       { manifest, config: host.config, source: host.source, http: host.http, session: getSession },
     )
 
@@ -115,7 +124,8 @@ export async function prepareTemplate(
       } else effects.push(r.effects)
       rendered[inst.id] = { ok: r.ok, html: r.ok ? r.html : '', nonce: r.nonce, islands: r.ok ? r.islands : [], error: r.ok ? undefined : r.kind }
     }
-    if (uncacheableBlocks.length) console.info(`[cache] template ${name} is uncacheable: uses request params via ${uncacheableBlocks.join(', ')}`)
+    if (queryBlocks.length) console.info(`[cache] template ${name} is uncacheable: uses request params via ${queryBlocks.join(', ')}`)
+    if (requestBlocks.length) console.info(`[cache] template ${name} is uncacheable: the data source reads the request (requireRequest) in ${requestBlocks.join(', ')}`)
     return {
       theme: { id: artifact.theme, hash: artifact.hash },
       manifest,

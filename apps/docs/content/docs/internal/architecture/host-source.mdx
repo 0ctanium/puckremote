@@ -13,7 +13,8 @@ theme queries only reach it:
 - sorting only fields without `sort: false`;
 - `limit` clamped to `[1, limits.max]` (default 10, max 100), `page ≥ 1`;
 - `depth` clamped to `[0, limits.maxDepth]` (default 0);
-- `mode` from the host only.
+- `ctx.request` only for sources declaring `requireRequest: true` (`null` when the app passed none);
+  other sources get `{ locale, signal }` ([D-0595](/docs/internal/decisions#D-0595)).
 
 Violations throw `QueryError('forbidden' | 'invalid-where' | 'invalid-select' | 'invalid-sort')`.
 

@@ -61,7 +61,22 @@ export async function deleteSession(): Promise<void> {
 
 /** The logged-in user, or null (no cookie, bad signature, expired). */
 export async function getSession(): Promise<{ user: string } | null> {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return verifySession((await cookies()).get(SESSION_COOKIE)?.value);
+}
+
+/**
+ * The logged-in user of a request (its session cookie), or null. The data source uses it to let
+ * the editor's requests read drafts (puck-remote.config.ts).
+ */
+export function sessionOf(request: Request): { user: string } | null {
+  for (const part of request.headers.get("cookie")?.split(";") ?? []) {
+    const [name, ...value] = part.trim().split("=");
+    if (name === SESSION_COOKIE) return verifySession(value.join("="));
+  }
+  return null;
+}
+
+function verifySession(token: string | undefined): { user: string } | null {
   const [payload, mac, ...rest] = token?.split(".") ?? [];
   if (!payload || !mac || rest.length || !same(mac, sign(payload))) return null;
   try {

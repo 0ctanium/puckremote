@@ -28,8 +28,8 @@ and publishing workflows are plugins built on `readTemplate`, `writeTemplate` an
 ## Enforcement stays in the core
 
 Plugins only implement storage semantics. The core does policy (allowed fields, operators,
-limits, projection), theme rules, hashing and validation of uploaded files and templates, and the draft/public mode
-split. That way a buggy plugin cannot widen what a theme can reach.
+limits, projection), theme rules, hashing and validation of uploaded files and templates, and
+which sources receive the request (only those declaring `requireRequest`). That way a buggy plugin cannot widen what a theme can reach.
 
 A contract test suite in `@puck-remote/core/testing` lets store authors check their
 implementation ([D-0067](/docs/internal/decisions#D-0067)). See [Core › Adapters](/docs/core/adapters).

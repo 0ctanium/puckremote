@@ -62,7 +62,8 @@ The store keeps the list, replaced atomically, and moves bytes.
 
 ## Writing your own
 
-For serverless or several instances, use a shared store (S3, a database…).
+For serverless or several instances, use a shared store (S3, a database…), such as
+[`payloadArtifactStore`](/docs/core/adapters/payload#artifact-store-payloadartifactstore) when you use Payload.
 
 ```ts
 import { ThemeConflictError, type ArtifactStore, type Theme } from '@puck-remote/sdk/host';

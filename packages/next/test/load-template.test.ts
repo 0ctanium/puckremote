@@ -40,27 +40,29 @@ describe('loadTemplate', () => {
   it('renders the named template with its params and search params', async () => {
     prepareTemplate.mockResolvedValue({ template: 'product' })
     await remote.loadTemplate('product', { params: { handle: 'red' }, searchParams: Promise.resolve({ q: ['a', 'b'] }) })
-    expect(prepareTemplate).toHaveBeenCalledWith('product', { params: { handle: 'red' }, query: { q: 'a' }, locale: undefined })
+    expect(prepareTemplate).toHaveBeenCalledWith('product', { params: { handle: 'red' }, query: { q: 'a' }, locale: undefined, request: expect.any(Request) })
+    // The request forwarded to the data source: the page's headers, at the addressed origin's root.
+    expect(prepareTemplate.mock.lastCall![1].request.url).toBe('http://www.example.com/')
   })
 
   it('renders the previewed theme of a valid preview cookie, and ignores an invalid one', async () => {
     prepareTemplate.mockResolvedValue({ template: 'home' })
     cookie = 'valid'
     await remote.loadTemplate('home')
-    expect(prepareTemplate).toHaveBeenLastCalledWith('home', { params: {}, query: {}, locale: undefined, theme: '0123456789ab' })
+    expect(prepareTemplate).toHaveBeenLastCalledWith('home', { params: {}, query: {}, locale: undefined, theme: '0123456789ab', request: expect.any(Request) })
     cookie = 'forged'
     await remote.loadTemplate('home', { params: { x: '1' } })
-    expect(prepareTemplate).toHaveBeenLastCalledWith('home', { params: { x: '1' }, query: {}, locale: undefined })
+    expect(prepareTemplate).toHaveBeenLastCalledWith('home', { params: { x: '1' }, query: {}, locale: undefined, request: expect.any(Request) })
   })
 
   it('passes the reload cookie only during a preview', async () => {
     prepareTemplate.mockResolvedValue({ template: 'home' })
     reloadCookie = encodeURIComponent('http://127.0.0.1:9293')
     await remote.loadTemplate('home')
-    expect(prepareTemplate).toHaveBeenLastCalledWith('home', { params: {}, query: {}, locale: undefined })
+    expect(prepareTemplate).toHaveBeenLastCalledWith('home', { params: {}, query: {}, locale: undefined, request: expect.any(Request) })
     cookie = 'valid'
     await remote.loadTemplate('home', { params: { p: '1' } })
-    expect(prepareTemplate).toHaveBeenLastCalledWith('home', { params: { p: '1' }, query: {}, locale: undefined, theme: '0123456789ab', reload: 'http://127.0.0.1:9293' })
+    expect(prepareTemplate).toHaveBeenLastCalledWith('home', { params: { p: '1' }, query: {}, locale: undefined, theme: '0123456789ab', reload: 'http://127.0.0.1:9293', request: expect.any(Request) })
   })
 
   it('calls notFound() for an unknown template', async () => {

@@ -24,8 +24,12 @@ Returns a `PuckRemote`:
 <TypeTable
   type={{
     loadTemplate: {
-      description: "Resolves data and renders every block of the named template in the sandbox. Calls notFound() for unknown templates and on origins.host (theme scripts never run next to the admin session). Memoized per request, so your generateMetadata and the page share one render pass. With a valid preview cookie, renders the previewed theme (template.preview is set) and passes the live reload cookie, if any.",
+      description: "Resolves data and renders every block of the named template in the sandbox. Calls notFound() for unknown templates and on origins.host (theme scripts never run next to the admin session). Memoized per request, so your generateMetadata and the page share one render pass. With a valid preview cookie, renders the previewed theme (template.preview is set) and passes the live reload cookie, if any. Forwards the request (currentRequest()) to a data source declaring requireRequest.",
       type: '(name: string, opts?: LoadTemplateOptions) => Promise<PreparedTemplate>',
+    },
+    currentRequest: {
+      description: "The current request rebuilt from headers(), for server actions and server components (they have no Request): the headers and the origin root as URL, not the path. Pass it as request to core.resolveBlockData.",
+      type: '() => Promise<Request>',
     },
     loadEditor: {
       description: "The payload for <PuckEditorFrame> (core.editorPayload) for the named template and its params, on the main theme or opts.theme (a theme id). Calls notFound() outside origins.host. Check your own session before calling it.",
@@ -106,13 +110,17 @@ See [HTTP API](/docs/http-api#artifacts-api) and [Local theme development](/docs
 <TypeTable
   type={{
     config: {
-      description: "The same config object. Only artifacts, origins, routes and security are read.",
+      description: "The same config object. Only artifacts, origins, routes, security and source (for cacheability) are read.",
       type: 'PuckRemoteConfig',
       required: true,
     },
     'options.template': {
       description: "The template a public path renders, for its cache headers. Use the same mapping as your routes. Without it no cache headers are set.",
       type: '(pathname: string) => { name: string } | null',
+    },
+    'options.hostRoutes': {
+      description: "Path prefixes another app owns on host origins (e.g. Payload's admin and API), served as-is there and 404 elsewhere. See below.",
+      type: 'string[]',
     },
   }}
 />
@@ -136,11 +144,19 @@ For each request the proxy:
    elsewhere;
 6. on public pages that `options.template` maps to a template, sets `x-template-cacheable: true`,
    or `false` with `cache-control: no-store` and `x-uncacheable-blocks` when a block reads URL
-   query parameters ([D-0389](/docs/internal/decisions#D-0389)). A request carrying the preview
+   query parameters ([D-0389](/docs/internal/decisions#D-0389)), or runs a query of a
+   `config.source` declaring `requireRequest` ([D-0596](/docs/internal/decisions#D-0596)). A request carrying the preview
    cookie gets `cache-control: private, no-store` and `x-template-cacheable: false` instead; with a
    valid live reload cookie too, the site CSP's `connect-src` also allows that loopback origin
    ([D-0495](/docs/internal/decisions#D-0495))
    ([D-0480](/docs/internal/decisions#D-0480)).
+
+### `hostRoutes`
+
+Path prefixes another app owns on host origins, such as Payload's `['/admin', '/api']`
+([D-0604](/docs/internal/decisions#D-0604)). On host origins they are served as they are (not
+rewritten under `routes.admin`, no redirect), with the admin security headers and
+`cache-control: no-store`. On every other origin they answer 404. Needs `origins`.
 
 ## `withPuckRemote(nextConfig?)`
 

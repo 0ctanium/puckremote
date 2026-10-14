@@ -90,7 +90,9 @@ description: From opening the admin page to publishing, step by step.
 - Keystrokes (`trigger: 'replace'`) are debounced per block (300 ms); superseded calls give up.
 - Failures fall back to `{ ok: false, error: 'loading' }` for each data key.
 - On the server, `core.resolveBlockData` parses `{ slug, block, props }` with a non-strict schema
-  (anything else is dropped), takes the spec from the manifest and runs it in **draft** mode.
+  (anything else is dropped), takes the spec from the manifest and runs it with the request the
+  app's handler forwards (`opts.request`; none: anonymous), which only a `requireRequest` source
+  receives ([D-0595](/docs/internal/decisions#D-0595)).
 
 <Source path="packages/core/src/core.ts" />
 <Source path="packages/core/src/server/editor-rpc.ts" />

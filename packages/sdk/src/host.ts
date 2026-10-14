@@ -13,14 +13,19 @@
 export type WhereOperator = 'equals' | 'in' | 'contains' | 'gt' | 'lt'
 export const ALL_OPERATORS: readonly WhereOperator[] = ['equals', 'in', 'contains', 'gt', 'lt']
 
-/** 'draft' is set by the host for editor requests only; never derived from theme input. */
-export type Mode = 'public' | 'draft'
-
-export interface SourceContext {
-  mode: Mode
+export interface SourceContextBase {
   locale: string
   signal: AbortSignal
 }
+
+/**
+ * What a source receives with each query. With `R = true` (the source declares
+ * `requireRequest: true`), `request` is the request the query runs for (a public page, a preview,
+ * the editor's resolveData), as passed by the app: the source decides who it is (session cookie,
+ * token…); `null` means anonymous. Sources without `requireRequest` never receive it. The request
+ * is never exposed to theme code.
+ */
+export type SourceContext<R extends boolean = false> = R extends true ? SourceContextBase & { request: Request | null } : SourceContextBase
 
 export type FieldKind = 'text' | 'number' | 'boolean' | 'date' | 'json' | 'relation'
 
@@ -55,46 +60,63 @@ export type RawDoc = Record<string, unknown>
 
 declare const __doc: unique symbol
 
-export interface CollectionDef<D = RawDoc> {
+export interface CollectionDef<D = RawDoc, R extends boolean = false> {
   /** Exposed fields. Anything not listed is never selectable, filterable, sortable or returned. */
   fields: { [K in keyof D & string]?: CollectionField }
   limits?: { default?: number; max?: number; maxDepth?: number }
-  find(query: NormalizedFind, ctx: SourceContext): Promise<{ docs: RawDoc[]; totalDocs: number }>
-  findByID?(id: string, query: Pick<NormalizedFind, 'select' | 'depth'>, ctx: SourceContext): Promise<RawDoc | null>
+  find: (query: NormalizedFind, ctx: SourceContext<R>) => Promise<{ docs: RawDoc[]; totalDocs: number }>
+  findByID?: (id: string, query: Pick<NormalizedFind, 'select' | 'depth'>, ctx: SourceContext<R>) => Promise<RawDoc | null>
   /** Phantom: the document type, used for typing theme queries. */
   readonly [__doc]?: D
 }
 
-export interface GlobalDef<D = RawDoc> {
+export interface GlobalDef<D = RawDoc, R extends boolean = false> {
   /** Exposed fields; output is projected to these. */
   fields: { [K in keyof D & string]?: CollectionField }
-  get(ctx: SourceContext): Promise<RawDoc | null>
+  get: (ctx: SourceContext<R>) => Promise<RawDoc | null>
   readonly [__doc]?: D
 }
 
 export interface DataSource<
-  C extends Record<string, CollectionDef<any>> = Record<string, CollectionDef<any>>,
-  G extends Record<string, GlobalDef<any>> = Record<string, GlobalDef<any>>,
+  C extends Record<string, CollectionDef<any, any>> = Record<string, CollectionDef<any, any>>,
+  G extends Record<string, GlobalDef<any, any>> = Record<string, GlobalDef<any, any>>,
 > {
   name: string
+  /**
+   * true: every query receives `ctx.request` (the request it runs for, or null when anonymous), and
+   * templates running this source's queries are not cacheable (their result may vary per visitor).
+   * Default false: the request is never passed.
+   */
+  requireRequest?: boolean
   collections: C
   globals: G
 }
 
-export type AnyDataSource = DataSource<Record<string, CollectionDef<any>>, Record<string, GlobalDef<any>>>
+export type AnyDataSource = DataSource<Record<string, CollectionDef<any, any>>, Record<string, GlobalDef<any, any>>>
 
-/** `defineCollection<Post>()({...})`: fix the document type, infer the rest. */
-export function defineCollection<D>() {
-  return <T extends CollectionDef<D>>(def: T): T & CollectionDef<D> => def
+/**
+ * `defineCollection<Post>()({...})`: fix the document type, infer the rest. A collection of a
+ * `requireRequest: true` source reads `ctx.request` with `defineCollection<Post, true>()`.
+ */
+export function defineCollection<D, R extends boolean = false>() {
+  return <T extends CollectionDef<D, R>>(def: T): T & CollectionDef<D, R> => def
 }
 
-export function defineGlobal<D>() {
-  return <T extends GlobalDef<D>>(def: T): T & GlobalDef<D> => def
+export function defineGlobal<D, R extends boolean = false>() {
+  return <T extends GlobalDef<D, R>>(def: T): T & GlobalDef<D, R> => def
 }
 
-export function defineDataSource<const C extends Record<string, CollectionDef<any>>, const G extends Record<string, GlobalDef<any>>, X extends object = {}>(
-  source: DataSource<C, G> & X,
-): DataSource<C, G> & X {
+/**
+ * A source's collections and globals must accept the context it declares: with
+ * `requireRequest: true` they may read `ctx.request`; without it, one that expects a request is a
+ * type error.
+ */
+export function defineDataSource<
+  const C extends Record<string, CollectionDef<any, R>>,
+  const G extends Record<string, GlobalDef<any, R>>,
+  R extends boolean = false,
+  X extends object = {},
+>(source: DataSource<C, G> & { requireRequest?: R } & X): DataSource<C, G> & { requireRequest?: R } & X {
   return source
 }
 
@@ -187,8 +209,8 @@ export interface ArtifactStore {
 
 export type CollectionName<S extends AnyDataSource> = keyof S['collections'] & string
 export type GlobalName<S extends AnyDataSource> = keyof S['globals'] & string
-export type DocOf<S extends AnyDataSource, K extends string> = S['collections'][K] extends CollectionDef<infer D> ? D : RawDoc
-export type GlobalDocOf<S extends AnyDataSource, K extends string> = S['globals'][K] extends GlobalDef<infer D> ? D : RawDoc
+export type DocOf<S extends AnyDataSource, K extends string> = S['collections'][K] extends CollectionDef<infer D, any> ? D : RawDoc
+export type GlobalDocOf<S extends AnyDataSource, K extends string> = S['globals'][K] extends GlobalDef<infer D, any> ? D : RawDoc
 
 // ---------------------------------------------------------------------------
 // Artifacts HTTP API (publication from the CLI)

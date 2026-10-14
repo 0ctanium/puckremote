@@ -62,7 +62,7 @@ hardened process-level sandboxing. These were the spec's own non-goals.
 | D-0026 | One isolate per artifact version, compiled once; fresh context per page request; blocks of one request share it | user | accepted |
 | D-0027 | Slot markers carry a per-render nonce; the host swaps only nonce-valid markers, each slot at most once | user | accepted |
 | D-0028 | Editor resolveData writes a reserved read-only __data prop, stripped on save, always re-resolved at render | user | accepted |
-| D-0029 | Content source mocked in-memory with collection/field allowlists, limit/depth clamps and a host-only draft mode | user | accepted |
+| D-0029 | Content source mocked in-memory with collection/field allowlists, limit/depth clamps and a host-only draft mode | user | superseded by D-0594 |
 | D-0030 | Outbound HTTP: https only, origin allowlist, pinned DNS rejecting private IPs, manual same-origin redirects, timeouts and size caps | user | accepted |
 | D-0031 | Secrets are bound to origins in host config and substituted on the host; never enter the isolate | user | accepted |
 | D-0032 | Tests point the manifest adapter origin at a random-port mock API (test seam) | agent-unreviewed | needs-review |

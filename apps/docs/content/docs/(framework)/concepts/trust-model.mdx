@@ -26,7 +26,8 @@ graph TD
 ## What a hostile theme cannot do
 
 - run code on your server outside the sandbox, or do any I/O;
-- read collections or fields you did not expose, or see drafts outside the editor;
+- read collections or fields you did not expose, or see the request (cookies, headers): only
+  your data source receives it, and decides what each visitor or editor may see;
 - read your secrets or reach private network addresses;
 - hang or crash your server;
 - use an admin's session: not from the public site, not from the editor;

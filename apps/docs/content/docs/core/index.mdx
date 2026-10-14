@@ -64,8 +64,8 @@ first use.
       type: '(name: string, opts?: { theme?: string; params?: Record<string, string> }) => Promise<EditorPayload>',
     },
     resolveBlockData: {
-      description: "Data for one block in draft mode (the editor's resolveData), with the main theme or opts.theme. Only the block name, its props and the template's params come from the caller. Throws UnknownBlockError, TemplateError for an unknown theme.",
-      type: '(name: string, block: string, props: Record<string, unknown>, opts?: { params?: Record<string, string>; theme?: string }) => Promise<{ data; usesRequestParams }>',
+      description: "Data for one block (the editor's resolveData), with the main theme or opts.theme. Only the block name, its props and the template's params come from the caller. opts.request is forwarded to a data source declaring requireRequest (none: anonymous). Throws UnknownBlockError, TemplateError for an unknown theme.",
+      type: '(name: string, block: string, props: Record<string, unknown>, opts?: { params?: Record<string, string>; theme?: string; request?: Request }) => Promise<{ data; usesRequestParams }>',
     },
     handleTheme: { description: "Serves /cdn/assets/**, /cdn/bundle.browser.js and /cdn/bundle.islands.js, versioned by ?v= (GET, HEAD).", type: '(request: Request) => Promise<Response>' },
     handleArtifactsApi: { description: "The artifacts API under routes.api (themes and their files, for the CLI). authorize is required. See [HTTP API](/docs/http-api#artifacts-api).", type: '(request: Request, opts: { authorize: AuthorizeApi }) => Promise<Response>' },
@@ -87,6 +87,7 @@ first use.
     locale: { description: "Overrides `site.locale` (e.g. from i18n routing).", type: 'string' },
     theme: { description: "Render this theme (id) instead of the main one (a preview). Unknown theme: null, like an unknown template. Bindings set it from the preview cookie.", type: 'string' },
     reload: { description: "A puck-remote dev live reload server (loopback origin, from the reload cookie). Ignored without theme or when not loopback.", type: 'string' },
+    request: { description: "The request the page renders for, forwarded to a data source declaring requireRequest (none: anonymous). Never reaches theme code. Bindings pass it.", type: 'Request' },
   }}
 />
 
@@ -102,7 +103,7 @@ first use.
     rendered: { description: "Pre-rendered HTML per block instance.", type: 'Record<string, { ok: boolean; html: string; nonce: string; error?: string }>' },
     head: { description: "Stylesheets and scripts requested by blocks, deduped.", type: '{ styles; scripts }' },
     preview: { description: "Set when rendered from TemplateOptions.theme (a preview). Show a preview banner with it ([D-0456](/docs/internal/decisions#D-0456)). With reload, <PuckRemoteTemplate> adds a nonced live reload script.", type: '{ theme: { id; name; role }; reload?: string }' },
-    cacheable: { description: "false when a block reads URL query parameters, or for a preview.", type: 'boolean' },
+    cacheable: { description: "false when a block reads URL query parameters, when a block runs a query of a source declaring requireRequest, or for a preview.", type: 'boolean' },
     uncacheableBlocks: { description: "Which blocks made the template uncacheable.", type: 'string[]' },
     scriptNonce: { description: "CSP nonce for theme scripts, set by bindings.", type: 'string' },
     stats: { description: "Timings, query counts, failures.", type: 'object' },

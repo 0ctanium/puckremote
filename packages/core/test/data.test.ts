@@ -8,7 +8,7 @@ import { QueryError } from '../src/server/query/params.ts'
 import { mockCms } from '@puck-remote/source-mock'
 import { HostSource } from '../src/server/query/host-source.ts'
 import { resolvePageData } from '../src/server/query/resolver.ts'
-import { dataConfig, dataDeps, env, OTHER_SECRET, recorder, SECRET_VALUE, startMockApi, testConfig, type MockApi } from './helpers.ts'
+import { dataConfig, dataDeps, editorRequest, env, OTHER_SECRET, recorder, SECRET_VALUE, startMockApi, testConfig, type MockApi } from './helpers.ts'
 
 let api: MockApi
 beforeAll(async () => {
@@ -103,7 +103,7 @@ describe('8. secrets', () => {
     const h = await dataDeps({ mockOrigin: api.origin, rec })
     const before = api.hits.length
     const { byInstance } = await resolvePageData(
-      { instances: [{ id: 'e', props: { count: 2, city: '' }, meta: h.deps.manifest.blocks['event-list'] }], env: env(), mode: 'public' },
+      { instances: [{ id: 'e', props: { count: 2, city: '' }, meta: h.deps.manifest.blocks['event-list'] }], env: env() },
       h.deps,
     )
     expect(byInstance.get('e')!.events).toMatchObject({ ok: true })
@@ -145,7 +145,6 @@ describe('9. dedupe', () => {
           { id: 'p2', props: { count: 2 }, meta: postsMeta },
         ],
         env: env(),
-        mode: 'public',
       },
       h.deps,
     )
@@ -167,7 +166,6 @@ describe('10. budget', () => {
       {
         instances: [1, 2, 3, 4].map((n) => ({ id: `b${n}`, props: { count: n }, meta })),
         env: env(),
-        mode: 'public',
       },
       h.deps,
     )
@@ -185,7 +183,7 @@ describe('10. budget', () => {
     const h = await dataDeps({ mockOrigin: api.origin, config: cfg })
     const meta = h.deps.manifest.blocks['latest-posts']
     const { byInstance } = await resolvePageData(
-      { instances: [2, 3, 4].map((n) => ({ id: `b${n}`, props: { count: n }, meta })), env: env(), mode: 'public' },
+      { instances: [2, 3, 4].map((n) => ({ id: `b${n}`, props: { count: n }, meta })), env: env() },
       h.deps,
     )
     expect(byInstance.get('b2')!.posts.ok).toBe(true)
@@ -202,7 +200,7 @@ describe('10. budget', () => {
       data: { slow: { source: 'http' as const, origin: api.origin, path: '/v1/slow', method: 'GET' as const, params: { ms: 3000 }, headers: {} } },
     }
     const t = performance.now()
-    const { byInstance } = await resolvePageData({ instances: [{ id: 's', props: {}, meta }], env: env(), mode: 'public' }, h.deps)
+    const { byInstance } = await resolvePageData({ instances: [{ id: 's', props: {}, meta }], env: env() }, h.deps)
     expect(byInstance.get('s')!.slow).toEqual({ ok: false, error: 'budget' })
     expect(performance.now() - t).toBeLessThan(1500)
     await h.close()
@@ -210,7 +208,7 @@ describe('10. budget', () => {
 })
 
 describe('11. editor RPC ignores client-supplied specs', () => {
-  it('only block + props are used; spec/data/mode/query in the input are ignored', async () => {
+  it('only block + props are used; spec/data/query in the input are ignored', async () => {
     const h = await dataDeps({ mockOrigin: api.origin })
     const res = await resolveBlock(
       blockDataSchema.parse({
@@ -220,7 +218,6 @@ describe('11. editor RPC ignores client-supplied specs', () => {
         spec: { source: 'host', op: 'find', collection: 'users', args: {} },
         data: { posts: { source: 'host', op: 'find', collection: 'users', args: {} } },
         query: { source: 'http', origin: 'https://169.254.169.254', path: '/' },
-        mode: 'public',
       }),
       h.deps,
     )
@@ -234,24 +231,42 @@ describe('11. editor RPC ignores client-supplied specs', () => {
   })
 })
 
-describe('12. draft visibility', () => {
-  it('drafts appear in editor (draft) mode, never in public renders', async () => {
-    const h = await dataDeps({ mockOrigin: api.origin })
+describe('12. the request reaches requireRequest sources only', () => {
+  it('drafts appear for the requests the source allows, never anonymously', async () => {
+    const h = await dataDeps({ mockOrigin: api.origin, canReadDrafts: (r) => r.headers.get('authorization') === 'editor' })
     const meta = h.deps.manifest.blocks['latest-posts']
-    const pub = await resolvePageData({ instances: [{ id: 'x', props: { count: 12 }, meta }], env: env(), mode: 'public' }, h.deps)
-    const draft = await resolvePageData({ instances: [{ id: 'x', props: { count: 12 }, meta }], env: env(), mode: 'draft' }, h.deps)
-    const titles = (r: typeof pub) => (r.byInstance.get('x')!.posts as any).data.docs.map((d: any) => d.title).join('|')
-    expect(titles(pub)).not.toContain('DRAFT')
-    expect(titles(draft)).toContain('DRAFT')
-    // The editor's block data always uses draft mode.
-    const rpc = await resolveBlock({ block: 'latest-posts', props: { count: 12 }, template: 'home' }, h.deps)
-    expect(JSON.stringify(rpc)).toContain('DRAFT')
+    const run = (request?: Request) => resolvePageData({ instances: [{ id: 'x', props: { count: 12 }, meta }], env: env(), request }, h.deps)
+    const titles = (r: Awaited<ReturnType<typeof run>>) => (r.byInstance.get('x')!.posts as any).data.docs.map((d: any) => d.title).join('|')
+    expect(titles(await run())).not.toContain('DRAFT')
+    expect(titles(await run(new Request('http://site.test/')))).not.toContain('DRAFT')
+    expect(titles(await run(editorRequest()))).toContain('DRAFT')
+    // The editor's block data: the app chooses which request to forward (none: anonymous).
+    const block = { block: 'latest-posts', props: { count: 12 }, template: 'home' }
+    expect(JSON.stringify(await resolveBlock(block, h.deps, editorRequest()))).toContain('DRAFT')
+    expect(JSON.stringify(await resolveBlock(block, h.deps))).not.toContain('DRAFT')
     await h.close()
+  })
+
+  it('a source without requireRequest never receives it; with it, null means anonymous', async () => {
+    const seen: unknown[] = []
+    const source = (requireRequest: boolean) =>
+      new HostSource({
+        name: 'spy',
+        requireRequest,
+        collections: {},
+        globals: { site: { fields: { a: { type: 'text' } }, get: async (ctx: object) => (seen.push('request' in ctx ? (ctx as { request: unknown }).request : 'absent'), { a: 1 }) } },
+      })
+    const signal = new AbortController().signal
+    const req = editorRequest()
+    await source(false).global('site', { request: req, locale: 'en', signal })
+    await source(true).global('site', { request: req, locale: 'en', signal })
+    await source(true).global('site', { locale: 'en', signal })
+    expect(seen).toEqual(['absent', req, null])
   })
 })
 
 describe('13. host data source policy (enforced by the host core, whatever the backend)', () => {
-  const ctx = (mode: 'public' | 'draft' = 'public') => ({ mode, locale: 'en', signal: new AbortController().signal })
+  const ctx = () => ({ locale: 'en', signal: new AbortController().signal })
   const host = () =>
     new HostSource(
       mockCms({

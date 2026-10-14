@@ -6,6 +6,7 @@ import path from 'node:path'
 import { fsArtifactStore } from '@puck-remote/artifacts-fs'
 import { defineConfig } from '@puck-remote/core/config'
 import { mockCms } from '@puck-remote/source-mock'
+import { sessionOf } from './src/auth.ts'
 
 // Runtime data in <app>/data, never bundled (excluded from build tracing). Next runs with the app
 // dir as cwd; import.meta.dirname is not available inside Next's server bundles.
@@ -27,7 +28,8 @@ const PREVIEW_SECRET =
 
 export default defineConfig({
   artifacts: fsArtifactStore({ dir: path.join(root, 'data', 'artifacts') }),
-  source: mockCms({ dataFile: path.join(root, 'data', 'cms.json') }),
+  // Draft posts are visible to signed-in admins only (the editor forwards its request).
+  source: mockCms({ dataFile: path.join(root, 'data', 'cms.json'), canReadDrafts: (request) => !!sessionOf(request) }),
   origins: { host: HOST_ORIGINS, editor: EDITOR_ORIGIN, site: SITE_ORIGIN },
   preview: PREVIEW_SECRET ? { secret: PREVIEW_SECRET } : null,
   // Several themes like Shopify (main, unpublished, one development theme per device). Apps that

@@ -30,7 +30,7 @@ app's job: the core has no slug helper ([D-0391](/docs/internal/decisions#D-0391
     requestOrigin: { description: "The origin the client addressed (X-Forwarded-Host/Proto, then Host).", type: '(request: Request) => string' },
     securityHeaders: { description: "Response headers (CSP and others) for public pages ('site'), admin pages ('admin', on origins.host) or the editor page ('editor'). extraConnectSrc adds connect-src origins for one response (site).", type: "(surface, { nonce, dev?, policy?, editorOrigin?, hostOrigins?, extraConnectSrc? }) => Record<string, string>" },
     cspNonce: { description: "A fresh 128-bit nonce (Web Crypto).", type: '() => string' },
-    templateCacheability: { description: "Whether a template of the main theme can be cached, without starting the sandbox.", type: '({ artifacts }, name) => Promise<{ cacheable; blocks } | null>' },
+    templateCacheability: { description: "Whether a template of the main theme can be cached, without starting the sandbox. Pass source so templates running its queries are uncacheable when it declares requireRequest.", type: '({ artifacts, source? }, name) => Promise<{ cacheable; blocks } | null>' },
     normalizeOrigin: { description: "Canonical scheme://host[:port].", type: '(origin: string) => string' },
     PREVIEW_COOKIE: { description: "Name of the preview cookie ('puck_remote_preview'); requests carrying it render a non-main theme and must not be cached.", type: 'string' },
     RELOAD_COOKIE: { description: "Name of the live reload cookie ('puck_remote_reload'), set with a preview opened from puck-remote dev.", type: 'string' },

@@ -207,7 +207,7 @@ describe("editor entry points", () => {
     (await bare.host()).store.close();
   });
 
-  it("resolveBlockData runs the manifest spec in draft mode; only block + props come from the caller", async () => {
+  it("resolveBlockData runs the manifest spec; only block + props come from the caller", async () => {
     const r = await core.resolveBlockData("home", "latest-posts", {
       count: 1,
       spec: { source: "http", origin: "https://evil.test" },
@@ -217,6 +217,23 @@ describe("editor entry points", () => {
     await expect(core.resolveBlockData("home", "nope", {})).rejects.toThrow(
       UnknownBlockError,
     );
+  });
+
+  it("resolveBlockData forwards the request to a requireRequest source (none: anonymous)", async () => {
+    const withDrafts = createCore({
+      id: `routes-request-${process.pid}`,
+      artifacts: core.config.artifacts,
+      source: mockCms({
+        dataFile: path.join(REPO_ROOT, "examples", "app", "data", "cms.json"),
+        canReadDrafts: (r) => r.headers.get("authorization") === "editor",
+      }),
+    });
+    const editor = new Request("http://admin.test/", { headers: { authorization: "editor" } });
+    const titles = async (request?: Request) =>
+      JSON.stringify(await withDrafts.resolveBlockData("home", "latest-posts", { count: 12 }, { request }));
+    expect(await titles(editor)).toContain("DRAFT");
+    expect(await titles()).not.toContain("DRAFT");
+    (await withDrafts.host()).store.close();
   });
 });
 

@@ -85,12 +85,15 @@ export interface PuckRemoteCore {
     data: unknown,
     opts: { theme: string; expect?: string },
   ): Promise<{ hash: string }>;
-  /** Data for one block in draft mode (the editor's resolveData). Only block name + props (and the template's params) come from the caller. */
+  /**
+   * Data for one block (the editor's resolveData). Only block name + props (and the template's params) come from the caller.
+   * `request` is forwarded to the data source, which decides who it is; none: anonymous.
+   */
   resolveBlockData(
     name: string,
     block: string,
     props: Record<string, unknown>,
-    opts?: { params?: Record<string, string>; theme?: string },
+    opts?: { params?: Record<string, string>; theme?: string; request?: Request },
   ): Promise<BlockDataResult>;
   /** What the admin page passes to <PuckEditorFrame>: template, root fields, manifest and theme URLs. Needs `origins`. */
   editorPayload(
@@ -213,7 +216,7 @@ function build(config: HostConfig): PuckRemoteCore {
           http: h.http,
           site: config.site,
           session: () => (session ??= runtime.session()),
-        });
+        }, opts.request);
       } finally {
         if (session)
           (

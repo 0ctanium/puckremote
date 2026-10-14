@@ -18,7 +18,8 @@ export async function resolveData(params: {
   const name = normalizeSlug(template);
   if (!name || !isThemeId(theme) || typeof block !== "string" || !props || typeof props !== "object")
     throw new Error("invalid params");
-  return remote.core.resolveBlockData(name, block, props, { params: templateParams, theme });
+  // The request carries the admin session: the data source shows drafts to signed-in admins.
+  return remote.core.resolveBlockData(name, block, props, { params: templateParams, theme, request: await remote.currentRequest() });
 }
 
 /** The signed-in user's name (an RPC the editor uses for its header badge). */

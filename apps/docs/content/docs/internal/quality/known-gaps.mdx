@@ -20,7 +20,10 @@ description: Accepted limitations and what is planned about them.
 | No richtext or inline-editing field types in the SDK yet (the editor now runs real components, so Puck supports them) | M4, mandatory for V1 ([D-0071](/docs/internal/decisions#D-0071)) |
 | No localization | Post-V1, app-defined `LocaleResolver` ([D-0073](/docs/internal/decisions#D-0073)) |
 | Single tenant | ([D-0009](/docs/internal/decisions#D-0009)) |
-| `artifacts-fs` is per machine | Plug a shared store for clusters |
+| `artifacts-fs` is per machine | Plug a shared store for clusters (e.g. `payloadArtifactStore`) |
+| `payloadArtifactStore` stores files as base64 text (about a third larger; 16 MB per file on MongoDB) and polls the theme list (no change feed) | Accepted ([D-0577](/docs/internal/decisions#D-0577), [D-0578](/docs/internal/decisions#D-0578)) |
+| Pages running a `requireRequest` source's queries (e.g. Payload) are never cacheable | By design: results may differ per visitor ([D-0596](/docs/internal/decisions#D-0596)) |
+| The Payload Local API cannot cancel a running query when the page's data deadline passes | The query is not started when the deadline already passed; its result is dropped |
 | `resolveData` stripping is our convention, not enforced by Puck | Tested (test 18) |
 | Manifests are not signed; who may publish is only the app's `authorize` | The artifacts API verifies every uploaded file's hash and the file set before storing ([D-0514](/docs/internal/decisions#D-0514)); signed manifests are not decided |
 | `puck-remote dev` rebuilds the whole theme on every change (only changed files are sent, [D-0507](/docs/internal/decisions#D-0507)); live reload is a full page reload of previews only (no HMR, no editor reload) | Accepted for now ([D-0546](/docs/internal/decisions#D-0546), [D-0496](/docs/internal/decisions#D-0496)); incremental builds and hot swap are not decided |

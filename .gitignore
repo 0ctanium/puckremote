@@ -12,3 +12,5 @@ packages/cli/test/.fixtures
 .claude/settings.local.json
 .claude/state/
 packages/core/test/.fixtures
+examples/payload/data/*
+!examples/payload/data/.gitkeep

@@ -1,20 +1,152 @@
 ---
-title: Payload (planned)
-description: How the first real backend will plug in.
+title: Payload
+description: Run puck-remote on Payload - themes' data, theme storage, the CLI's auth and the editor in Payload's admin.
 ---
 
-<Callout type="warn">Planned. Nothing here is implemented yet, and the details will be decided in its own plan.</Callout>
+[Payload](https://payloadcms.com) 3 runs inside your Next.js app. With `@puck-remote/payload`,
+themes query your Payload collections (each query as the visitor's or editor's Payload user), themes
+are stored in Payload's database, Payload users authorize theme pushes, and editors work from
+Payload's admin. The reference is
+[Core › Adapters › Payload](/docs/core/adapters/payload); `examples/payload` is a complete app.
 
-Payload is the first real backend ([D-0054](/docs/internal/decisions#D-0054)). What already follows from
-the current design:
+## 1. Install
 
-- A `@puck-remote/source-payload` **DataSource** translates `NormalizedFind` to the Payload Local
-  API with `overrideAccess: false`, a public user, and `draft: ctx.mode === 'draft'`. The core does
-  not change.
-- Templates are part of a theme's files ([D-0188](/docs/internal/decisions#D-0188)), so a Payload-backed
-  **ArtifactStore** would store each theme's files (code and templates) and the theme list; there is no
-  page store.
-- Payload sessions authenticate the app's admin pages and RPC handlers; the core has no auth
-  ([D-0187](/docs/internal/decisions#D-0187)).
-- Drafts or history would be a publishing plugin on `writeTemplate` and the themes
-  ([D-0190](/docs/internal/decisions#D-0190)).
+```bash
+pnpm add @puck-remote/payload payload @payloadcms/next @payloadcms/ui @payloadcms/db-sqlite graphql
+```
+
+Add Payload's admin and REST routes to your app as Payload's own templates do (a `(payload)` route
+group with `admin/[[...segments]]` and `api/[...slug]`), and wrap your Next config with
+`withPayload` around `withPuckRemote`:
+
+```ts title="next.config.ts"
+export default withPayload(withPuckRemote({ /* … */ }), { devBundleServerPackages: false });
+```
+
+Payload's admin renders its own `<html>`: give your other route groups (`(app)`, `(puck)`) a root
+layout each instead of a top-level `app/layout.tsx`.
+
+## 2. Origins: Payload's admin on the admin origin
+
+Payload's admin (`/admin`) and REST API (`/api`) carry the admin session: serve them on your host
+(admin) origin only. Tell the proxy, so it leaves them as they are there and answers 404 on the
+public site and the editor origin ([D-0604](/docs/internal/decisions#D-0604)):
+
+```ts title="src/proxy.ts"
+export const proxy = createProxy(remoteConfig, {
+  template: (pathname) => /* … */,
+  hostRoutes: ['/admin', '/api'],
+});
+```
+
+Payload's cookie is host-only by default, so it never reaches the public site, where theme scripts
+run.
+
+## 3. The data source
+
+Expose the collections, globals and fields themes may read:
+
+```ts title="puck-remote.config.ts"
+import { payloadSource } from '@puck-remote/payload/source';
+import { getPayload } from 'payload';
+import config from '@payload-config';
+import type { Config } from './src/payload-types';
+
+export default defineConfig({
+  source: payloadSource<Config>()({
+    payload: () => getPayload({ config }),
+    collections: {
+      posts: { fields: { title: { type: 'text' }, slug: { type: 'text', filter: ['equals', 'in'] } } },
+    },
+    globals: { site: { fields: { tagline: { type: 'text' } } } },
+  }),
+  // …
+});
+```
+
+Every query runs as the request's Payload user with access control on, so write your Payload
+access rules as usual. Visitors are anonymous; only published content is returned unless the editor
+previews as a logged-in admin user, who also sees drafts
+([who is asking](/docs/core/adapters/payload#who-is-asking)).
+
+Pages running Payload queries are answered `no-store`: their content can differ per visitor
+([D-0596](/docs/internal/decisions#D-0596)).
+
+## 4. Themes in Payload's database, editor in Payload's admin
+
+Add the plugin to your Payload config. It adds the theme store's collections, a **Themes** view and
+the editor to Payload's admin, and the endpoints they call:
+
+```ts title="src/payload.config.ts"
+import { puckRemotePlugin } from '@puck-remote/payload/plugin';
+
+export default buildConfig({
+  // …
+  plugins: [
+    puckRemotePlugin({
+      // Lazy: your puck-remote config imports this config through its data source.
+      core: () => import('./puck-remote').then((m) => m.remote.core),
+      editorUrl: 'https://editor.example.net/',
+      previewAs: 'user', // the editor previews data as the logged-in user, drafts included
+    }),
+  ],
+});
+```
+
+Run `payload generate:importmap`, then store the themes in Payload:
+
+```ts title="puck-remote.config.ts"
+import { payloadArtifactStore } from '@puck-remote/payload/artifacts';
+
+artifacts: payloadArtifactStore({ payload: () => getPayload({ config }) }),
+```
+
+Editors open `<admin>/puck-remote` (Themes in the nav), pick a theme and **Customize**: the editor
+opens on `?previewPath=/` and saves templates into that theme. Your app still serves the editor page
+on the editor origin ([Editor app](/docs/guides/editor-app)).
+
+## 5. The artifacts API and the CLI
+
+Authorize theme pushes with Payload users:
+
+```ts title="app/(puck)/api/themes/[[...path]]/route.ts"
+import { payloadAuthorize } from '@puck-remote/payload/auth';
+
+export const { GET, POST, PATCH, DELETE } = remote.createArtifactsHandler({
+  authorize: payloadAuthorize({ payload: () => getPayload({ config }) }),
+});
+```
+
+Enable API keys on your user collection (`auth: { useAPIKey: true }`), create one for a user in
+Payload's admin, and send it from the theme's CLI config:
+
+```ts title="puck-remote.cli.ts"
+export default defineCliConfig({
+  url: 'https://admin.example.com/api/themes',
+  headers: { authorization: `users API-Key ${process.env.PAYLOAD_API_KEY}` },
+});
+```
+
+## Try it: `examples/payload`
+
+```bash
+pnpm --filter payload-example seed
+```
+
+```bash
+pnpm --filter payload-example dev
+```
+
+```bash
+pnpm --filter theme release:payload
+```
+
+- Payload admin: `http://admin.localhost:3300/admin` (**demo only**: `admin@example.com` /
+  `admin`, API key `dev-api-key`); themes and the editor under **Themes**
+  (`/admin/puck-remote`).
+- Public site: `http://localhost:3300`. The editor shows the draft post "DRAFT: Unannounced
+  feature"; the site does not.
+
+The seed copies `examples/app`'s mock content into SQLite (`examples/payload/data/payload.db`;
+delete it to start over); the themes are stored there too. The theme is the same `examples/theme`, pushed with
+`puck-remote.payload.cli.ts`.

@@ -95,14 +95,47 @@ describe('other origins (the public site)', () => {
   })
 })
 
+describe('hostRoutes (another app on host origins, e.g. Payload)', () => {
+  const withPayload = createProxy({ artifacts, origins: ORIGINS }, { hostRoutes: ['/admin', '/api/'] })
+  const req = (origin: string, path: string) => {
+    const u = new URL(origin)
+    return withPayload(new NextRequest(`${origin}${path}`, { headers: { 'x-forwarded-host': u.host, 'x-forwarded-proto': u.protocol.slice(0, -1) } }))
+  }
+
+  it('are served as-is on host origins, with admin headers and no-store', async () => {
+    for (const p of ['/admin', '/admin/collections/posts', '/api/users/me', '/api/themes']) {
+      const r = await req(ORIGINS.host[0], p)
+      expect(r.status, p).toBe(200)
+      expect(rewrite(r), p).toBeNull()
+      expect(r.headers.get('location'), p).toBeNull()
+      expect(r.headers.get('cache-control'), p).toBe('no-store')
+      expect(r.headers.get('x-frame-options'), p).toBe('DENY')
+    }
+    // Other host paths are still rewritten under routes.admin.
+    expect(rewrite(await req(ORIGINS.host[0], '/editor'))).toBe('/admin/editor')
+  })
+
+  it('answer 404 on the site and the editor origins', async () => {
+    for (const p of ['/admin', '/admin/login', '/api/users', '/api/themes']) {
+      expect((await req('https://www.example.com', p)).status, p).toBe(404)
+      expect((await req(ORIGINS.editor, p)).status, p).toBe(404)
+    }
+    expect((await req('https://www.example.com', '/administrator')).status).toBe(200)
+  })
+})
+
 describe('cache headers (templates)', () => {
   const sha = (s: string) => createHash('sha256').update(s).digest('hex')
   const tpl = (type: string) => JSON.stringify({ root: { props: {} }, content: [{ type, props: { id: '1' } }] })
-  const files: Record<string, string> = { 'templates/home.json': tpl('plain'), 'templates/search.json': tpl('search') }
+  const files: Record<string, string> = { 'templates/home.json': tpl('plain'), 'templates/search.json': tpl('search'), 'templates/posts.json': tpl('posts') }
   const manifest = JSON.stringify({
     files: Object.fromEntries(Object.entries(files).map(([k, v]) => [k, sha(v)])),
     root: null,
-    blocks: { plain: { data: {} }, search: { data: { r: { source: 'host', op: 'find', collection: 'posts', args: { where: { q: { equals: { $query: 'q' } } } } } } } },
+    blocks: {
+      plain: { data: {} },
+      search: { data: { r: { source: 'host', op: 'find', collection: 'posts', args: { where: { q: { equals: { $query: 'q' } } } } } } },
+      posts: { data: { r: { source: 'host', op: 'find', collection: 'posts', args: {} } } },
+    },
   })
   const store = {
     ...artifacts,
@@ -126,6 +159,19 @@ describe('cache headers (templates)', () => {
     expect(r.headers.get('x-template-cacheable')).toBe('false')
     expect(r.headers.get('cache-control')).toBe('no-store')
     expect(r.headers.get('x-uncacheable-blocks')).toBe('search')
+  })
+
+  it('a template running host queries is no-store only when the source requires the request', async () => {
+    expect((await site(mapped, '/posts')).headers.get('x-template-cacheable')).toBe('true')
+    const personal = createProxy(
+      { artifacts: store, source: { name: 's', requireRequest: true, collections: {}, globals: {} } },
+      { template: (pathname) => ({ name: pathname === '/' ? 'home' : pathname.slice(1) }) },
+    )
+    const r = await site(personal, '/posts')
+    expect(r.headers.get('x-template-cacheable')).toBe('false')
+    expect(r.headers.get('cache-control')).toBe('no-store')
+    expect(r.headers.get('x-uncacheable-blocks')).toBe('posts')
+    expect((await site(personal, '/')).headers.get('x-template-cacheable')).toBe('true')
   })
 
   it('an unknown template gets no header', async () => {

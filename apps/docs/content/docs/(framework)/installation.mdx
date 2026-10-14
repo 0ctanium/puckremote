@@ -166,8 +166,8 @@ export function ClientEditor({ payload }: { payload: EditorPayload }) {
 import { remote } from '@/puck-remote';
 
 export async function resolveData(p: { template: string; params: Record<string, string>; block: string; props: Record<string, unknown> }) {
-  // Check your own admin session here.
-  return remote.core.resolveBlockData(p.template, p.block, p.props, { params: p.params });
+  // Check your own admin session here. The request lets a requireRequest data source see who edits.
+  return remote.core.resolveBlockData(p.template, p.block, p.props, { params: p.params, request: await remote.currentRequest() });
 }
 ```
 

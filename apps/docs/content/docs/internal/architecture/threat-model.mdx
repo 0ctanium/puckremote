@@ -69,9 +69,10 @@ Each layer assumes the previous one can fail.
 | Typed protocol: origin **and** source checks, explicit target origins, allow-listed RPCs, size and rate limits | A framed or hostile editor driving the host | on |
 | Admin origins distinct from the editor; public pages refused on admin origins | Theme scripts using admin sessions | on (config check, bindings) |
 | CSP and security headers | Script injection, framing, sniffing, unlisted third-party scripts | admin enforced, site report-only by default |
-| Draft data only through the editor's RPC; public renders use `public` mode | Unpublished content leaking to visitors | on |
+| The request reaches only a source declaring `requireRequest`, never theme code; that source decides what each visitor may see (drafts, members-only content); its templates are never marked cacheable | Unpublished or per-user content leaking to visitors or through a CDN | on ([D-0595](/docs/internal/decisions#D-0595), [D-0596](/docs/internal/decisions#D-0596)) |
 | Artifacts API: the app's `authorize` before any body is read, full hash and file-set verification, size limits, host origins only | Unauthenticated or tampered uploads; zip bombs | on when the app mounts it ([D-0471](/docs/internal/decisions#D-0471)) |
 | Signed, expiring preview cookie (`HttpOnly`), previews never cached | Visitors or CDNs seeing a non-main theme | on when `preview` is configured |
+| Payload: admin and REST API (`hostRoutes`) only on host origins, 404 elsewhere; the session cookie is host-only; queries run with `overrideAccess: false` as the request's user, published-only without drafts; the theme store's collections deny all non-store access; plugin endpoints need a Payload session allowed by `access` | Theme scripts reaching Payload's admin or API with a session; themes reading what the visitor may not; tampering with stored themes | on with `@puck-remote/payload` ([D-0604](/docs/internal/decisions#D-0604), [D-0603](/docs/internal/decisions#D-0603), [D-0579](/docs/internal/decisions#D-0579)) |
 
 ## Known limits
 
