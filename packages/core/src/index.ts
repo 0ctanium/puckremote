@@ -4,6 +4,7 @@ export type { PreparedTemplate, TemplateOptions } from './server/public-render.t
 export { PREVIEW_COOKIE, RELOAD_COOKIE, reloadOrigin } from './shared/preview-cookie.ts'
 export type { TemplateData, PuckItem } from './server/page-tree.ts'
 export type { BlockMeta, FieldSpec, Manifest, VisibleIf } from './server/manifest-schema.ts'
+export { templateNameOf } from './server/manifest-schema.ts'
 export type { BlockDataResult } from './server/editor-rpc.ts'
 export { UnknownBlockError } from './server/editor-rpc.ts'
 export { TemplateError, MAX_TEMPLATE_BYTES } from './server/templates.ts'

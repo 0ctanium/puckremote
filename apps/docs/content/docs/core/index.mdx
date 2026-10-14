@@ -17,7 +17,9 @@ Like a Shopify theme, a theme carries **templates**: named Puck documents
 decides which template a route renders and which **params** it gets (for example
 `/products/[handle]` → template `product` with `{ handle }`), and builds the page metadata from
 the template's root props ([D-0371](/docs/internal/decisions#D-0371),
-[D-0370](/docs/internal/decisions#D-0370)).
+[D-0370](/docs/internal/decisions#D-0370)). Templates can be nested in directories
+(`templates/blog/post.json` is the template `blog/post`); `templateNameOf(file)` maps a theme file
+path to its template name, or null ([D-0632](/docs/internal/decisions#D-0632)).
 
 ```npm
 npm install @puck-remote/core

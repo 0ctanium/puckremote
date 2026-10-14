@@ -3,7 +3,7 @@
 [meta]
 project = "puck-remote"
 guide = ".claude/ADR-SYSTEM-GUIDE.md"
-next_decision = 561
+next_decision = 645
 
 [adrs."feat/poc-sandboxed-blocks"]
 file = "merged/2026-10/feat-poc-sandboxed-blocks.md"
@@ -206,6 +206,26 @@ title = "Artifact publication API, named heads and puck-remote dev"
 description = "Artifact publication API, named heads and puck-remote dev"
 tags = [ "artifacts", "cli", "security", "api" ]
 decisions = [ "D-0403", "D-0404", "D-0405", "D-0406", "D-0407", "D-0408", "D-0409", "D-0410", "D-0411", "D-0412", "D-0413", "D-0414", "D-0415", "D-0416", "D-0417", "D-0418", "D-0419", "D-0420", "D-0421", "D-0422", "D-0423", "D-0424", "D-0425", "D-0426", "D-0427", "D-0428", "D-0429", "D-0430", "D-0431", "D-0432", "D-0433", "D-0434", "D-0435", "D-0436", "D-0437", "D-0438", "D-0439", "D-0440", "D-0441", "D-0442", "D-0443", "D-0444", "D-0445", "D-0446", "D-0447", "D-0448", "D-0449", "D-0450", "D-0451", "D-0452", "D-0453", "D-0454", "D-0455", "D-0456", "D-0457", "D-0458", "D-0459", "D-0460", "D-0461", "D-0462", "D-0463", "D-0464", "D-0465", "D-0466", "D-0467", "D-0468", "D-0469", "D-0470", "D-0471", "D-0472", "D-0473", "D-0474", "D-0475", "D-0476", "D-0477", "D-0478", "D-0479", "D-0480", "D-0481", "D-0482", "D-0483", "D-0484", "D-0485", "D-0486", "D-0487", "D-0488", "D-0489", "D-0490", "D-0491", "D-0492", "D-0493", "D-0494", "D-0495", "D-0496", "D-0497", "D-0498", "D-0499", "D-0500", "D-0501", "D-0502", "D-0503", "D-0504", "D-0505", "D-0506", "D-0507", "D-0508", "D-0509", "D-0510", "D-0511", "D-0512", "D-0513", "D-0514", "D-0515", "D-0516", "D-0517", "D-0518", "D-0519", "D-0520", "D-0521", "D-0522", "D-0523", "D-0524", "D-0525", "D-0526", "D-0527", "D-0528", "D-0529", "D-0530", "D-0531", "D-0532", "D-0533", "D-0534", "D-0535", "D-0536", "D-0537", "D-0538", "D-0539", "D-0540", "D-0541", "D-0542", "D-0543", "D-0544", "D-0545", "D-0546", "D-0547", "D-0548", "D-0549", "D-0550", "D-0551", "D-0552", "D-0553", "D-0554", "D-0555", "D-0556", "D-0557", "D-0558", "D-0559", "D-0560" ]
+
+[adrs."feat/payload"]
+file = "branches/feat/payload.md"
+type = "feat"
+status = "active"
+created = "2026-10-13"
+title = "M3b: Payload backend (source, artifact store, auth, admin plugin)"
+description = "M3b: Payload backend (source, artifact store, auth, admin plugin)"
+tags = [ "payload", "data-source", "artifacts", "auth", "editor", "adapters" ]
+decisions = [ "D-0561", "D-0562", "D-0563", "D-0564", "D-0565", "D-0566", "D-0567", "D-0568", "D-0569", "D-0570", "D-0571", "D-0572", "D-0573", "D-0574", "D-0575", "D-0576", "D-0577", "D-0578", "D-0579", "D-0580", "D-0581", "D-0582", "D-0583", "D-0584", "D-0585", "D-0586", "D-0587", "D-0588", "D-0589", "D-0590", "D-0591", "D-0592", "D-0593", "D-0594", "D-0595", "D-0596", "D-0597", "D-0598", "D-0599", "D-0600", "D-0601", "D-0602", "D-0603", "D-0604", "D-0605", "D-0606", "D-0607", "D-0608", "D-0609", "D-0610", "D-0611", "D-0612", "D-0613", "D-0614", "D-0615", "D-0616", "D-0617", "D-0618", "D-0619" ]
+
+[adrs."feat/template-switcher"]
+file = "branches/feat/template-switcher.md"
+type = "feat"
+status = "active"
+created = "2026-10-13"
+title = "Template switcher in the editor header"
+description = "Template switcher in the editor header"
+tags = [ "editor", "templates" ]
+decisions = [ "D-0620", "D-0621", "D-0622", "D-0623", "D-0624", "D-0625", "D-0626", "D-0627", "D-0628", "D-0629", "D-0630", "D-0631", "D-0632", "D-0633", "D-0634", "D-0635", "D-0636", "D-0637", "D-0638", "D-0639", "D-0640", "D-0641", "D-0642", "D-0643", "D-0644" ]
 
 [decisions.D-0001]
 title = "One file per block (blocks/<slug>.tsx) with a default-export defineBlock; no .server files"
@@ -442,8 +462,9 @@ title = "Content source mocked in-memory with collection/field allowlists, limit
 adr = "feat/poc-sandboxed-blocks"
 date = "2026-10-07"
 provenance = "user"
-status = "accepted"
+status = "superseded"
 tags = [ "data", "payload" ]
+superseded_by = "D-0594"
 
 [decisions.D-0030]
 title = "Outbound HTTP: https only, origin allowlist, pinned DNS rejecting private IPs, manual same-origin redirects, timeouts and size caps"
@@ -1940,8 +1961,9 @@ title = "Core exports resolveBlockData(slug, block, props) (draft mode) for the 
 adr = "feat/m3a-content-lifecycle"
 date = "2026-10-08"
 provenance = "user-approved-plan"
-status = "accepted"
+status = "superseded"
 tags = [ "editor", "data" ]
+superseded_by = "D-0594"
 
 [decisions.D-0203]
 title = "Limits: RPC payload 1 MB (uploads 10 MB), 20 RPC/s per frame, change debounce 500 ms, page JSON 2 MB"
@@ -4931,6 +4953,685 @@ date = "2026-10-11"
 provenance = "agent-unreviewed"
 status = "needs-review"
 tags = [ "ci", "cli" ]
+
+[decisions.D-0561]
+title = "M3b scope: Payload DataSource, ArtifactStore, auth helpers and an editor inside Payload's admin"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "payload", "scope" ]
+
+[decisions.D-0562]
+title = "One package @puck-remote/payload with subpaths /source, /artifacts, /auth, /plugin, /admin"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "payload", "packaging" ]
+
+[decisions.D-0563]
+title = "New example app examples/payload; examples/app stays on the mock source and fs store"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "payload", "example" ]
+
+[decisions.D-0564]
+title = "Payload plugin option previewAs 'user' | 'anonymous' decides whether the editor preview queries as the logged-in user or anonymously"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "payload", "editor" ]
+
+[decisions.D-0565]
+title = "Payload source reads Payload drafts (draft: true) only for the editor-as-user case; anonymous previews and public pages read published content"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "payload", "data-source" ]
+
+[decisions.D-0566]
+title = "Core API: prepareTemplate and resolveBlockData accept { request? }, forwarded to the source"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "core", "api" ]
+
+[decisions.D-0567]
+title = "Next: loadTemplate passes the incoming request rebuilt from headers(); remote.currentRequest() helper for server actions"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "next", "api" ]
+
+[decisions.D-0568]
+title = "Mock source: mockCms({ canReadDrafts?: (request) => boolean | Promise<boolean> }); _status draft docs visible only when it returns true; examples/app passes its admin-session check"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "mock", "data-source" ]
+
+[decisions.D-0569]
+title = "Resolver dedupe key drops mode (dedupe is per pass, one request per pass)"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "core", "query" ]
+
+[decisions.D-0570]
+title = "@puck-remote/payload peers: payload ^3.90.2 and @puck-remote/core; /admin also @payloadcms/ui, next, react, @puck-remote/editor; dev @payloadcms/db-sqlite for tests"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "dependencies" ]
+
+[decisions.D-0571]
+title = "payloadSource<Config>()({ payload: () => Payload (lazy), collections, globals, draft? }); keys are Payload slugs; doc types from Payload's generated Config; fields declared explicitly as CollectionField and checked against the Payload config at first use (unknown field or relation target = error)"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "data-source", "api" ]
+
+[decisions.D-0572]
+title = "Payload source auth: payload.auth({ headers }) memoized per Request (WeakMap); every query overrideAccess: false with user (null when no request or no session)"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "security" ]
+
+[decisions.D-0573]
+title = "Payload source default draft rule: draft true only when the user belongs to config.admin.user; overridable with the draft option"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "data-source" ]
+
+[decisions.D-0574]
+title = "Query mapping: equals/in/contains as is, contains null dropped, gt/lt to greater_than/less_than, and/or, sort '-field', select { f: true }, depth, limit/page, pagination true; locale only with Payload localization; no query started when signal is aborted"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "query" ]
+
+[decisions.D-0575]
+title = "findByID via payload.findByID with disableErrors: true (missing or forbidden = null)"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "data-source" ]
+
+[decisions.D-0576]
+title = "Payload artifact store theme list: append-only collection puck-remote-theme-lists { seq unique, themes json }; insert conflict = ThemeConflictError; version String(seq), '0' when empty; keep the last 20 revisions"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "artifacts" ]
+
+[decisions.D-0577]
+title = "Payload artifact store files: collection puck-remote-theme-files { theme, path, data base64, size } with a compound unique index (theme, path); one row update per file; copy and delete by theme"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "artifacts" ]
+
+[decisions.D-0578]
+title = "Payload artifact store has no watch; the core polls readThemes every 2000 ms (D-0065)"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "artifacts" ]
+
+[decisions.D-0579]
+title = "Payload artifact store uses overrideAccess: true; its collections deny all REST/GraphQL access and are hidden in the admin"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "artifacts", "security" ]
+
+[decisions.D-0580]
+title = "payloadAuthorize({ payload, can? }) returns AuthorizeApi; default can: any authenticated user of the admin user collection; anonymous always refused; payloadUser(payload, request) helper"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "auth" ]
+
+[decisions.D-0581]
+title = "CLI authenticates with Payload API keys (useAPIKey) through puck-remote.cli.ts headers 'users API-Key <key>'; docs and example only, no CLI change"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "cli", "auth" ]
+
+[decisions.D-0582]
+title = "puckRemotePlugin({ core: () => Promise<core> (lazy), editorUrl, previewAs = 'user', artifacts = true, access? (default any admin user) })"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "plugin", "api" ]
+
+[decisions.D-0583]
+title = "Plugin admin views /admin/puck-remote (themes list: editor, preview link, publish, duplicate, rename, delete) and /admin/puck-remote/editor?theme=&previewPath= hosting PuckEditorFrame; nav link via afterNavLinks"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "plugin", "editor" ]
+
+[decisions.D-0584]
+title = "Plugin endpoints under Payload /api: POST puck-remote/resolve-data, puck-remote/publish (expect, 409 = conflict), puck-remote/themes/:op; not Payload server functions"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "plugin", "api" ]
+
+[decisions.D-0585]
+title = "Plugin covers the admin origin only; editor frame page, public catch-all, /api/themes and theme/cdn routes stay app routes via @puck-remote/next"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "plugin" ]
+
+[decisions.D-0586]
+title = "examples/payload: Next 16.4, (app)/(puck)/(payload) groups, @payloadcms/db-sqlite at data/payload.db, users (auth, API keys), posts (drafts), authors, global site, seed mirroring examples/app cms.json"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "example" ]
+
+[decisions.D-0587]
+title = "examples/payload origins on port 3300 (admin.localhost admin, 127.0.0.1 editor, localhost site); proxy 404s /admin and Payload /api/** off host origins; /api/themes on host origins"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "example", "origins" ]
+
+[decisions.D-0588]
+title = "examples/payload uses examples/theme; Register source type stays the mock's, checked by the example typecheck"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "example", "typing" ]
+
+[decisions.D-0589]
+title = "Scripts pnpm --filter payload-example dev | seed; one CLAUDE.md command row"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "payload", "example" ]
+
+[decisions.D-0590]
+title = "Branch feat/payload from feat/artifact-api"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0591]
+title = "Docs: guides/payload rewrite, core/adapters/payload (new), sdk/host-contracts, core/adapters/data-source, concepts/declarative-data and adapters, internal query-resolver, threat-model, known-gaps, testing, contributing map"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "docs" ]
+
+[decisions.D-0592]
+title = "Tests: payload source (mapping, per-user access, draft rule, anonymous, relation policy) on SQLite; artifactStoreContract + concurrent conflict; auth (cookie, API key, anonymous); core request forwarding; mock canReadDrafts; plugin endpoints; live checks on :3300"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "tests" ]
+
+[decisions.D-0593]
+title = "Phasing: contract change, then source+auth+example, then artifacts, then plugin+admin"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "process" ]
+
+[decisions.D-0594]
+title = "No draft mode: SourceContext is { request?: Request; locale; signal }, the actual request on every surface (public pages, preview, editor); no request = anonymous; Mode removed from sdk/host; the request only reaches the trusted source, never theme code"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "superseded"
+tags = [ "data-source", "security", "contract" ]
+supersedes = [ "D-0029", "D-0202" ]
+superseded_by = "D-0595"
+
+[decisions.D-0595]
+title = "DataSource opts in with requireRequest: true; only then SourceContext has request: Request | null (null = anonymous, typed through generics); without it the core never forwards the request and ctx has no request key; no draft mode, Mode removed"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "data-source", "security", "contract", "typing" ]
+supersedes = [ "D-0594" ]
+
+[decisions.D-0596]
+title = "With a requireRequest source, templates whose blocks or root run a host-source query are uncacheable (cacheable false, proxy private/no-store), using the same static analysis as $query refs; http-only and static templates stay cacheable"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "cache", "security", "data-source" ]
+
+[decisions.D-0597]
+title = "Bindings rebuild the request from headers() with the origin root as URL (<proto>://<host>/): headers and origin only, not the path"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "next", "api" ]
+
+[decisions.D-0598]
+title = "Typing names: SourceContextBase { locale, signal }; SourceContext<R extends boolean = false>; CollectionDef<D, R = false> / GlobalDef<D, R = false> with property-syntax find/findByID/get (strict parameter checks); defineCollection<D, R>() / defineGlobal<D, R>(); defineDataSource infers R from requireRequest"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "sdk", "typing" ]
+
+[decisions.D-0599]
+title = "createProxy config: source is optional (Partial<Pick<…, 'source'>>) so existing proxies keep compiling; uncacheable requireRequest templates reuse the existing 'cache-control: no-store' header (not 'private, no-store')"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "next", "cache" ]
+
+[decisions.D-0600]
+title = "mockCms declares requireRequest only when canReadDrafts is given (requireRequest: !!canReadDrafts); collections typed with R = boolean"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "mock", "data-source" ]
+
+[decisions.D-0601]
+title = "examples/app: auth.ts exports sessionOf(request) (parses the Cookie header, same HMAC check as getSession); puck-remote.config.ts passes canReadDrafts: (r) => !!sessionOf(r); editor resolveData action forwards remote.currentRequest()"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "example", "auth" ]
+
+[decisions.D-0602]
+title = "Test seams: editorRequest() helper (authorization: editor) and dataDeps({ canReadDrafts }) in core/test/helpers.ts"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "tests" ]
+
+[decisions.D-0603]
+title = "Payload source: a non-draft query on a collection or global with versions.drafts only returns published content (find/findByID add _status equals published; a global whose _status is not published reads as null), whatever the app's access rules allow"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "payload", "data-source", "security" ]
+
+[decisions.D-0604]
+title = "createProxy option hostRoutes: string[] (path prefixes): on host origins served as-is (no rewrite under routes.admin, no redirect) with admin security headers and cache-control no-store; on other origins 404; examples/payload passes ['/admin', '/api']"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "next", "proxy", "origins" ]
+
+[decisions.D-0605]
+title = "examples/theme/puck-remote.payload.cli.ts (url http://admin.localhost:3300/api/themes, Authorization 'users API-Key ${PAYLOAD_API_KEY}') and theme script release:payload = puck-remote push --live --config puck-remote.payload.cli.ts"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "example", "cli" ]
+
+[decisions.D-0606]
+title = "examples/payload seed: admin@example.com / 'admin' and API key from PAYLOAD_API_KEY, 'dev-api-key' outside production (same default in the CLI config); demo-only in docs"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "example", "auth" ]
+
+[decisions.D-0607]
+title = "Payload source details: globals read with depth 0; ids returned as Payload stores them (numbers on SQL); payloadSource exports toPayloadWhere, PayloadTypes, PayloadUser, PayloadCollectionOptions, PayloadGlobalOptions; validation error prefix '[puck-remote/payload]'; an or with a match-all clause matches all; failed Payload start retried on next query"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "payload", "data-source" ]
+
+[decisions.D-0608]
+title = "graphql 16.14.2 added (Payload's required peer) to @puck-remote/payload devDependencies and examples/payload; examples/payload also depends on @payloadcms/next and @payloadcms/ui 3.90.2"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "dependencies", "payload" ]
+
+[decisions.D-0609]
+title = "examples/payload layout: (app) and (puck) groups get their own root layout (no app/layout.tsx, Payload renders its own <html>); Payload template files copied from templates/blank v3.90.2 minus custom.scss (no sass dependency); src/payload.ts shares getPayload; schema: users (useAPIKey), authors (email not exposed), posts (drafts, read: user ? all : published, secretNotes not exposed), site global; site name 'Payload example'"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "example", "payload" ]
+
+[decisions.D-0610]
+title = "examples/payload scripts generate:types and generate:importmap; seed via 'payload run src/seed.ts', reads examples/app/data/cms.json, does nothing when users exist; .gitignore examples/payload/data/*; src/payload-types.ts committed; root typecheck includes payload-example; .claude/launch.json entry payload-example"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "example", "tooling" ]
+
+[decisions.D-0611]
+title = "Proxy hostRoutes only apply when origins are configured (admin.length)"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "next", "proxy" ]
+
+[decisions.D-0612]
+title = "puckRemotePlugin option template?: (previewPath) => { name, params? } | null; default: the path names the template ('/' → 'home', params { slug: name }), the examples' rule; null → not found"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "payload", "plugin", "api" ]
+
+[decisions.D-0613]
+title = "Plugin editor view mirrors examples/app's ClientEditor: header with theme name and role, Publish (save into the theme, conflict message), preview link for non-main themes, back to the themes list; built with Payload admin UI components"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "payload", "plugin", "editor" ]
+
+[decisions.D-0614]
+title = "Payload store internals: collections defined in src/collections.ts (artifactCollections, THEME_LISTS, THEME_FILES; not a public entry), file data field skips Payload's text-length validation (validate: () => true) since the host size-limits files; store re-checks theme ids and paths like artifacts-fs; file upsert = find then update/create with a retry on a concurrent create"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "payload", "artifacts" ]
+
+[decisions.D-0615]
+title = "Plugin implementation: views registered as admin.components.views puckRemoteThemes (/puck-remote) and puckRemoteEditor (/puck-remote/editor), exact; options passed to views as serverProps.puckRemote; ThemesView wrapped in Payload's DefaultTemplate + Gutter; editor view full page; NavLink is a plain nav__link anchor labelled 'Themes'; core error classes loaded with dynamic import (keeps the engine out of the Payload config graph)"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "payload", "plugin" ]
+
+[decisions.D-0616]
+title = "Plugin endpoint details: JSON bodies, 400 'invalid params' / 'invalid theme' / 'invalid name', 401 'unauthorized', 403 'forbidden', 404 'unknown operation', ThemeError status passed through; theme op names publish|duplicate|rename|delete; rename name max 50 chars; request rebuilt from req.url origin root and req.headers; no-store responses; exported defaultTemplate"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "payload", "plugin", "api" ]
+
+[decisions.D-0617]
+title = "Plugin UI wording: Themes view headings 'Themes', role labels as examples/app ('Current theme', 'Theme library', 'Development themes'), 'No theme yet: push one with the puck-remote CLI.', not-allowed / not-found messages; actions Publish, Duplicate, Rename (prompt 'Theme name'), Delete (confirm 'Delete the theme \"<name>\" and its files?'), page reload after an action; editor header adds Preview and Themes links; editor frame rpc map { currentUser }"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "payload", "plugin", "ux" ]
+
+[decisions.D-0618]
+title = "Packaging: subpaths ./plugin, ./admin, ./admin/client ('use client' banner, own entry imported by self-reference so the boundary survives bundling); CSS and self-imports external in tsdown; extra optional peers @payloadcms/next ^3.90.2 and @puckeditor/core ~0.23.0 (beyond the planned list), all admin peers optional via peerDependenciesMeta"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "payload", "packaging" ]
+
+[decisions.D-0619]
+title = "examples/payload: src/origins.ts shares HOST_ORIGINS/EDITOR_ORIGIN/SITE_ORIGIN between the Payload config and puck-remote.config.ts (avoids an import cycle); @puck-remote/artifacts-fs dependency removed once the Payload store is used"
+adr = "feat/payload"
+date = "2026-10-13"
+provenance = "agent-unreviewed"
+status = "needs-review"
+tags = [ "example" ]
+
+[decisions.D-0620]
+title = "Template switcher renders in Puck's title slot (passed as headerTitle with a cast; a test pins it)"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "templates" ]
+
+[decisions.D-0621]
+title = "Template list comes from payload.manifest.files via templateNames(manifest) in @puck-remote/editor/frame (own regex copy, tested against core's)"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "templates" ]
+
+[decisions.D-0622]
+title = "Navigation by ?previewPath=: PuckEditorFrame prop templateHref(name) => string; without it the header keeps the static title"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "templates" ]
+
+[decisions.D-0623]
+title = "Modular UI: templateSwitcher?: ComponentType<TemplateSwitcherProps> | false; TemplateSwitcherProps { current, templates, href }; default TemplateSwitcher exported; templates always includes current; no built-in allow-list"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "templates" ]
+
+[decisions.D-0624]
+title = "An explicit headerTitle string wins over the switcher"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates" ]
+
+[decisions.D-0625]
+title = "Default switcher is a native select: root templates first, nested in optgroup '<dir>/' labelled by last segment; change calls location.assign(href(name))"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "templates" ]
+superseded_by = "D-0643"
+
+[decisions.D-0626]
+title = "Unsaved changes: examples add a beforeunload warning while dirty; no confirm logic in the frame"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates" ]
+
+[decisions.D-0627]
+title = "Example app templateHref: /editor?previewPath=<'/' for home, else /<name>>, keeping ?theme="
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates" ]
+
+[decisions.D-0628]
+title = "Payload plugin option previewPath?: (name) => string, inverse of template; default defaultPreviewPath (home -> '/', else '/<name>'); EditorClient builds templateHref from the view URL keeping theme"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates" ]
+
+[decisions.D-0629]
+title = "Example theme gets a nested templates/blog/post.json demo"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates" ]
+
+[decisions.D-0630]
+title = "Work on feat/template-switcher branched from feat/payload HEAD, carrying its uncommitted changes untouched; own ADR"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates" ]
+
+[decisions.D-0631]
+title = "Tests: templateNames (nested, ignore others, sorted, regex parity with core), groupTemplates order, server render of the header showing the select"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "superseded"
+tags = [ "editor", "templates" ]
+superseded_by = "D-0644"
+
+[decisions.D-0632]
+title = "Payload EditorView precomputes templatePaths: Record<name, previewPath> (theme templates + current) for EditorClient; templateNameOf newly exported from @puck-remote/core"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "templates", "payload" ]
+
+[decisions.D-0633]
+title = "Selector popover uses @radix-ui/react-popover 1.2.0 (exact pin, the version Puck resolves) as a dependency of @puck-remote/editor"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+
+[decisions.D-0634]
+title = "No search field: the selector is a list with keyboard navigation"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+
+[decisions.D-0635]
+title = "Composable API: TemplateSelector with TemplateSelector.Template { name, label? } and TemplateSelector.Folder { path, label?, children }; level context so nodes may be wrapped"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+
+[decisions.D-0636]
+title = "PuckEditorFrame provides current and href to TemplateSelector through context; TemplateSelector props current/href override it"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+
+[decisions.D-0637]
+title = "Default tree: templateTree(names) -> { templates, folders: { path, tree }[] }; TemplateSelector.Auto renders it; TemplateSwitcher = TemplateSelector + Auto; templateSwitcher prop and TemplateSwitcherProps unchanged"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+
+[decisions.D-0638]
+title = "Popover content: 280px, start-aligned, 6px offset, 360px max list height, Puck surface/border-muted/radius-l, soft shadcn shadow, 150ms fade+scale off with reduced motion; rows 32px with azure-11 hover/focus, templates as links with check + aria-current, folders as buttons with chevron"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+
+[decisions.D-0639]
+title = "Shopify-like drill-down: folder click shows its contents with a back button and clickable breadcrumb 'Templates / …'; opens at the root (label 'Templates'); empty folder shows 'No templates'"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+
+[decisions.D-0640]
+title = "Keyboard: arrows/Home/End move focus; ArrowRight/Enter open a folder; ArrowLeft/Backspace go back; Escape closes; focus first row on open and level change"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+
+[decisions.D-0641]
+title = "Styles: one React 19 hoisted <style href='puck-remote-template-selector' precedence='default'>, class prefix prt-, inline Lucide icon paths (ISC, credited)"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+
+[decisions.D-0642]
+title = "Selector lives in packages/editor/src/template-selector.tsx, re-exported from @puck-remote/editor/frame"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+
+[decisions.D-0643]
+title = "groupTemplates removed and the native select UI replaced by the selector (trigger: ghost button, file icon, muted directory / semibold name, chevrons-up-down; Puck tokens)"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+supersedes = [ "D-0625" ]
+
+[decisions.D-0644]
+title = "Tests: happy-dom 20.14.5 devDependency (per-file environment); templateTree units, SSR trigger in Puck's title slot, interaction tests with react-dom/client + act (drill-down, breadcrumb, keyboard, aria-current, custom wrapped tree)"
+adr = "feat/template-switcher"
+date = "2026-10-13"
+provenance = "user-approved-plan"
+status = "accepted"
+tags = [ "editor", "templates", "ui" ]
+supersedes = [ "D-0631" ]
 
 [relationships.depends_on]
 "feat/pluggable-data-source" = [ "feat/poc-sandboxed-blocks" ]

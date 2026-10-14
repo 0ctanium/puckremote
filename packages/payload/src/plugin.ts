@@ -28,6 +28,8 @@ export interface PuckRemotePluginOptions {
   access?: (args: { user: PayloadUser }) => boolean | Promise<boolean>
   /** The template (and params) a site path renders, for `?previewPath=`. Default: the path names the template ('/' → 'home'). */
   template?: (previewPath: string) => { name: string; params?: Record<string, string> } | null
+  /** The inverse of `template`: the site path of a template, for the editor's template switcher. Default: defaultPreviewPath. */
+  previewPath?: (name: string) => string
 }
 
 const NAME = /^[a-z0-9][a-z0-9-]{0,63}(\/[a-z0-9][a-z0-9-]{0,63}){0,4}$/
@@ -36,6 +38,11 @@ const NAME = /^[a-z0-9][a-z0-9-]{0,63}(\/[a-z0-9][a-z0-9-]{0,63}){0,4}$/
 export function defaultTemplate(previewPath: string): { name: string; params: Record<string, string> } | null {
   const name = previewPath.replace(/^\/+|\/+$/g, '') || 'home'
   return NAME.test(name) ? { name, params: { slug: name } } : null
+}
+
+/** The default template → path rule (the inverse of defaultTemplate): 'home' → '/', 'blog/x' → '/blog/x'. */
+export function defaultPreviewPath(name: string): string {
+  return name === 'home' ? '/' : `/${name}`
 }
 
 /** Resolved options, shared by the endpoints and the admin views. */
@@ -63,6 +70,7 @@ export function puckRemotePlugin(opts: PuckRemotePluginOptions): Plugin {
       previewAs: 'user',
       artifacts: true,
       template: defaultTemplate,
+      previewPath: defaultPreviewPath,
       ...opts,
       access: opts.access ?? (({ user }) => user.collection === adminUser),
     }

@@ -21,7 +21,18 @@ description: From opening the admin page to publishing, step by step.
    `editorUrl`, the editor origin and `payload.origins.editor` must agree. Only then does it render
    the iframe (`sandbox="allow-scripts allow-same-origin allow-forms allow-popups"`,
    `referrerPolicy="no-referrer"`). An internal `EditorBridge` listens through
-   `hostMessageHandler`.
+   `hostMessageHandler`. With `templateHref`, the header title is the template switcher, listing
+   `templateNames(payload.manifest)` plus the current template. Puck 0.23 types `headerTitle` as a
+   string but renders it as a React child of its title heading, so the switcher is passed there
+   with a cast ([D-0620](/docs/internal/decisions#D-0620)); `template-selector.test.tsx` renders the
+   header to pin it. The selector (`template-selector.tsx`) is a Radix Popover
+   ([D-0633](/docs/internal/decisions#D-0633)). `<PuckEditorFrame>` provides `current` and `href`
+   through context. Each `Template` and `Folder` reads its level (the folder paths above it) from a
+   level context and renders only when that level is the one open, so nodes can be wrapped.
+   Radix mounts the portal's content one render after opening, so the first row is focused in
+   `onOpenAutoFocus`, and level changes in a layout effect. The styles are a single React 19
+   `<style href precedence>`, hoisted and deduped ([D-0642](/docs/internal/decisions#D-0642)). The Payload view runs its `previewPath` option on the server and passes the
+   resulting `templatePaths` map to the client ([D-0632](/docs/internal/decisions#D-0632)).
 3. **Editor page** (your app, on the editor origin, which the proxy serves at `/` with the editor
    CSP): `remote.loadEditorPage()` (404 off `origins.editor`) gives `allowedParents` (`origins.host`)
    to `<PuckRemoteEditor>`. Its effect calls `connectToHost`, which posts `ready` to each allowed

@@ -7,7 +7,7 @@ import '@puckeditor/core/puck.css'
 import { createUsePuck } from '@puckeditor/core'
 import type { EditorPayload } from '@puck-remote/core'
 import { PuckEditorFrame, stripResolved } from '@puck-remote/editor/frame'
-import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 
 type EditedTheme = { id: string; name: string; role: string }
 
@@ -39,6 +39,13 @@ function HeaderActions({ children }: { children: ReactNode }) {
   // The first state Puck holds (after its own normalization) is the published one.
   state.baseline.current ??= saved(data)
   const dirty = saved(data) !== state.baseline.current
+  // Leaving the page (the template switcher included) with unpublished changes asks first.
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
   return (
     <>
       <span style={{ color: '#64748b', font: '13px system-ui, sans-serif' }} data-testid="status">
@@ -66,6 +73,12 @@ export function EditorClient(props: {
   api: string
   themesUrl: string
   previewUrl: string | null
+  /** This view's URL, for the template switcher's links. */
+  editorUrlBase: string
+  /** The ?theme= this view was opened with (kept when switching templates). */
+  themeParam: string | null
+  /** The site path of each template (the plugin's previewPath, run on the server). */
+  templatePaths: Record<string, string>
   user: string
   theme: EditedTheme
 }) {
@@ -106,6 +119,11 @@ export function EditorClient(props: {
           onPublish={handlePublish}
           onError={(m) => setStatus(`Editor: ${m}`)}
           overrides={OVERRIDES}
+          templateHref={(name) => {
+            const search = new URLSearchParams({ previewPath: props.templatePaths[name] ?? `/${name}` })
+            if (props.themeParam) search.set('theme', props.themeParam)
+            return `${props.editorUrlBase}?${search}`
+          }}
         />
       </div>
     </PublishContext.Provider>

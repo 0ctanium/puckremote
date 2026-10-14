@@ -2,7 +2,7 @@
 import { createUsePuck } from "@puckeditor/core";
 import type { EditorPayload } from "@puck-remote/next";
 import { PuckEditorFrame, stripResolved } from "@puck-remote/editor/frame";
-import { createContext, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { logout } from "../login/actions";
 import { publish, resolveData } from "./actions";
 import { rpc } from "./rpc";
@@ -26,6 +26,13 @@ function HeaderActions({ children }: { children: ReactNode }) {
   // The first state Puck holds (after its own normalization) is the published one.
   state.baseline.current ??= saved(data);
   const dirty = saved(data) !== state.baseline.current;
+  // Leaving the page (the template switcher included) with unpublished changes asks first.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
   return (
     <>
       <span style={{ color: "#64748b", font: "13px system-ui, sans-serif" }} data-testid="status">
@@ -47,7 +54,20 @@ const OVERRIDES = { headerActions: HeaderActions };
  * Admin UI: Puck's native layout on this page (header, rail, outline, fields), the editor frame in
  * the middle. Publish saves to `theme` (the main theme, or another one opened with ?theme=).
  */
-export function ClientEditor({ payload, editorUrl, user, theme }: { payload: EditorPayload; editorUrl: string; user: string; theme: EditedTheme }) {
+export function ClientEditor({
+  payload,
+  editorUrl,
+  user,
+  theme,
+  themeParam,
+}: {
+  payload: EditorPayload;
+  editorUrl: string;
+  user: string;
+  theme: EditedTheme;
+  /** The ?theme= this page was opened with (kept when switching templates). */
+  themeParam: string | null;
+}) {
   const { template } = payload;
   const [hash, setHash] = useState(payload.hash);
   const [status, setStatus] = useState("");
@@ -81,6 +101,12 @@ export function ClientEditor({ payload, editorUrl, user, theme }: { payload: Edi
         onPublish={handlePublish}
         onError={(m) => setStatus(`Editor: ${m}`)}
         overrides={OVERRIDES}
+        // The header's template switcher opens the page a template renders (same rule as the catch-all).
+        templateHref={(name) => {
+          const search = new URLSearchParams({ previewPath: name === "home" ? "/" : `/${name}` });
+          if (themeParam) search.set("theme", themeParam);
+          return `/editor?${search}`;
+        }}
       />
     </PublishContext.Provider>
   );

@@ -53,6 +53,16 @@ the configured editor origin and the message comes from an admin origin. Every m
 validated against the typed protocol (version, shape, size). See
 [Editor protocol](/docs/internal/architecture/editor-protocol).
 
+## Switching templates
+
+Like Shopify's theme editor, the admin header can show a **template switcher** instead of the
+title: a list of the theme's templates (`templates/**/*.json`), where clicking a folder shows its
+contents, with a breadcrumb back ([D-0620](/docs/internal/decisions#D-0620),
+[D-0640](/docs/internal/decisions#D-0640)). Your app decides where each template opens:
+pass `templateHref(name)`, which usually links to your admin page with `?previewPath=`. You can
+compose the list yourself, for example to label templates or show only some names
+([Customizing the editor](/docs/guides/editor-app#template-switcher)).
+
 ## Data in the editor
 
 Blocks with data get a Puck `resolveData` **on the admin page**, which calls your `resolveData`

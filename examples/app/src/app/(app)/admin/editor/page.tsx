@@ -33,6 +33,7 @@ export default async function AdminPage(props: {
       editorUrl={EDITOR_URL}
       user={user}
       theme={{ id: theme.id, name: theme.name, role: theme.role }}
+      themeParam={ref ?? null}
     />
   );
 }

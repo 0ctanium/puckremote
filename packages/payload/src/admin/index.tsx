@@ -125,6 +125,11 @@ export async function EditorView(props: ViewProps) {
   if (!theme) return <Message props={props}>No such theme.</Message>
   const payload = await core.editorPayload(target.name, { params: target.params, theme: theme.id })
   const { routes } = props.initPageResult.req.payload.config
+  // The switcher's links: the site path of each template (the plugin's previewPath runs here).
+  const { templateNameOf } = await import('@puck-remote/core')
+  const names = new Set(Object.keys(payload.manifest.files).map(templateNameOf).filter((n) => n !== null))
+  names.add(target.name)
+  const templatePaths = Object.fromEntries([...names].map((name) => [name, o.previewPath(name)]))
   return (
     <EditorClient
       payload={payload}
@@ -132,6 +137,9 @@ export async function EditorView(props: ViewProps) {
       api={routes.api}
       themesUrl={`${routes.admin}/puck-remote`}
       previewUrl={core.createPreviewUrl(theme)}
+      editorUrlBase={`${routes.admin}/puck-remote/editor`}
+      themeParam={ref ?? null}
+      templatePaths={templatePaths}
       user={String(user.email ?? user.id)}
       theme={{ id: theme.id, name: theme.name, role: theme.role }}
     />

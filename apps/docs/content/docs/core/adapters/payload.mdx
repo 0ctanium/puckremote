@@ -201,6 +201,7 @@ Then run `payload generate:importmap` to register the admin views.
     artifacts: { description: "Add the artifact store's collections.", type: 'boolean', default: 'true' },
     access: { description: "Who may open the views and call the endpoints.", type: '({ user }) => boolean | Promise<boolean>', default: 'users of config.admin.user' },
     template: { description: "The template (and params) a site path renders, for ?previewPath=. null: not found.", type: '(previewPath: string) => { name; params? } | null', default: "the path names the template ('/' → 'home', params { slug })" },
+    previewPath: { description: "The inverse of template: the site path of a template, for the editor's template switcher. Set it when you set template.", type: '(name: string) => string', default: "defaultPreviewPath ('home' → '/', else '/<name>')" },
   }}
 />
 
@@ -209,7 +210,7 @@ It adds, on your host (admin) origin:
 | What | Where |
 |---|---|
 | Themes view: the themes by role (current, library, development) with Customize, Preview, Publish, Duplicate, Rename and Delete | `<admin>/puck-remote`, and a **Themes** nav link |
-| Editor view: Puck around `<PuckEditorFrame>`, with Publish (saves the template into the theme; a theme changed since the editor opened is a conflict), the theme and user, a preview link for non-main themes | `<admin>/puck-remote/editor?previewPath=/x&theme=<id>` |
+| Editor view: Puck around `<PuckEditorFrame>`, with a template switcher in the header ([D-0628](/docs/internal/decisions#D-0628)), Publish (saves the template into the theme; a theme changed since the editor opened is a conflict), the theme and user, a preview link for non-main themes | `<admin>/puck-remote/editor?previewPath=/x&theme=<id>` |
 | Endpoints the views call, authenticated by Payload's session and checked with `access` | `POST <api>/puck-remote/resolve-data`, `/publish`, `/themes/:op` |
 
 With `previewAs: 'user'` the editor's `resolveData` forwards the admin's request, so the data source

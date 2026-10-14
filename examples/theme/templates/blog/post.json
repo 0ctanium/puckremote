@@ -1,0 +1,19 @@
+{
+  "root": {
+    "props": {
+      "title": "Blog post",
+      "description": "A nested template (templates/blog/post.json)",
+      "theme": "light"
+    }
+  },
+  "content": [
+    {
+      "type": "quote",
+      "props": {
+        "id": "blog-post-quote",
+        "text": "Templates can live in sub-directories.",
+        "author": "puck-remote"
+      }
+    }
+  ]
+}
